@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// Firebase Storage Rules für das Dokument-Management-System
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ===== DOKUMENT-MANAGEMENT-SYSTEM =====
+    
+    // Projekt-Dokumente: concerns/{concernID}/projects/{projectId}/documents/{documentId}
+    match /concerns/{concernID}/projects/{projectId}/documents/{documentId} {
+      // Erstellen/Upload: Nur authentifizierte Benutzer mit entsprechender concernID
+      allow create: if request.auth != null 
+                    && request.auth.token.concernID != null
+                    && request.auth.token.concernID == concernID;
+      
+      // Lesen: Authentifizierte Benutzer mit entsprechender concernID
+      allow read: if request.auth != null 
+                  && request.auth.token.concernID != null
+                  && request.auth.token.concernID == concernID;
+      
+      // Aktualisieren: Nur der Uploader oder Admin/Manager
+      allow update: if request.auth != null 
+                    && request.auth.token.concernID != null
+                    && request.auth.token.concernID == concernID
+                    && (request.auth.token.role == 'admin' 
+                        || request.auth.token.role == 'manager'
+                        || resource.metadata.uploadedBy == request.auth.uid);
+      
+      // Löschen: Nur der Uploader oder Admin
+      allow delete: if request.auth != null 
+                    && request.auth.token.concernID != null
+                    && request.auth.token.concernID == concernID
+                    && (request.auth.token.role == 'admin' 
+                        || resource.metadata.uploadedBy == request.auth.uid);
+    }
+    
+    // Thumbnails: concerns/{concernID}/projects/{projectId}/documents/{documentId}/thumbnails/{thumbnailId}
+    match /concerns/{concernID}/projects/{projectId}/documents/{documentId}/thumbnails/{thumbnailId} {
+      allow create, read, update, delete: if request.auth != null 
+                                          && request.auth.token.concernID != null
+                                          && request.auth.token.concernID == concernID;
+    }
+    
+    // Dokument-Versionen: concerns/{concernID}/projects/{projectId}/documents/{documentId}/versions/{versionId}
+    match /concerns/{concernID}/projects/{projectId}/documents/{documentId}/versions/{versionId} {
+      allow create, read, update, delete: if request.auth != null 
+                                          && request.auth.token.concernID != null
+                                          && request.auth.token.concernID == concernID;
+    }
+    
+    // ===== ALLGEMEINE REGELN =====
+    
+    // Alle anderen Pfade: Standardmäßig verweigern
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
