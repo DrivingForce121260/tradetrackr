@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "TradeTrackr Field",
+    "slug": "tradetrackr-field",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/TTroundLogo.jpg",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.tradetrackr.field",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Diese App benötigt Zugriff auf die Kamera, um Fotos von Baustellen aufzunehmen.",
+        "NSPhotoLibraryUsageDescription": "Diese App benötigt Zugriff auf Ihre Fotobibliothek, um Fotos zu speichern."
+      }
+    },
+    "android": {
+      "package": "com.mycompany.ReportingApp817",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    }
+  }
+}
+

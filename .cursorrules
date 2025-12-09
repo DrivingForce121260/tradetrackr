@@ -1,0 +1,48 @@
+# Cursor Rules für TradeTrackr Mobile App
+
+## Automatischer APK Build nach Änderungen
+
+Nach jeder Änderungssession an Mobile App-Dateien sollte automatisch ein APK gebaut werden.
+
+### Auszuführende Aktionen nach jeder Session:
+
+1. **APK Build ausführen:**
+   ```powershell
+   .\build-after-changes.ps1
+   ```
+   
+   Oder alternativ:
+   ```powershell
+   npm run build:android:auto
+   ```
+
+2. **Build-Status prüfen:**
+   - Prüfen Sie, ob die APK erfolgreich erstellt wurde
+   - Prüfen Sie die Build-Logs auf Fehler
+   - Bestätigen Sie die APK-Größe und den Speicherort
+
+### Dateien, die einen Build auslösen sollten:
+
+- Alle Dateien in `src/` (React Native Code)
+- `android/` Konfigurationsdateien
+- `package.json` (Dependency-Änderungen)
+- `app.json` oder `app.config.js` (App-Konfiguration)
+
+### Automatische Build-Strategie:
+
+1. **Nach jeder Code-Änderung:** Führe `build-after-changes.ps1` aus
+2. **Bei größeren Änderungen:** Führe Clean Build aus: `.\auto-build-apk.ps1 -Clean`
+3. **Bei kontinuierlicher Entwicklung:** Aktiviere Watch-Modus: `.\auto-build-apk.ps1 -Watch`
+
+### Build-Ergebnis:
+
+Die APK wird automatisch ins Root-Verzeichnis kopiert mit Timestamp:
+- Format: `TradeTrackr-Mobile-v1.0-Release-[YYYYMMDD-HHMMSS].apk`
+- Größe: ~80 MB
+- Signiert: Ja (Release-Keystore)
+
+
+
+
+
+

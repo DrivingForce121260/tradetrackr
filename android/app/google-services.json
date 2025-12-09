@@ -1,0 +1,72 @@
+{
+  "project_info": {
+    "project_number": "1092243252525",
+    "project_id": "reportingapp817",
+    "storage_bucket": "reportingapp817.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1092243252525:android:2d7a3cb22a75c90f215fa4",
+        "android_client_info": {
+          "package_name": "com.mycompany.ReportingApp817"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgpmu_B5D--n7L8AQpn2GzHP47zMPbeqw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1092243252525:android:1b6b0f3524178dc4215fa4",
+        "android_client_info": {
+          "package_name": "com.mycompany.reportapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgpmu_B5D--n7L8AQpn2GzHP47zMPbeqw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1092243252525:android:3575539f9c85dd0d215fa4",
+        "android_client_info": {
+          "package_name": "com.mycompany.tradetrackradmin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgpmu_B5D--n7L8AQpn2GzHP47zMPbeqw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+
+
+
+
+

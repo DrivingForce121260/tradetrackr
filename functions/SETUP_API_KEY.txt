@@ -1,0 +1,44 @@
+========================================
+QUICK START: Gemini API Key Setup
+========================================
+
+WICHTIG: Der alte Befehl ist deprecated! Verwende eine dieser Methoden:
+
+METHODE 1 (Empfohlen): Lokal mit .env Datei
+------------------------------------------
+1. Erstelle Datei: functions/.env
+2. Füge hinzu: GEMINI_API_KEY=dein_api_key_hier
+3. Ersetze "dein_api_key_hier" mit deinem echten Key
+4. Get Key hier: https://aistudio.google.com/app/apikey
+
+METHODE 2: Für Firebase Deployment
+----------------------------------
+firebase functions:config:set gemini.api_key="YOUR_API_KEY"
+
+Dann deployen:
+cd ..
+firebase deploy --only functions
+
+METHODE 3: Environment Variable direkt setzen
+---------------------------------------------
+Windows PowerShell:
+$env:GEMINI_API_KEY="YOUR_API_KEY"
+firebase deploy --only functions
+
+========================================
+Mehr Details: functions/GEMINI_API_SETUP.md
+========================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+

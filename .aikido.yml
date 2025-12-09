@@ -1,0 +1,201 @@
+# Aikido Security Configuration for TradeTrackr Portal
+# https://docs.aikido.dev/docs/configuration
+
+# Project settings
+project:
+  name: "TradeTrackr Portal"
+  language: "typescript"
+  
+# Scan configuration
+scan:
+  # Enable all scan types
+  dependencies: true
+  code: true
+  secrets: true
+  iac: true
+  
+  # Paths to scan
+  include:
+    - "src/**"
+    - "functions/**"
+    - "public/**"
+    - "*.ts"
+    - "*.tsx"
+    - "*.js"
+    - "*.json"
+    
+  # Paths to exclude
+  exclude:
+    - "node_modules/**"
+    - "build/**"
+    - "dist/**"
+    - ".firebase/**"
+    - "coverage/**"
+    - "*.test.ts"
+    - "*.test.tsx"
+    - "*.spec.ts"
+    - "**/*.min.js"
+    - "**/*.bundle.js"
+    
+# Dependency scanning
+dependencies:
+  # Package managers to scan
+  package_managers:
+    - npm
+    - yarn
+  
+  # Scan both root and functions
+  manifests:
+    - "package.json"
+    - "package-lock.json"
+    - "functions/package.json"
+    - "functions/package-lock.json"
+  
+  # Severity threshold (fail on high and critical)
+  fail_on_severity: "high"
+  
+  # Auto-fix settings
+  auto_fix:
+    enabled: false  # Set to true to enable automatic dependency updates
+    
+# Code scanning
+code:
+  # Language-specific settings
+  typescript:
+    enabled: true
+    
+  javascript:
+    enabled: true
+    
+  # Security rules
+  rules:
+    - "sql-injection"
+    - "xss"
+    - "path-traversal"
+    - "command-injection"
+    - "unsafe-regex"
+    - "hardcoded-secrets"
+    - "weak-crypto"
+    - "insecure-randomness"
+    
+# Secret scanning
+secrets:
+  enabled: true
+  
+  # Patterns to detect
+  patterns:
+    - "firebase"
+    - "google-api-key"
+    - "aws-access-key"
+    - "jwt-token"
+    - "private-key"
+    - "sendgrid-api-key"
+    - "stripe-key"
+    
+  # Allowlist (false positives)
+  allowlist:
+    - "EXAMPLE_API_KEY"
+    - "YOUR_API_KEY_HERE"
+    - "DEMO_KEY"
+    
+# Infrastructure as Code scanning
+iac:
+  enabled: true
+  
+  # Cloud providers
+  providers:
+    - "firebase"
+    - "gcp"
+    
+  # Files to scan
+  files:
+    - "firebase.json"
+    - "firestore.rules"
+    - "firestore.indexes.json"
+    - "storage.rules"
+    
+# Notification settings
+notifications:
+  # Severity levels to notify
+  on_severity:
+    - "critical"
+    - "high"
+    
+  # Channels (configure in Aikido dashboard)
+  channels:
+    - "email"
+    - "slack"  # Configure Slack webhook in dashboard
+    
+# CI/CD integration
+ci:
+  # Fail build on security issues
+  fail_on_timeout: true
+  fail_on_error: true
+  
+  # Timeout for scans (seconds)
+  timeout: 300
+  
+  # Comparison mode (compare with main branch)
+  compare_with_branch: "main"
+  
+# Reporting
+reporting:
+  # Generate reports
+  formats:
+    - "json"
+    - "sarif"  # For GitHub Code Scanning
+    - "html"
+    
+  # Output directory
+  output_dir: ".aikido/reports"
+  
+# Performance
+performance:
+  # Parallel scanning
+  parallel_workers: 4
+  
+  # Cache settings
+  cache:
+    enabled: true
+    ttl: 86400  # 24 hours
+    
+# Compliance
+compliance:
+  # Standards to check against
+  standards:
+    - "owasp-top-10"
+    - "cwe-top-25"
+    - "gdpr"
+    
+# Custom rules (optional)
+custom_rules:
+  # Example: Enforce Firebase security rules
+  - id: "firebase-auth-required"
+    name: "Firebase Authentication Required"
+    description: "Ensure Firebase operations require authentication"
+    severity: "high"
+    pattern: "firebase\\.(firestore|database)\\(\\)\\..*\\.get\\(\\)"
+    message: "Direct Firebase access without auth check detected"
+    
+  # Example: Detect console.log in production
+  - id: "no-console-log-production"
+    name: "No Console Logs in Production"
+    description: "Remove console.log statements from production code"
+    severity: "low"
+    pattern: "console\\.(log|debug|info)"
+    exclude:
+      - "**/*.test.ts"
+      - "**/*.spec.ts"
+
+
+
+
+
+
+
+
+
+
+
+
+

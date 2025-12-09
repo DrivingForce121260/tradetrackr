@@ -1,0 +1,122 @@
+# Aikido Security Scan Workflow for TradeTrackr Portal
+name: Aikido Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd functions && npm ci && cd ..
+          
+      - name: Install Aikido CLI
+        run: npm install -g @aikidosec/cli
+        
+      - name: Run Aikido Scan
+        env:
+          AIKIDO_API_KEY: ${{ secrets.AIKIDO_API_KEY }}
+        run: |
+          aikido scan \
+            --fail-on-severity high \
+            --format sarif \
+            --output aikido-results.sarif
+            
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: aikido-results.sarif
+          category: aikido-security
+          
+      - name: Generate HTML Report
+        if: always()
+        run: |
+          aikido scan --format html --output aikido-report.html
+          
+      - name: Upload HTML Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aikido-security-report
+          path: aikido-report.html
+          retention-days: 30
+          
+      - name: Comment PR with Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const sarif = JSON.parse(fs.readFileSync('aikido-results.sarif', 'utf8'));
+            const results = sarif.runs[0]?.results || [];
+            
+            const critical = results.filter(r => r.level === 'error');
+            const high = results.filter(r => r.level === 'warning');
+            const medium = results.filter(r => r.level === 'note');
+            
+            const comment = `## 🛡️ Aikido Security Scan Results
+            
+            | Severity | Count |
+            |----------|-------|
+            | 🔴 Critical | ${critical.length} |
+            | 🟠 High | ${high.length} |
+            | 🟡 Medium | ${medium.length} |
+            
+            ${critical.length > 0 ? '⚠️ **Critical issues found!** Please review and fix before merging.' : '✅ No critical issues found.'}
+            
+            [View full report in Actions artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+            
+      - name: Fail on critical issues
+        if: always()
+        run: |
+          aikido scan --fail-on-severity critical --quiet || exit 1
+
+
+
+
+
+
+
+
+
+
+
+
+

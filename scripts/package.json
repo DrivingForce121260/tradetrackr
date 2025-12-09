@@ -1,0 +1,14 @@
+{
+  "name": "tradetrackr-scripts",
+  "version": "1.0.0",
+  "description": "Utility scripts for TradeTrackr",
+  "scripts": {
+    "cleanup-duplicates": "node cleanup-email-duplicates.js",
+    "find-admins": "node find-admins.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "firebase": "^10.7.1",
+    "firebase-admin": "^12.6.0"
+  }
+}
