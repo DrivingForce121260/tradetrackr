@@ -116,6 +116,7 @@ build-log*.txt
 backups/
 backup_*/
 android_backup/
+export_vps/
 
 ########################
 # IDE / Editor
