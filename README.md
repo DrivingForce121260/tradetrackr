@@ -493,4 +493,5 @@ Die TradeTrackr Field App ist vollständig **produktionsreif und gehärtet**:
 
 Die App ist bereit für den Einsatz auf Baustellen!
 #   t r a d e t r a c k r  
+ #   t r a d e t r a c k r  
  
