@@ -8,7 +8,7 @@ const LanguageSelector: React.FC = () => {
   const { language, setLanguage } = useLanguage();
 
   const languages = [
-    { code: 'de', name: 'Deutsch', flag: '🇩🇪' }
+    { code: 'de', name: 'Deutsch', flag: 'ðŸ‡©ðŸ‡ª' }
   ];
 
   const currentLanguage = languages.find(lang => lang.code === language) || languages[0];
@@ -32,7 +32,7 @@ const LanguageSelector: React.FC = () => {
             <span>{lang.flag}</span>
             <span>{lang.name}</span>
             {language === lang.code && (
-              <span className="ml-auto text-green-600">✓</span>
+              <span className="ml-auto text-green-600">âœ“</span>
             )}
           </DropdownMenuItem>
         ))}

@@ -20,6 +20,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
   const [showDatenschutz, setShowDatenschutz] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [showUnderConstruction, setShowUnderConstruction] = useState(false);
+  const [showCloudStorage, setShowCloudStorage] = useState(false);
 
   const features = {
     projectManagement: {
@@ -111,7 +112,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
     timeTracking: {
       icon: Clock,
       details: {
-        title: "Zeiterfassung - Prö¤zise Arbeitszeiten",
+        title: "Zeiterfassung - Präzise Arbeitszeiten",
         features: [
           "Automatische Zeiterfassung pro Projekt",
           "Start- und Stopp-Funktion für Arbeitszeiten",
@@ -144,7 +145,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         ],
         benefits: [
           "Übersichtliche Materialkategorisierung",
-          "Prö¤zise Kostenkontrolle",
+          "Präzise Kostenkontrolle",
           "Optimale Bestandsverwaltung",
           "Schnelle Materialsuche"
         ]
@@ -155,12 +156,12 @@ const LandingPage: React.FC<LandingPageProps> = () => {
       details: {
         title: "Messaging - Interne Kommunikation",
         features: [
-          "WhatsApp-ö¤hnliche Chat-Funktionen",
+          "WhatsApp-ähnliche Chat-Funktionen",
           "Gruppennachrichten für Projektteams",
           "Direktnachrichten zwischen Mitarbeitern",
           "Datei- und Bildaustausch",
           "Nachrichtenverlauf und -archiv",
-          "Online-Status und Lesebestö¤tigungen",
+          "Online-Status und Lesebestätigungen",
           "Mobile und Desktop-Benachrichtigungen"
         ],
         benefits: [
@@ -168,6 +169,32 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           "Verbesserte Teamkoordination",
           "Weniger E-Mails und Telefonate",
           "Projektspezifische Diskussionen"
+        ]
+      }
+    },
+    cloudStorage: {
+      icon: Database,
+      details: {
+        title: "Cloud-Speicher - Skalierbare Datensicherung",
+        features: [
+          "2 GB kostenloser Speicher pro Lizenz automatisch inklusive",
+          "Basic: 500 GB Standard (Regional) für €12,99/Monat",
+          "Pro: 1 TB Standard + 1 TB Archiv für €32,99/Monat",
+          "Enterprise: 1 TB Premium (Multi-Region) für €39,99/Monat",
+          "Flexible Erweiterung mit 500 GB-Blöcken nach Bedarf",
+          "EU-Datenresidenz und vollständige DSGVO-Compliance",
+          "Lifecycle-Regeln für automatische Archivierung",
+          "Dateiversionierung und Wiederherstellungsfunktionen",
+          "99,95% Verfügbarkeits-SLA für Enterprise-Kunden",
+          "Rollenbasierte Zugriffsrechte und Audit-Logs",
+          "Nahtlose Integration in TradeTrackr-Plattform"
+        ],
+        benefits: [
+          "Sichere und skalierbare Datenspeicherung in der EU",
+          "Kostentransparenz durch einfache Preismodelle",
+          "Professionelle Backup- und Archivierungsstrategien",
+          "Betrieben auf Google Cloud Infrastructure",
+          "Automatische Compliance mit deutschen Datenschutzgesetzen"
         ]
       }
     }
@@ -211,6 +238,12 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 className="text-gray-600 hover:text-[#058bc0] transition-colors"
               >
                 Preise
+              </button>
+              <button 
+                onClick={() => setShowCloudStorage(true)}
+                className="text-gray-600 hover:text-[#058bc0] transition-colors"
+              >
+                Cloud-Speicher
               </button>
               <a href="#contact" className="text-gray-600 hover:text-[#058bc0] transition-colors">{t('nav.contact')}</a>
             </nav>
@@ -808,9 +841,9 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                   <div className="text-center">
                     <h4 className="text-2xl font-bold text-[#058bc0] mb-4">Monatlich</h4>
                     <div className="mb-6">
-                      <span className="text-5xl font-bold text-gray-900">17,50€</span>
-                      <span className="text-xl text-gray-600 ml-2">netto</span>
-                      <p className="text-sm text-gray-500 mt-2">pro Benutzer / Monat</p>
+                                        <span className="text-5xl font-bold text-gray-900">19,00€</span>
+                  <span className="text-xl text-gray-600 ml-2">netto</span>
+                  <p className="text-sm text-gray-500 mt-2">pro Benutzer / Monat</p>
                     </div>
                     
                     <div className="space-y-4 text-left mb-8">
@@ -854,16 +887,16 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                   </div>
                   
                   <div className="text-center">
-                    <h4 className="text-2xl font-bold text-[#058bc0] mb-4">Jö¤hrlich</h4>
+                    <h4 className="text-2xl font-bold text-[#058bc0] mb-4">Jährlich</h4>
                     <div className="mb-6">
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-2xl text-gray-400 line-through">210€</span>
-                        <span className="text-5xl font-bold text-gray-900">175€</span>
-                      </div>
-                      <span className="text-xl text-gray-600">netto</span>
-                      <p className="text-sm text-gray-500 mt-2">pro Benutzer / Jahr</p>
-                                              <p className="text-sm font-semibold text-[#058bc0] mt-1">
-                          = nur 14,58€ pro Monat
+                                              <div className="flex items-center justify-center gap-2 mb-2">
+                          <span className="text-2xl text-gray-400 line-through">228€</span>
+                          <span className="text-5xl font-bold text-gray-900">190€</span>
+                        </div>
+                        <span className="text-xl text-gray-600">netto</span>
+                        <p className="text-sm text-gray-500 mt-2">pro Benutzer / Jahr</p>
+                        <p className="text-sm font-semibold text-[#058bc0] mt-1">
+                          = nur 15,83€ pro Monat
                         </p>
                     </div>
                     
@@ -890,7 +923,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                       </div>
                       <div className="flex items-start gap-3">
                         <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700 font-semibold">30â‚¬ Ersparnis pro Jahr</span>
+                                                  <span className="text-gray-700 font-semibold">38€ Ersparnis pro Jahr</span>
                       </div>
                     </div>
                     
@@ -898,64 +931,14 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                       className="w-full bg-gradient-to-r from-[#058bc0] to-[#0066cc] hover:from-[#047aa0] hover:to-[#0056b3] text-white py-3 shadow-lg"
                       onClick={() => setShowUnderConstruction(true)}
                     >
-                      Jö¤hrlich starten (Spare 30â‚¬)
+                      Jährlich starten (Spare 38€)
                     </Button>
                   </div>
                 </Card>
               </div>
             </section>
 
-            {/* Storage Options */}
-            <section>
-              <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-                Zusö¤tzlicher Speicher
-              </h3>
-              <div className="max-w-3xl mx-auto">
-                <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
-                  <div className="text-center">
-                    <div className="flex justify-center mb-4">
-                      <div className="bg-[#058bc0] p-3 rounded-full">
-                        <Database className="h-8 w-8 text-white" />
-                      </div>
-                    </div>
-                                          <h4 className="text-xl font-bold text-gray-900 mb-2">50GB Storage-Blöcke</h4>
-                    <div className="mb-4">
-                                              <span className="text-3xl font-bold text-[#058bc0]">5€</span>
-                      <span className="text-lg text-gray-600 ml-2">netto / Monat</span>
-                    </div>
-                    <p className="text-gray-600 mb-4">
-                      Für Organisationen mit hö¶herem Speicherbedarf
-                    </p>
-                    <div className="grid md:grid-cols-2 gap-4 text-left">
-                      <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">Inkludiert:</h5>
-                        <ul className="text-sm text-gray-600 space-y-1">
-                                                  <li>• 50GB zusätzlicher Cloud-Speicher</li>
-                        <li>• Für die gesamte Organisation</li>
-                        <li>• Automatische Backup-Funktionen</li>
-                        <li>• Versionsverwaltung</li>
-                        </ul>
-                      </div>
-                      <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">Ideal für:</h5>
-                        <ul className="text-sm text-gray-600 space-y-1">
-                                                  <li>• Umfangreiche Projektdokumentation</li>
-                        <li>• Große Anzahl von Fotos/Videos</li>
-                        <li>• Langzeitarchivierung</li>
-                        <li>• Wachsende Unternehmen</li>
-                        </ul>
-                      </div>
-                    </div>
-                    <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <p className="text-sm text-yellow-800">
-                        <strong>Hinweis:</strong> Storage-Blöcke können jederzeit hinzugefügt oder entfernt werden. 
-                        Abrechnung erfolgt anteilig zum Nutzungszeitraum.
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            </section>
+
 
             {/* Licensing Details */}
             <section>
@@ -989,7 +972,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                     <li>• 2GB Cloud-Speicher inklusive</li>
                     <li>• Monatlich kündbar (bei monatlicher Zahlung)</li>
                     <li>• 7 Tage kostenlos testen</li>
-                    <li>• Mengenrabatte ab 25 Benutzern verfügbar</li>
+                    <li>• Spezielle Konditionen für größere Teams ab 25 Mitarbeitern</li>
                   </ul>
                 </Card>
               </div>
@@ -1003,25 +986,25 @@ const LandingPage: React.FC<LandingPageProps> = () => {
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Card className="p-4 bg-gray-50">
                   <h5 className="font-semibold text-center mb-2">Einzelunternehmer</h5>
-                  <p className="text-2xl font-bold text-center text-[#058bc0] mb-2">175€</p>
+                  <p className="text-2xl font-bold text-center text-[#058bc0] mb-2">190€</p>
                   <p className="text-sm text-center text-gray-600">pro Jahr (1 Benutzer)</p>
-                  <p className="text-xs text-center text-gray-500 mt-1">€17,50 × 10 Monate (2 Monate geschenkt)</p>
+                                        <p className="text-xs text-center text-gray-500 mt-1">€19,00 × 10 Monate (2 Monate geschenkt)</p>
                 </Card>
                 <Card className="p-4 bg-gray-50">
                   <h5 className="font-semibold text-center mb-2">Kleiner Betrieb</h5>
-                  <p className="text-2xl font-bold text-center text-[#058bc0] mb-2">875€</p>
+                  <p className="text-2xl font-bold text-center text-[#058bc0] mb-2">950€</p>
                   <p className="text-sm text-center text-gray-600">pro Jahr (5 Benutzer)</p>
-                  <p className="text-xs text-center text-gray-500 mt-1">€17,50 × 5 Benutzer × 10 Monate</p>
+                  <p className="text-xs text-center text-gray-500 mt-1">€19,00 × 5 Benutzer × 10 Monate</p>
                 </Card>
                 <Card className="p-4 bg-gray-50">
                   <h5 className="font-semibold text-center mb-2">Mittlerer Betrieb</h5>
-                  <p className="text-2xl font-bold text-center text-[#058bc0] mb-2">1.750€</p>
+                  <p className="text-2xl font-bold text-center text-[#058bc0] mb-2">1.900€</p>
                   <p className="text-sm text-center text-gray-600">pro Jahr (10 Benutzer)</p>
-                  <p className="text-xs text-center text-gray-500 mt-1">€17,50 × 10 Benutzer × 10 Monate</p>
+                  <p className="text-xs text-center text-gray-500 mt-1">€19,00 × 10 Benutzer × 10 Monate</p>
                 </Card>
               </div>
                               <p className="text-center text-sm text-gray-500 mt-4">
-                  Alle Preise zzgl. gesetzlicher MwSt. • Jährliche Abrechnung mit 2 Monaten Rabatt • Mengenrabatte ab 25 Benutzern verfügbar
+                  Alle Preise zzgl. gesetzlicher MwSt. • Jährliche Abrechnung mit 2 Monaten Rabatt • Spezielle Konditionen für größere Teams ab 25 Mitarbeitern
                 </p>
             </section>
 
@@ -1201,7 +1184,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 <Card className="p-6">
                   <h4 className="font-semibold text-lg mb-3 text-[#058bc0]">Umsatzsteuer-ID</h4>
                   <p className="text-gray-700 mb-4">
-                    Umsatzsteuer-Identifikationsnummer gemö¤öŸ Â§ 27 a Umsatzsteuergesetz:
+                    Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz:
                   </p>
                   <p className="font-mono text-sm bg-gray-100 p-2 rounded">
                     DE123456789 <span className="text-gray-500">(Beispiel)</span>
@@ -1213,7 +1196,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                   <div className="text-gray-700 space-y-2">
                     <p>Software-Entwicklung</p>
                     <p>Digitale Handwerkerverwaltung</p>
-                    <p>Cloud-basierte Softwarelö¶sungen</p>
+                    <p>Cloud-basierte Softwarelösungen</p>
                   </div>
                 </Card>
               </div>
@@ -1295,10 +1278,10 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 <Card className="p-6">
                   <h4 className="font-semibold text-lg mb-3 text-[#058bc0]">Technologie</h4>
                   <div className="text-gray-700 space-y-2">
-                    <p>â€¢ React/TypeScript Frontend</p>
-                    <p>â€¢ Cloud-basierte Infrastruktur</p>
-                    <p>â€¢ SSL/TLS-Verschlüsselung</p>
-                    <p>â€¢ HTTPS-öbertragung</p>
+                    <p>• React/TypeScript Frontend</p>
+                    <p>• Cloud-basierte Infrastruktur</p>
+                    <p>• SSL/TLS-Verschlüsselung</p>
+                    <p>• HTTPS-Übertragung</p>
                   </div>
                 </Card>
               </div>
@@ -1323,7 +1306,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-3xl mb-6">
               <FileTextIcon className="h-10 w-10 text-[#058bc0]" />
-              Allgemeine Geschö¤ftsbedingungen
+              Allgemeine Geschäftsbedingungen
             </DialogTitle>
           </DialogHeader>
           
@@ -1409,16 +1392,16 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                   <h4 className="font-semibold text-lg mb-3 text-[#058bc0]">Preismodell</h4>
                   <div className="text-gray-700 space-y-3">
                     <div>
-                      <p className="font-semibold">â‚¬17,50 pro Benutzer/Monat</p>
+                                              <p className="font-semibold">€19,00 pro Benutzer/Monat</p>
                       <p className="text-sm">• Flexibles Benutzer-Management</p>
                       <p className="text-sm">• Alle Funktionen inklusive</p>
                       <p className="text-sm">• Skalierbar nach Bedarf</p>
                     </div>
                     <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                       <p className="text-sm font-medium text-blue-800">Beispiel-Kalkulation:</p>
-                                              <p className="text-sm text-blue-700">• 5 Benutzer = €87,50/Monat</p>
-                        <p className="text-sm text-blue-700">• 10 Benutzer = €175,00/Monat</p>
-                        <p className="text-sm text-blue-700">• 20 Benutzer = €350,00/Monat</p>
+                                              <p className="text-sm text-blue-700">• 5 Benutzer = €95,00/Monat</p>
+                        <p className="text-sm text-blue-700">• 10 Benutzer = €190,00/Monat</p>
+                        <p className="text-sm text-blue-700">• 20 Benutzer = €380,00/Monat</p>
                     </div>
                   </div>
                 </Card>
@@ -1427,7 +1410,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                   <h4 className="font-semibold text-lg mb-3 text-[#058bc0]">Zahlungsbedingungen</h4>
                   <div className="text-gray-700 space-y-2">
                     <p>• Monatliche Abrechnung im Voraus</p>
-                    <p>• €17,50 pro aktiven Benutzer pro Monat</p>
+                    <p>• €19,00 pro aktiven Benutzer pro Monat</p>
                     <p>• Zahlung per Kreditkarte oder SEPA-Lastschrift</p>
                     <p>• Automatische Verlängerung bei fehlender Kündigung</p>
                     <p>• Preisanpassungen mit 30 Tagen Vorankündigung</p>
@@ -1501,7 +1484,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                   </div>
                   <div>
                     <h4 className="font-semibold text-lg mb-2 text-[#058bc0]">Haftungsumfang</h4>
-                    <p>Die Haftung ist auf den Betrag der im Schadensfall gezahlten monatlichen Nutzungsgebühr (€17,50 × Anzahl aktiver Benutzer) begrenzt. Dies gilt nicht für Schäden aus der Verletzung von Leben, Körper oder Gesundheit.</p>
+                    <p>Die Haftung ist auf den Betrag der im Schadensfall gezahlten monatlichen Nutzungsgebühr (€19,00 × Anzahl aktiver Benutzer) begrenzt. Dies gilt nicht für Schäden aus der Verletzung von Leben, Körper oder Gesundheit.</p>
                   </div>
                   <div>
                     <h4 className="font-semibold text-lg mb-2 text-[#058bc0]">Datenverlust</h4>
@@ -1544,7 +1527,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
               <Card className="p-6">
                 <div className="text-gray-700 space-y-4">
                   <div>
-                    <h4 className="font-semibold text-lg mb-2 text-[#058bc0]">ö„nderungen der AGB</h4>
+                    <h4 className="font-semibold text-lg mb-2 text-[#058bc0]">Änderungen der AGB</h4>
                     <p>Wir behalten uns vor, diese AGB jederzeit zu ändern. Änderungen werden 30 Tage vor Inkrafttreten per E-Mail angekündigt. Bei Widerspruch kann das Vertragsverhältnis gekündigt werden.</p>
                   </div>
                   <div>
@@ -1611,7 +1594,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             <section>
               <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                 <Shield className="h-6 w-6 text-[#058bc0]" />
-                Datenschutzerklö¤rung
+                Datenschutzerklärung
               </h3>
               <Card className="p-6">
                 <div className="text-gray-700 space-y-6">
@@ -1681,7 +1664,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                       <p>Eine Weitergabe Ihrer Daten erfolgt nur:</p>
                       <ul className="list-disc list-inside ml-4 space-y-1">
                         <li>An IT-Dienstleister für Hosting und Wartung (strikte Vertraulichkeit)</li>
-                        <li>Bei gesetzlicher Verpflichtung oder behö¶rdlicher Anordnung</li>
+                        <li>Bei gesetzlicher Verpflichtung oder behördlicher Anordnung</li>
                         <li>Mit Ihrer ausdrücklichen Einwilligung</li>
                       </ul>
                       <p className="mt-2 text-sm text-gray-600">
@@ -1720,13 +1703,13 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                   <div>
                     <h4 className="font-semibold text-lg mb-2 text-[#058bc0]">Datensicherheit</h4>
                     <div className="space-y-2">
-                      <p>Wir setzen technische und organisatorische MaöŸnahmen ein:</p>
+                      <p>Wir setzen technische und organisatorische Maßnahmen ein:</p>
                       <ul className="list-disc list-inside ml-4 space-y-1">
                         <li>Verschlüsselte Datenübertragung (HTTPS/TLS)</li>
                         <li>Verschlüsselte Datenspeicherung</li>
-                        <li>Regelmö¤öŸige Sicherheitsupdates</li>
+                        <li>Regelmäßige Sicherheitsupdates</li>
                         <li>Zugriffskontrollen und Authentifizierung</li>
-                        <li>Regelmö¤öŸige Backups</li>
+                        <li>Regelmäßige Backups</li>
                       </ul>
                     </div>
                   </div>
@@ -1736,7 +1719,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                     <div className="space-y-2">
                       <p>Wir verwenden:</p>
                       <ul className="list-disc list-inside ml-4 space-y-1">
-                        <li><strong>Notwendige Cookies:</strong> Für die Funktionalitö¤t der Anwendung</li>
+                        <li><strong>Notwendige Cookies:</strong> Für die Funktionalität der Anwendung</li>
                         <li><strong>Session-Cookies:</strong> Für die Benutzerauthentifizierung</li>
                         <li><strong>Analytics-Cookies:</strong> Nur mit Ihrer Einwilligung</li>
                       </ul>
@@ -1755,7 +1738,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                         <strong>Postalisch:</strong> David Bullock, Carl-Loewe-Weg 15, 37154 Northeim
                       </p>
                       <p className="mt-2 text-sm text-gray-600">
-                        Sie haben auch das Recht, sich bei der zustö¤ndigen Aufsichtsbehö¶rde zu beschweren.
+                        Sie haben auch das Recht, sich bei der zuständigen Aufsichtsbehörde zu beschweren.
                       </p>
                     </div>
                   </div>
@@ -1772,7 +1755,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-3xl mb-6">
               <Shield className="h-10 w-10 text-[#058bc0]" />
-              Datenschutzerklö¤rung
+              Datenschutzerklärung
             </DialogTitle>
           </DialogHeader>
           
@@ -1843,7 +1826,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 <p>Eine Weitergabe Ihrer Daten erfolgt nur:</p>
                 <ul className="list-disc list-inside ml-4 space-y-1">
                   <li>An IT-Dienstleister für Hosting und Wartung (strikte Vertraulichkeit)</li>
-                  <li>Bei gesetzlicher Verpflichtung oder behö¶rdlicher Anordnung</li>
+                  <li>Bei gesetzlicher Verpflichtung oder behördlicher Anordnung</li>
                   <li>Mit Ihrer ausdrücklichen Einwilligung</li>
                 </ul>
                 <p className="mt-2 text-sm text-gray-600">
@@ -1931,6 +1914,283 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                   Diese Datenschutzerklärung wurde zuletzt am {new Date().toLocaleDateString('de-DE')} überprüft.
                 </p>
             </section>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cloud Storage Pricing Modal */}
+      <Dialog open={showCloudStorage} onOpenChange={setShowCloudStorage}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-3xl mb-6">
+              <Database className="h-10 w-10 text-[#058bc0]" />
+              TradeTrackr Cloud-Speicher – Preise
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-8">
+            {/* Header */}
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                Einfache, skalierbare Speicherpreise
+              </h3>
+              <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+                Jede Lizenz enthält <strong>+2 GB gratis</strong> für Berichte. Erweitern Sie jederzeit mit flexiblen 500‑GB‑Blöcken. EU‑freundlich, betrieben auf Google Cloud.
+              </p>
+            </div>
+
+            {/* Warum TradeTrackr Cloud-Speicher mehr wert ist */}
+            <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+              <div className="text-center mb-6">
+                <h4 className="text-xl font-bold text-gray-900 mb-3">
+                  Warum TradeTrackr Cloud-Speicher mehr wert ist als Consumer-Lösungen
+                </h4>
+                <p className="text-gray-600 mb-4">
+                  Viele Anbieter wie Google One, iCloud oder Dropbox bieten scheinbar günstigen Speicher an. 
+                  Doch diese Angebote sind für Privatanwender gedacht – nicht für Unternehmen.
+                </p>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h5 className="font-semibold text-[#058bc0] mb-3">Mit TradeTrackr Cloud bekommen Sie:</h5>
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span className="text-gray-700">+2 GB kostenlos bei jeder Lizenz inklusive</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span className="text-gray-700">Garantierte EU-Datenhaltung & DSGVO-Konformität</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span className="text-gray-700">Business-SLA mit hoher Verfügbarkeit (99,9%)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span className="text-gray-700">Nahtlose Integration in TradeTrackr</span>
+                    </li>
+                  </ul>
+                </div>
+                
+                <div>
+                  <h5 className="font-semibold text-[#058bc0] mb-3">Weitere Vorteile:</h5>
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span className="text-gray-700">Flexible Erweiterung in 500-GB-Schritten</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span className="text-gray-700">Archiv-Option für kostengünstige Langzeitspeicherung</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span className="text-gray-700">Ihre Projekte, Berichte und Teamdokumente direkt an einem Ort</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span className="text-gray-700">Professionelle Lösung für Handwerksbetriebe</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-white rounded-lg border border-blue-200">
+                <p className="text-center text-gray-700 font-medium">
+                  <span className="text-[#058bc0] mr-2">👉</span>
+                  Während Consumer-Clouds vor allem für Fotos und private Backups gedacht sind, 
+                  bietet TradeTrackr die sichere, skalierbare und professionelle Lösung für 
+                  Handwerksbetriebe und Projektteams.
+                </p>
+              </div>
+            </Card>
+
+            {/* Pricing Cards */}
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* Basic */}
+              <Card className="relative p-6 border-2 border-gray-200 rounded-xl shadow-lg">
+                <div className="absolute -top-3 right-4">
+                  <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                    + 2 GB inklusive
+                  </Badge>
+                </div>
+                <div className="text-center mb-6">
+                  <h4 className="text-2xl font-bold text-[#058bc0] mb-2">Basic</h4>
+                  <p className="text-gray-600">500 GB Standard (Regional) für den täglichen Einsatz</p>
+                </div>
+                
+                <div className="text-center mb-6">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <span className="text-4xl font-bold text-gray-900">€12,99</span>
+                    <span className="text-lg text-gray-600">/ Monat</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-3 text-left mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-[#058bc0] rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">500 GB Standard (Regional)</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-[#058bc0] rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">Bis zu 5 % Coldline inbegriffen</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-[#058bc0] rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">EU-Datenresidenz, DSGVO-ready</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-[#058bc0] rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">Native TradeTrackr-Integration</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-500">E-Mail-Support</span>
+                  </div>
+                </div>
+                
+                <Button 
+                  className="w-full bg-[#058bc0] hover:bg-[#047aa0]"
+                  onClick={() => setShowUnderConstruction(true)}
+                >
+                  Basic wählen
+                </Button>
+              </Card>
+
+              {/* Pro - Recommended */}
+              <Card className="relative p-6 border-2 border-[#058bc0] rounded-xl shadow-xl bg-gradient-to-br from-[#058bc0]/5 to-[#058bc0]/10">
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                  <Badge className="bg-[#058bc0] text-white px-4 py-1">
+                    Empfohlen
+                  </Badge>
+                </div>
+                <div className="absolute -top-3 right-4">
+                  <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                    + 2 GB inklusive
+                  </Badge>
+                </div>
+                
+                <div className="text-center mb-6">
+                  <h4 className="text-2xl font-bold text-[#058bc0] mb-2">Pro</h4>
+                  <p className="text-gray-600">1 TB Standard + 1 TB Archiv — bestes Preis‑Leistungs‑Verhältnis</p>
+                </div>
+                
+                <div className="text-center mb-6">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <span className="text-4xl font-bold text-gray-900">€32,99</span>
+                    <span className="text-lg text-gray-600">/ Monat</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-3 text-left mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-[#058bc0] rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">1 TB Standard (Regional)</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-[#058bc0] rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">+ 1 TB Archiv/Backup</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-[#058bc0] rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">Lifecycle-Regeln (Auto-Archivierung)</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-[#058bc0] rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">Dateiversionierung</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-500">Priorisierter E-Mail-Support</span>
+                  </div>
+                </div>
+                
+                <Button 
+                  className="w-full bg-gradient-to-r from-[#058bc0] to-[#0066cc] hover:from-[#047aa0] hover:to-[#0056b3] shadow-lg"
+                  onClick={() => setShowUnderConstruction(true)}
+                >
+                  Pro wählen
+                </Button>
+              </Card>
+
+              {/* Enterprise */}
+              <Card className="relative p-6 border-2 border-gray-200 rounded-xl shadow-lg">
+                <div className="absolute -top-3 right-4">
+                  <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                    + 2 GB inklusive
+                  </Badge>
+                </div>
+                <div className="text-center mb-6">
+                  <h4 className="text-2xl font-bold text-[#058bc0] mb-2">Enterprise</h4>
+                  <p className="text-gray-600">1 TB Premium (Multi‑Region) + 1 TB Archiv</p>
+                </div>
+                
+                <div className="text-center mb-6">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <span className="text-4xl font-bold text-gray-900">€39,99</span>
+                    <span className="text-lg text-gray-600">/ Monat</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-3 text-left mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-[#058bc0] rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">1 TB Premium (Multi-Region)</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-[#058bc0] rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">+ 1 TB Archiv/Backup</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-[#058bc0] rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">99,95 % Verfügbarkeits-SLA</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-[#058bc0] rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">Rollenbasierte Rechte & Audit-Logs</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-500">Priorisierter Support & Onboarding</span>
+                  </div>
+                </div>
+                
+                <Button 
+                  className="w-full bg-[#058bc0] hover:bg-[#047aa0]"
+                  onClick={() => setShowUnderConstruction(true)}
+                >
+                  Enterprise wählen
+                </Button>
+              </Card>
+            </div>
+
+            {/* Add-ons */}
+            <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+              <h4 className="text-xl font-bold text-gray-900 mb-4 text-center">
+                Mehr Speicher nötig?
+              </h4>
+              <div className="flex flex-wrap justify-center gap-3 mb-4">
+                <Badge variant="outline" className="px-4 py-2 text-sm">
+                  + 500 GB Standard — €12,99
+                </Badge>
+                <Badge variant="outline" className="px-4 py-2 text-sm">
+                  + 500 GB Premium — €16,99
+                </Badge>
+                <Badge variant="outline" className="px-4 py-2 text-sm">
+                  + 500 GB Archiv — €4,99
+                </Badge>
+              </div>
+              <div className="text-center text-sm text-gray-600">
+                <p>💡 Jede Lizenz enthält <strong>2 GB gratis</strong>. Preise monatlich, zzgl. USt. Archiv-/Backup‑Speicher ist für seltene Zugriffe gedacht; Abruf/Egress kann je nach Nutzung zusätzliche Gebühren verursachen.</p>
+              </div>
+            </Card>
+
+            {/* Footer */}
+            <div className="text-center text-sm text-gray-500">
+              <p>Preise in EUR; USt. nicht enthalten. Bereitgestellt über Google Cloud Storage. Regionen & Compliance‑Optionen lassen sich im Checkout festlegen.</p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

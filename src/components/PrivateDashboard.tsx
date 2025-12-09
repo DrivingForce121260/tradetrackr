@@ -280,9 +280,8 @@ const PrivateDashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenMessagin
               Willkommen, {user?.vorname || 'Benutzer'}!
             </h1>
             <p className="text-xl text-gray-700">
-              Wö¤hlen Sie eine Funktion aus, um zu beginnen
+              Wählen Sie eine Funktion aus, um zu beginnen
             </p>
-
           </div>
 
           {/* Main Functions Grid */}

@@ -344,7 +344,70 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // erstelle einen Fallback-Benutzer
 
         
-        // Fallback: Benutzer in Firestore erstellen
+        // WICHTIG: Bevor wir einen Fallback-Benutzer erstellen, prüfen wir nochmals nach bestehenden Benutzern
+        // Suche nach Benutzern mit derselben E-Mail (erweiterte Suche)
+        try {
+          const { collection, query, where, getDocs } = await import('firebase/firestore');
+          const { db } = await import('@/config/firebase');
+          
+          const usersRef = collection(db, 'users');
+          const emailQuery = query(usersRef, where('email', '==', email));
+          const emailSnapshot = await getDocs(emailQuery);
+          
+          if (!emailSnapshot.empty) {
+            const existingUsers = emailSnapshot.docs.map(doc => ({
+              ...doc.data(),
+              docId: doc.id
+            }));
+            
+            console.log('🔍 Found existing users with email before fallback:', existingUsers.length);
+            
+            // Suche nach einem aktiven Benutzer, der aktualisiert werden kann
+            const updateableUser = existingUsers.find((u: any) => 
+              !u.isDeleted && 
+              u.isActive !== false
+            );
+            
+            if (updateableUser) {
+              console.log('✅ Found updateable user, updating with Firebase UID instead of creating new');
+              
+              // Aktualisiere den bestehenden Benutzer mit der korrekten Firebase UID
+              const updatedUserData = {
+                ...updateableUser,
+                uid: firebaseUser.uid,
+                lastSync: new Date(),
+                verificationCode: null,
+                verificationCodeDate: null,
+                verificationCodeSent: false
+              };
+              
+              // Aktualisiere in Firestore
+              await userService.update(updateableUser.docId, {
+                uid: firebaseUser.uid,
+                lastSync: new Date(),
+                verificationCode: null,
+                verificationCodeDate: null,
+                verificationCodeSent: false
+              });
+              
+              console.log('✅ Existing user updated successfully with Firebase UID');
+              
+              // User-State setzen
+              setUser(updatedUserData);
+              
+              // Navigation
+              const defaultDashboard = getDefaultDashboard();
+              window.location.href = `#${defaultDashboard}`;
+              
+              return; // Exit - kein Fallback-Benutzer nötig
+            }
+          }
+        } catch (emailSearchError) {
+          console.error('Error searching for existing users by email:', emailSearchError);
+        }
+        
+        // Fallback: Benutzer in Firestore erstellen (nur wenn definitiv kein Benutzer existiert)
+        console.log('📝 No existing user found, creating new user (should be very rare)');
         try {
           const fallbackUser: User = {
             uid: firebaseUser.uid,

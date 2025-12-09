@@ -99,7 +99,7 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
       setIsLoading(true);
       
       if (projectId) {
-        // Dokumente für ein spezifisches Projekt laden
+        // Dokumente fÃ¼r ein spezifisches Projekt laden
 
         const projectDocs = await documentService.getProjectDocuments(
           user.concernID,
@@ -110,7 +110,7 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
 
         setDocuments(projectDocs);
       } else {
-        // Alle Dokumente des Concerns laden (für Admin-Übersicht)
+        // Alle Dokumente des Concerns laden (fÃ¼r Admin-Ãœbersicht)
 
         try {
           // Verwende die gleiche Logik wie bei der Projektinformationen-Seite
@@ -127,12 +127,12 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
             setDocuments(allDocs);
           } catch (fallbackError) {
 
-            // Letzter Fallback: Versuche projektübergreifende Dokumente zu laden
+            // Letzter Fallback: Versuche projektÃ¼bergreifende Dokumente zu laden
 
             try {
               const projectDocs = await documentService.getProjectDocuments(
                 user.concernID,
-                '', // Leerer projectId für alle Projekte
+                '', // Leerer projectId fÃ¼r alle Projekte
                 filters.category,
                 searchTerm
               );
@@ -235,7 +235,7 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
     
     try {
       const dateObj = date instanceof Date ? date : new Date(date);
-      if (isNaN(dateObj.getTime())) return 'Ungültig';
+      if (isNaN(dateObj.getTime())) return 'UngÃ¼ltig';
       
       return dateObj.toLocaleDateString('de-DE', {
         day: '2-digit',
@@ -243,7 +243,7 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
         year: 'numeric'
       });
     } catch {
-      return 'Ungültig';
+      return 'UngÃ¼ltig';
     }
   };
 
@@ -312,12 +312,12 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
     return filtered;
   }, [documents, filters, sortField, sortOrder]);
 
-  // Dokument lö¶schen
+  // Dokument lÃ¶schen
   const handleDeleteDocument = async (document: FirebaseDocument) => {
     if (!canDeleteDocuments) {
       toast({
         title: 'Zugriff verweigert',
-        description: 'Sie haben keine Berechtigung, Dokumente zu lö¶schen.',
+        description: 'Sie haben keine Berechtigung, Dokumente zu lÃ¶schen.',
         variant: 'destructive',
       });
       return;
@@ -327,8 +327,8 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
       await documentService.deleteDocument(document.documentId, document.storagePath);
       
       toast({
-        title: 'Dokument gelö¶scht',
-        description: `${document.displayName} wurde erfolgreich gelö¶scht.`,
+        title: 'Dokument gelÃ¶scht',
+        description: `${document.displayName} wurde erfolgreich gelÃ¶scht.`,
       });
       
       // Dokumente neu laden
@@ -337,7 +337,7 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
 
       toast({
         title: 'Fehler',
-        description: 'Dokument konnte nicht gelö¶scht werden.',
+        description: 'Dokument konnte nicht gelÃ¶scht werden.',
         variant: 'destructive',
       });
     }
@@ -354,7 +354,7 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
   // Dokument anzeigen
   const handleViewDocument = (document: FirebaseDocument) => {
     setSelectedDocument(document);
-    
+    // TODO: Implementiere Dokument-Viewer Modal
   };
 
   // Dokument bearbeiten
@@ -369,7 +369,7 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
     }
 
     setSelectedDocument(document);
-    
+    // TODO: Implementiere Dokument-Bearbeitung Modal
   };
 
   // Upload erfolgreich
@@ -592,9 +592,9 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
                     <SelectContent>
                       <SelectItem value="displayName">Name</SelectItem>
                       <SelectItem value="uploadDate">Upload-Datum</SelectItem>
-                      <SelectItem value="lastModified">ö„nderungsdatum</SelectItem>
-                      <SelectItem value="fileSize">Dateigrö¶öŸe</SelectItem>
-                      <SelectItem value="priority">Prioritö¤t</SelectItem>
+                      <SelectItem value="lastModified">Ã„nderungsdatum</SelectItem>
+                      <SelectItem value="fileSize">DateigrÃ¶ÃŸe</SelectItem>
+                      <SelectItem value="priority">PrioritÃ¤t</SelectItem>
                     </SelectContent>
                   </Select>
                   
@@ -703,7 +703,7 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
                           onClick={() => handleSortColumn('fileSize')}
                         >
                           <div className="flex items-center gap-1">
-                            Grö¶öŸe {getSortIcon('fileSize')}
+                            GrÃ¶ÃŸe {getSortIcon('fileSize')}
                           </div>
                         </TableHead>
                         <TableHead className="font-semibold text-gray-900">Aktionen</TableHead>
@@ -789,7 +789,7 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({
                                     handleDeleteDocument(document);
                                   }}
                                   className="h-8 w-8 p-0"
-                                  title="Lö¶schen"
+                                  title="LÃ¶schen"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>

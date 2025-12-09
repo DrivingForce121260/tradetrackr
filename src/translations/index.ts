@@ -35,6 +35,8 @@ export const translations: Record<Language, Record<string, string>> = {
     'feature.materialManagement.description': 'Kategorisieren und verwalten Sie Artikel, Komponenten und Materialien.',
     'feature.messaging.title': 'Messaging',
     'feature.messaging.description': 'WhatsApp-ähnliche interne Kommunikation für Teams und Projekte.',
+    'feature.cloudStorage.title': 'Cloud-Speicher',
+    'feature.cloudStorage.description': 'Skalierbare Datensicherung mit EU-Datenresidenz und flexiblen Tarifen.',
     
     // Modal Content
     'modal.features.title': 'Funktionen & Features',
@@ -138,6 +140,25 @@ export const translations: Record<Language, Record<string, string>> = {
     'feature.messaging.details.benefits.2': 'Verbesserte Teamkoordination',
     'feature.messaging.details.benefits.3': 'Weniger E-Mails und Telefonate',
     'feature.messaging.details.benefits.4': 'Projektspezifische Diskussionen',
+    
+    // Cloud Storage Feature Details
+    'feature.cloudStorage.details.title': 'Cloud-Speicher - Skalierbare Datensicherung',
+    'feature.cloudStorage.details.features.1': '2 GB kostenloser Speicher pro Lizenz automatisch inklusive',
+    'feature.cloudStorage.details.features.2': 'Basic: 500 GB Standard (Regional) für €12,99/Monat',
+    'feature.cloudStorage.details.features.3': 'Pro: 1 TB Standard + 1 TB Archiv für €32,99/Monat',
+    'feature.cloudStorage.details.features.4': 'Enterprise: 1 TB Premium (Multi-Region) für €39,99/Monat',
+    'feature.cloudStorage.details.features.5': 'Flexible Erweiterung mit 500 GB-Blöcken nach Bedarf',
+    'feature.cloudStorage.details.features.6': 'EU-Datenresidenz und vollständige DSGVO-Compliance',
+    'feature.cloudStorage.details.features.7': 'Lifecycle-Regeln für automatische Archivierung',
+    'feature.cloudStorage.details.features.8': 'Dateiversionierung und Wiederherstellungsfunktionen',
+    'feature.cloudStorage.details.features.9': '99,95% Verfügbarkeits-SLA für Enterprise-Kunden',
+    'feature.cloudStorage.details.features.10': 'Rollenbasierte Zugriffsrechte und Audit-Logs',
+    'feature.cloudStorage.details.features.11': 'Nahtlose Integration in TradeTrackr-Plattform',
+    'feature.cloudStorage.details.benefits.1': 'Sichere und skalierbare Datenspeicherung in der EU',
+    'feature.cloudStorage.details.benefits.2': 'Kostentransparenz durch einfache Preismodelle',
+    'feature.cloudStorage.details.benefits.3': 'Professionelle Backup- und Archivierungsstrategien',
+    'feature.cloudStorage.details.benefits.4': 'Betrieben auf Google Cloud Infrastructure',
+    'feature.cloudStorage.details.benefits.5': 'Automatische Compliance mit deutschen Datenschutzgesetzen',
     
     // Technical Details
     'tech.localStorage': 'Lokale Datenspeicherung',

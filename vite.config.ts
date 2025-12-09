@@ -16,15 +16,4 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  // Ensure proper UTF-8 encoding
-  define: {
-    __VUE_OPTIONS_API__: true,
-    __VUE_PROD_DEVTOOLS__: false,
-  },
-  build: {
-    charset: 'utf8',
-  },
-  css: {
-    charset: false,
-  },
 }));

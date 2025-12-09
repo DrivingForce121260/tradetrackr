@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Save, Edit, Trash2, Upload, Download, Search, Filter, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, Table as TableIcon, Package, X, Building, Calendar, Hash, BarChart3, Settings, CheckCircle, AlertCircle, FolderOpen, CheckSquare, User, Building2, FileText, Archive } from 'lucide-react';
+import { Plus, Save, Edit, Trash2, Upload, Download, Search, Filter, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, Table as TableIcon, Package, X, Building, Calendar, Hash, BarChart3, Settings, CheckCircle, AlertCircle, FolderOpen, CheckSquare, User, Building2, FileText, Archive, Type, Database } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import AppHeader from './AppHeader';
@@ -15,6 +17,36 @@ import AppHeader from './AppHeader';
 import { Category, CategoryItem, CategoriesProps } from '@/types';
 import { useQuickAction } from '@/contexts/QuickActionContext';
 import QuickActionButtons from './QuickActionButtons';
+
+// Neue Typen für die erweiterten Kategorien
+interface CategoryType1 {
+  id: string;
+  title: string;
+  type: 'type1';
+  content: string;
+  contentType: 'text' | 'table';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface CategoryType2 {
+  id: string;
+  title: string;
+  type: 'type2';
+  characteristic1: string;
+  characteristic2: string;
+  characteristic3: string;
+  items: Array<{
+    id: string;
+    value1: string;
+    value2: string;
+    value3: string;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+type ExtendedCategory = CategoryType1 | CategoryType2;
 
 const Categories: React.FC<CategoriesProps> = ({ 
   onBack, 
@@ -25,9 +57,26 @@ const Categories: React.FC<CategoriesProps> = ({
   const { t } = useLanguage();
   const { isQuickAction, quickActionType } = useQuickAction();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [extendedCategories, setExtendedCategories] = useState<ExtendedCategory[]>([]);
   const [newCategoryTitle, setNewCategoryTitle] = useState('');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingItems, setEditingItems] = useState<{ [key: string]: CategoryItem[] }>({});
+  
+  // Neue States für das erweiterte Kategorieformular
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [selectedCategoryType, setSelectedCategoryType] = useState<'type1' | 'type2' | null>(null);
+  const [newCategoryType1, setNewCategoryType1] = useState({
+    title: '',
+    content: '',
+    contentType: 'text' as 'text' | 'table'
+  });
+  const [newCategoryType2, setNewCategoryType2] = useState({
+    title: '',
+    characteristic1: '',
+    characteristic2: '',
+    characteristic3: '',
+    items: [{ id: '1', value1: '', value2: '', value3: '' }]
+  });
   
   // UI state
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -56,12 +105,22 @@ const Categories: React.FC<CategoriesProps> = ({
     if (storedCategories) {
       setCategories(JSON.parse(storedCategories));
     }
+    
+    const storedExtendedCategories = localStorage.getItem('extendedCategories');
+    if (storedExtendedCategories) {
+      setExtendedCategories(JSON.parse(storedExtendedCategories));
+    }
   }, []);
 
   // Effect to save categories to localStorage
   useEffect(() => {
     localStorage.setItem('categories', JSON.stringify(categories));
   }, [categories]);
+
+  // Effect to save extended categories to localStorage
+  useEffect(() => {
+    localStorage.setItem('extendedCategories', JSON.stringify(extendedCategories));
+  }, [extendedCategories]);
 
   // Filter categories based on search and status
   const filteredCategories = categories.filter(category => {
@@ -102,6 +161,253 @@ const Categories: React.FC<CategoriesProps> = ({
       }, 200);
     }
   }, [isQuickAction, quickActionType]);
+
+  // Neue Funktionen für erweiterte Kategorien
+  const handleCreateCategoryType1 = () => {
+    if (!newCategoryType1.title.trim()) {
+      toast({
+        title: 'Titel ist erforderlich',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const newCategory: CategoryType1 = {
+      id: `type1-${Date.now()}`,
+      title: newCategoryType1.title,
+      type: 'type1',
+      content: newCategoryType1.content,
+      contentType: newCategoryType1.contentType,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    setExtendedCategories(prev => [...prev, newCategory]);
+    
+    // Reset form
+    setNewCategoryType1({
+      title: '',
+      content: '',
+      contentType: 'text'
+    });
+    
+    setSelectedCategoryType(null);
+    setShowCategoryModal(false);
+    
+    toast({
+      title: 'Kategorie Typ 1 erstellt',
+      description: newCategory.title,
+    });
+  };
+
+  const handleCreateCategoryType2 = async () => {
+    if (!newCategoryType2.title.trim() || !newCategoryType2.characteristic1.trim() || 
+        !newCategoryType2.characteristic2.trim() || !newCategoryType2.characteristic3.trim()) {
+      toast({
+        title: 'Alle Felder sind erforderlich',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Get concernId from user context
+      const concernId = user?.concernID || 'default-concern';
+      
+      // Create lookupFamilies document
+      const familyData = {
+        concernId: concernId,
+        familyId: newCategoryType2.title,
+        familyName: newCategoryType2.title,
+        level0: newCategoryType2.characteristic1,
+        level1: newCategoryType2.characteristic2,
+        level2: newCategoryType2.characteristic3,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        version: 1
+      };
+
+      // Save to Firestore
+      const { addDoc, collection, serverTimestamp } = await import('firebase/firestore');
+      const { db } = await import('@/config/firebase');
+      
+      // Add to lookupFamilies collection
+      const familyRef = await addDoc(collection(db, 'lookupFamilies'), {
+        ...familyData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      // Create lookupOptions documents for each item
+      const optionsPromises = newCategoryType2.items
+        .filter(item => item.value1.trim() || item.value2.trim() || item.value3.trim())
+        .map(async (item, index) => {
+          const order = index + 1;
+          const parentType = item.value1.trim(); // Always the value from Merkmal 1 column
+          
+          const options = [];
+          
+          // Level 1 (Merkmal 1)
+          if (item.value1.trim()) {
+            options.push({
+              concernId: concernId,
+              familyId: newCategoryType2.title,
+              key: newCategoryType2.characteristic1,
+              level: 1,
+              order: order,
+              parent_Type: parentType,
+              value: item.value1.trim(),
+              // No valueNumber for level 1
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+          }
+          
+          // Level 2 (Merkmal 2)
+          if (item.value2.trim()) {
+            const valueNumber2 = parseFloat(item.value2.trim());
+            options.push({
+              concernId: concernId,
+              familyId: newCategoryType2.title,
+              key: newCategoryType2.characteristic2,
+              level: 2,
+              order: order,
+              parent_Type: parentType,
+              value: item.value2.trim(),
+              valueNumber: isNaN(valueNumber2) ? null : valueNumber2,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+          }
+          
+          // Level 3 (Merkmal 3)
+          if (item.value3.trim()) {
+            const valueNumber3 = parseFloat(item.value3.trim());
+            options.push({
+              concernId: concernId,
+              familyId: newCategoryType2.title,
+              key: newCategoryType2.characteristic3,
+              level: 3,
+              order: order,
+              parent_Type: parentType,
+              value: item.value3.trim(),
+              valueNumber: isNaN(valueNumber3) ? null : valueNumber3,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+          }
+          
+          return options;
+        });
+
+      const allOptions = (await Promise.all(optionsPromises)).flat();
+      
+      // Add all options to lookupOptions collection
+      for (const option of allOptions) {
+        await addDoc(collection(db, 'lookupOptions'), option);
+      }
+
+      // Create local category for display
+      const newCategory: CategoryType2 = {
+        id: familyRef.id, // Use Firestore document ID
+        title: newCategoryType2.title,
+        type: 'type2',
+        characteristic1: newCategoryType2.characteristic1,
+        characteristic2: newCategoryType2.characteristic2,
+        characteristic3: newCategoryType2.characteristic3,
+        items: newCategoryType2.items.filter(item => item.value1.trim() || item.value2.trim() || item.value3.trim()),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      setExtendedCategories(prev => [...prev, newCategory]);
+      
+      // Reset form
+      setNewCategoryType2({
+        title: '',
+        characteristic1: '',
+        characteristic2: '',
+        characteristic3: '',
+        items: [{ id: '1', value1: '', value2: '', value3: '' }]
+      });
+      
+      setSelectedCategoryType(null);
+      setShowCategoryModal(false);
+      
+      toast({
+        title: 'Kategorie Typ 2 erfolgreich erstellt',
+        description: `${newCategory.title} wurde in Firestore gespeichert`,
+      });
+      
+    } catch (error) {
+      console.error('Error saving to Firestore:', error);
+      toast({
+        title: 'Fehler beim Speichern',
+        description: 'Kategorie konnte nicht in der Datenbank gespeichert werden',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const addNewItemToType2 = () => {
+    setNewCategoryType2(prev => ({
+      ...prev,
+      items: [...prev.items, { 
+        id: `${Date.now()}-${prev.items.length}`, 
+        value1: '', 
+        value2: '', 
+        value3: '' 
+      }]
+    }));
+  };
+
+  const removeItemFromType2 = (index: number) => {
+    if (newCategoryType2.items.length > 1) {
+      setNewCategoryType2(prev => ({
+        ...prev,
+        items: prev.items.filter((_, i) => i !== index)
+      }));
+    }
+  };
+
+  const updateType2Item = (index: number, field: 'value1' | 'value2' | 'value3', value: string) => {
+    setNewCategoryType2(prev => ({
+      ...prev,
+      items: prev.items.map((item, i) => 
+        i === index ? { ...item, [field]: value } : item
+      )
+    }));
+  };
+
+  const openCategoryModal = () => {
+    setShowCategoryModal(true);
+    setSelectedCategoryType(null);
+    setNewCategoryType1({ title: '', content: '', contentType: 'text' });
+    setNewCategoryType2({ 
+      title: '', 
+      characteristic1: '', 
+      characteristic2: '', 
+      characteristic3: '', 
+      items: [{ id: '1', value1: '', value2: '', value3: '' }] 
+    });
+  };
+
+  const closeCategoryModal = () => {
+    // Prüfe, ob Daten eingegeben wurden
+    const hasData = selectedCategoryType === 'type1' 
+      ? (newCategoryType1.title || newCategoryType1.content)
+      : (newCategoryType2.title || newCategoryType2.characteristic1 || newCategoryType2.characteristic2 || newCategoryType2.characteristic3 || newCategoryType2.items.some(item => item.value1 || item.value2 || item.value3));
+
+    if (hasData) {
+      const confirmClose = window.confirm(
+        'Warnung: Sie haben Daten eingegeben, die noch nicht gespeichert wurden. Möchten Sie wirklich fortfahren? Alle eingegebenen Daten gehen verloren.'
+      );
+      if (!confirmClose) return;
+    }
+
+    setShowCategoryModal(false);
+    setSelectedCategoryType(null);
+  };
 
   const handleAddCategory = () => {
     if (newCategoryTitle.trim() === '') {
@@ -147,13 +453,13 @@ const Categories: React.FC<CategoriesProps> = ({
   };
 
   const handleDeleteCategory = (category: Category) => {
-    const confirmDelete = window.confirm('Sind Sie sicher, dass Sie diese Kategorie lö¶schen mö¶chten?');
+    const confirmDelete = window.confirm('Sind Sie sicher, dass Sie diese Kategorie löschen möchten?');
     if (confirmDelete) {
       setDeletedCategory(category);
       setShowUndo(true);
       setCategories(prev => prev.filter(cat => cat.id !== category.id));
       toast({
-        title: 'Kategorie gelö¶scht',
+        title: 'Kategorie gelöscht',
         description: category.title,
         variant: 'destructive',
       });
@@ -166,7 +472,7 @@ const Categories: React.FC<CategoriesProps> = ({
       setDeletedCategory(null);
       setShowUndo(false);
       toast({
-        title: 'Lö¶schung rückgö¤ngig gemacht',
+        title: 'Löschung rückgängig gemacht',
         description: deletedCategory.title,
       });
     }
@@ -212,7 +518,7 @@ const Categories: React.FC<CategoriesProps> = ({
   };
 
   const handleDeleteItem = (categoryId: string, itemId: string) => {
-    const confirmDelete = window.confirm('Sind Sie sicher, dass Sie dieses Element lö¶schen mö¶chten?');
+    const confirmDelete = window.confirm('Sind Sie sicher, dass Sie dieses Element löschen möchten?');
     if (confirmDelete) {
       const updatedCategories = categories.map(cat =>
         cat.id === categoryId ? {
@@ -223,7 +529,7 @@ const Categories: React.FC<CategoriesProps> = ({
       );
       setCategories(updatedCategories);
       toast({
-        title: 'Element gelö¶scht',
+        title: 'Element gelöscht',
         variant: 'destructive',
       });
     }
@@ -346,13 +652,452 @@ const Categories: React.FC<CategoriesProps> = ({
 
   return (
     <div className="min-h-screen tradetrackr-gradient-blue">
+      {/* Header */}
       <AppHeader 
-        title="Materialgruppen"
-        showBackButton={true} 
+        title="Kategorien & Materialgruppen"
+        showBackButton={!!onBack}
         onBack={onBack}
         onOpenMessaging={onOpenMessaging}
       />
-      
+
+
+
+      {/* Kategorie-Erstellungs-Modal */}
+      <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
+        <DialogContent 
+          className="max-w-4xl max-h-[90vh] relative mx-auto" 
+          style={{ 
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            margin: 0,
+            maxHeight: '90vh',
+            minWidth: '600px',
+            minHeight: '400px',
+            cursor: 'move',
+            resize: 'both',
+            overflow: 'visible'
+          }}
+          onMouseDown={(e) => {
+            // Mache das Modal bewegbar
+            if (e.target === e.currentTarget || e.target === e.currentTarget.querySelector('.dialog-header')) {
+              const modal = e.currentTarget;
+              let isDragging = false;
+              let startX = e.clientX;
+              let startY = e.clientY;
+              let startLeft = parseInt(modal.style.left) || 0;
+              let startTop = parseInt(modal.style.top) || 0;
+
+              const handleMouseMove = (e: MouseEvent) => {
+                if (!isDragging) return;
+                const deltaX = e.clientX - startX;
+                const deltaY = e.clientY - startY;
+                modal.style.left = `${startLeft + deltaX}px`;
+                modal.style.top = `${startTop + deltaY}px`;
+                modal.style.transform = 'none';
+              };
+
+              const handleMouseUp = () => {
+                isDragging = false;
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+              };
+
+              isDragging = true;
+              document.addEventListener('mousemove', handleMouseMove);
+              document.addEventListener('mouseup', handleMouseUp);
+            }
+          }}
+        >
+          <DialogHeader className="dialog-header cursor-move bg-gray-50 border-b p-4 -m-4 mb-4">
+            <DialogTitle>Neue Kategorie erstellen</DialogTitle>
+          </DialogHeader>
+          
+          {!selectedCategoryType ? (
+            // Kategorietyp-Auswahl
+            <div className="space-y-6">
+              <div className="text-center">
+                <p className="text-gray-600 mb-6">Wählen Sie den Typ der Kategorie aus:</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Kategorie Typ 1 */}
+                <Card 
+                  className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-blue-500"
+                  onClick={() => setSelectedCategoryType('type1')}
+                >
+                  <CardHeader className="text-center">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Type className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <CardTitle className="text-lg">Kategorie Typ 1</CardTitle>
+                    <p className="text-sm text-gray-600">Einfache Kategorie für mobile App-Benutzer</p>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="text-sm text-gray-600 space-y-2">
+                      <li>• Titel der Kategorie</li>
+                      <li>• Text oder Excel-ähnliche Tabelle</li>
+                      <li>• Für Informationszwecke</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                {/* Kategorie Typ 2 */}
+                <Card 
+                  className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-green-500"
+                  onClick={() => setSelectedCategoryType('type2')}
+                >
+                  <CardHeader className="text-center">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Database className="w-8 h-8 text-green-600" />
+                    </div>
+                    <CardTitle className="text-lg">Kategorie Typ 2</CardTitle>
+                    <p className="text-sm text-gray-600">Komplexe Kategorie mit drei Merkmalen</p>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="text-sm text-gray-600 space-y-2">
+                      <li>• Titel der Kategorie</li>
+                      <li>• Drei definierte Merkmale</li>
+                      <li>• Mehrere Einträge möglich</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          ) : selectedCategoryType === 'type1' ? (
+            // Formular für Kategorie Typ 1
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedCategoryType(null)}
+                >
+                  ← Zurück zur Auswahl
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Type className="w-5 h-5 text-blue-600" />
+                  <span className="font-medium">Kategorie Typ 1</span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="type1-title">Titel der Kategorie *</Label>
+                  <Input
+                    id="type1-title"
+                    placeholder="z.B. Sicherheitshinweise, Arbeitsanweisungen"
+                    value={newCategoryType1.title}
+                    onChange={(e) => setNewCategoryType1(prev => ({ ...prev, title: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="type1-content-type">Inhaltstyp</Label>
+                  <Select 
+                    value={newCategoryType1.contentType} 
+                    onValueChange={(value: 'text' | 'table') => 
+                      setNewCategoryType1(prev => ({ ...prev, contentType: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="text">Text</SelectItem>
+                      <SelectItem value="table">Tabelle</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="type1-content">Inhalt *</Label>
+                  {newCategoryType1.contentType === 'text' ? (
+                    <Textarea
+                      id="type1-content"
+                      placeholder="Geben Sie den Inhalt ein..."
+                      value={newCategoryType1.content}
+                      onChange={(e) => setNewCategoryType1(prev => ({ ...prev, content: e.target.value }))}
+                      rows={6}
+                    />
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">Excel-ähnliche Tabelle (CSV-Format)</p>
+                      <Textarea
+                        id="type1-content"
+                        placeholder="Spalte1,Spalte2,Spalte3&#10;Wert1,Wert2,Wert3&#10;Wert4,Wert5,Wert6"
+                        value={newCategoryType1.content}
+                        onChange={(e) => setNewCategoryType1(prev => ({ ...prev, content: e.target.value }))}
+                        rows={6}
+                      />
+                      <p className="text-xs text-gray-500">Verwenden Sie Kommas als Trennzeichen und Zeilenumbrüche für neue Zeilen</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={closeCategoryModal}>
+                  Abbrechen
+                </Button>
+                <Button onClick={handleCreateCategoryType1}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Kategorie erstellen
+                </Button>
+              </div>
+            </div>
+          ) : (
+            // Formular für Kategorie Typ 2
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedCategoryType(null)}
+                >
+                  ← Zurück zur Auswahl
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Database className="w-5 h-5 text-green-600" />
+                  <span className="font-medium">Kategorie Typ 2</span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="type2-title">Titel der Kategorie *</Label>
+                  <Input
+                    id="type2-title"
+                    placeholder="z.B. Kabel, Schrauben, Werkzeuge"
+                    value={newCategoryType2.title}
+                    onChange={(e) => setNewCategoryType2(prev => ({ ...prev, title: e.target.value }))}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="type2-char1">Merkmal 1 *</Label>
+                    <Input
+                      id="type2-char1"
+                      placeholder="z.B. Kabeltyp (NYM)"
+                      value={newCategoryType2.characteristic1}
+                      onChange={(e) => setNewCategoryType2(prev => ({ ...prev, characteristic1: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="type2-char2">Merkmal 2 *</Label>
+                    <Input
+                      id="type2-char2"
+                      placeholder="z.B. Anzahl Adern"
+                      value={newCategoryType2.characteristic2}
+                      onChange={(e) => setNewCategoryType2(prev => ({ ...prev, characteristic2: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="type2-char3">Merkmal 3 *</Label>
+                    <Input
+                      id="type2-char3"
+                      placeholder="z.B. Querschnitt (mm²)"
+                      value={newCategoryType2.characteristic3}
+                      onChange={(e) => setNewCategoryType2(prev => ({ ...prev, characteristic3: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <Label>Einträge</Label>
+                      <Badge variant="outline" className="text-xs">
+                        {newCategoryType2.items.length} Einträge
+                      </Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="relative group">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = '.csv';
+                            input.onchange = (e) => {
+                              const file = (e.target as HTMLInputElement).files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (e) => {
+                                  const csv = e.target?.result as string;
+                                  const lines = csv.split('\n');
+                                  const items = lines
+                                    .filter(line => line.trim())
+                                    .map((line, index) => {
+                                      const values = line.split(/[,;]/).map(v => v.trim().replace(/"/g, ''));
+                                      return {
+                                        id: `${Date.now()}-${index}`,
+                                        value1: values[0] || '',
+                                        value2: values[1] || '',
+                                        value3: values[2] || ''
+                                      };
+                                    });
+                                  setNewCategoryType2(prev => ({ ...prev, items }));
+                                  toast({
+                                    title: 'CSV erfolgreich importiert',
+                                    description: `${items.length} Einträge geladen`,
+                                  });
+                                };
+                                reader.readAsText(file);
+                              }
+                            };
+                            input.click();
+                          }}
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          CSV Import
+                        </Button>
+                        
+                        {/* Hover Tooltip */}
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] w-80 shadow-lg">
+                          <div className="relative">
+                            <div className="mb-2 font-semibold">📁 CSV-Datei Format für Kategorie Typ 2</div>
+                            <div className="space-y-2 text-xs">
+                              <div>
+                                <strong>Spaltenstruktur:</strong>
+                                <ul className="mt-1 ml-2 space-y-1">
+                                  <li>• <strong>Spalte 1:</strong> {newCategoryType2.characteristic1 || 'Merkmal 1'} (z.B. Kabeltyp)</li>
+                                  <li>• <strong>Spalte 2:</strong> {newCategoryType2.characteristic2 || 'Merkmal 2'} (z.B. Anzahl Adern)</li>
+                                  <li>• <strong>Spalte 3:</strong> {newCategoryType2.characteristic3 || 'Merkmal 3'} (z.B. Querschnitt)</li>
+                                </ul>
+                              </div>
+                              <div>
+                                <strong>Beispiel CSV-Inhalt:</strong>
+                                <div className="mt-1 p-2 bg-gray-800 rounded font-mono text-xs">
+                                  NYM;3;2.5<br/>
+                                  NYM;5;1.5<br/>
+                                  NYM;7;4.0<br/>
+                                  H05VV;2;0.75
+                                </div>
+                              </div>
+                              <div>
+                                <strong>Wichtige Hinweise:</strong>
+                                <ul className="mt-1 ml-2 space-y-1">
+                                  <li>• Verwenden Sie Kommas (,) oder Semikolons (;) als Trennzeichen</li>
+                                  <li>• Jede Zeile wird zu einem Eintrag</li>
+                                  <li>• Leere Zeilen werden automatisch ignoriert</li>
+                                  <li>• Anführungszeichen werden automatisch entfernt</li>
+                                  <li>• Die Datei muss im UTF-8 Format gespeichert sein</li>
+                                </ul>
+                              </div>
+                            </div>
+                            {/* Tooltip Arrow */}
+                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={addNewItemToType2}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Eintrag hinzufügen
+                      </Button>
+                    </div>
+                  </div>
+
+
+                  
+                  {/* Tabellarische Ansicht der Einträge */}
+                  <div className="border rounded-lg overflow-hidden">
+                    {/* Tabellen-Header */}
+                    <div className="bg-gray-50 border-b">
+                      <div className="grid grid-cols-4 gap-0">
+                        <div className="px-2 py-3 text-xs font-medium text-gray-500 border-r bg-gray-100 w-8 text-center">
+                          #
+                        </div>
+                        <div className="px-4 py-3 text-sm font-medium text-gray-700 border-r">
+                          {newCategoryType2.characteristic1 || 'Merkmal 1'}
+                        </div>
+                        <div className="px-4 py-3 text-sm font-medium text-gray-700 border-r">
+                          {newCategoryType2.characteristic2 || 'Merkmal 2'}
+                        </div>
+                        <div className="px-4 py-3 text-sm font-medium text-gray-700">
+                          {newCategoryType2.characteristic3 || 'Merkmal 3'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Scrollbarer Tabellen-Body */}
+                    <div className="max-h-64 overflow-y-auto">
+                      {newCategoryType2.items.map((item, index) => (
+                        <div 
+                          key={item.id} 
+                          className={`grid grid-cols-4 gap-0 border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                          }`}
+                        >
+                          <div className="px-2 py-2 border-r bg-gray-25 text-xs text-gray-500 text-center flex items-center justify-center w-8">
+                            {index + 1}
+                          </div>
+                          <div className="px-4 py-2 border-r">
+                            <Input
+                              placeholder={newCategoryType2.characteristic1 || 'Merkmal 1'}
+                              value={item.value1}
+                              onChange={(e) => updateType2Item(index, 'value1', e.target.value)}
+                              className="border-0 p-0 h-8 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-transparent"
+                            />
+                          </div>
+                          <div className="px-4 py-2 border-r">
+                            <Input
+                              placeholder={newCategoryType2.characteristic2 || 'Merkmal 2'}
+                              value={item.value2}
+                              onChange={(e) => updateType2Item(index, 'value2', e.target.value)}
+                              className="border-0 p-0 h-8 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-transparent"
+                            />
+                          </div>
+                          <div className="px-4 py-2 flex items-center justify-between">
+                            <Input
+                              placeholder={newCategoryType2.characteristic3 || 'Merkmal 3'}
+                              value={item.value3}
+                              onChange={(e) => updateType2Item(index, 'value3', e.target.value)}
+                              className="border-0 p-0 h-8 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-transparent"
+                            />
+                            {newCategoryType2.items.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeItemFromType2(index)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 ml-2 h-6 w-6 p-0"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={closeCategoryModal}>
+                  Abbrechen
+                </Button>
+                <Button onClick={handleCreateCategoryType2}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Kategorie erstellen
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Main Content */}
       <div className="p-6">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
@@ -368,7 +1113,7 @@ const Categories: React.FC<CategoriesProps> = ({
               </div>
               {canCreateCategories && (
                 <Button 
-                  onClick={() => setNewCategoryTitle('')}
+                  onClick={openCategoryModal}
                   className="bg-[#058bc0] hover:bg-[#047aa0] text-white"
                 >
                   <Plus className="h-5 w-5 mr-2" />
@@ -378,8 +1123,74 @@ const Categories: React.FC<CategoriesProps> = ({
             </div>
           </div>
 
-          {/* Quick Action Buttons */}
-          <QuickActionButtons onNavigate={onNavigate} hasPermission={hasPermission} currentPage="categories" />
+          {/* Extended Categories Section */}
+          {extendedCategories.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="w-5 h-5 text-green-600" />
+                  Erweiterte Kategorien ({extendedCategories.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {extendedCategories.map((category) => (
+                    <Card key={category.id} className="border-2 hover:shadow-lg transition-shadow">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {category.type === 'type1' ? (
+                              <Type className="w-5 h-5 text-blue-600" />
+                            ) : (
+                              <Database className="w-5 h-5 text-green-600" />
+                            )}
+                            <CardTitle className="text-sm font-medium">
+                              {category.title}
+                            </CardTitle>
+                          </div>
+                          <Badge variant={category.type === 'type1' ? 'default' : 'secondary'}>
+                            {category.type === 'type1' ? 'Typ 1' : 'Typ 2'}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {category.type === 'type1' ? (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-2">
+                              Inhaltstyp: {category.contentType === 'text' ? 'Text' : 'Tabelle'}
+                            </p>
+                            <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                              {category.content.substring(0, 100)}
+                              {category.content.length > 100 && '...'}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              <div className="text-center">
+                                <div className="font-medium text-gray-700">{category.characteristic1}</div>
+                                <div className="text-gray-500">{category.items.length} Einträge</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="font-medium text-gray-700">{category.characteristic2}</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="font-medium text-gray-700">{category.characteristic3}</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center text-xs text-gray-500">
+                          <span>Erstellt: {category.createdAt.toLocaleDateString('de-DE')}</span>
+                          <span>Aktualisiert: {category.updatedAt.toLocaleDateString('de-DE')}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -491,7 +1302,7 @@ const Categories: React.FC<CategoriesProps> = ({
                 </div>
                 <Select value={statusFilter} onValueChange={(value: 'all' | 'populated' | 'empty') => setStatusFilter(value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Status auswö¤hlen" />
+                    <SelectValue placeholder="Status auswählen" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Alle Kategorien</SelectItem>
@@ -531,7 +1342,7 @@ const Categories: React.FC<CategoriesProps> = ({
                   <div className="flex items-center gap-3">
                     <Package className="h-5 w-5 text-orange-500" />
                     <span className="text-sm text-gray-600">
-                      Kategorie "{deletedCategory?.title}" wurde gelö¶scht
+                      Kategorie "{deletedCategory?.title}" wurde gelöscht
                     </span>
                   </div>
                   <Button
@@ -539,7 +1350,7 @@ const Categories: React.FC<CategoriesProps> = ({
                     onClick={handleUndoDelete}
                     size="sm"
                   >
-                    Rückgö¤ngig machen
+                    Rückgängig machen
                   </Button>
                 </div>
               </CardContent>
@@ -759,7 +1570,7 @@ const Categories: React.FC<CategoriesProps> = ({
                           onClick={() => handleDeleteCategory(category)}
                         >
                           <Trash2 className="h-5 w-5 mr-2" />
-                          Lö¶schen
+                          Löschen
                         </Button>
                       )}
                     </div>
@@ -770,6 +1581,9 @@ const Categories: React.FC<CategoriesProps> = ({
           )}
         </div>
       </div>
+
+      {/* Quick Action Buttons */}
+      <QuickActionButtons onNavigate={onNavigate} hasPermission={hasPermission} currentPage="categories" />
 
       {/* Hidden file input for Excel import */}
       <input

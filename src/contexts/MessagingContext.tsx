@@ -676,7 +676,7 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
     try {
       await messagingService.trackEmojiUsage(emoji);
     } catch (error) {
-      // Emoji-Tracking-Fehler sind nicht kritisch für die Messaging-Funktionalitö¤t
+      // Emoji-Tracking-Fehler sind nicht kritisch für die Messaging-Funktionalität
       console.warn('âš ï¸ Emoji usage tracking failed (non-critical):', error);
     }
   };
