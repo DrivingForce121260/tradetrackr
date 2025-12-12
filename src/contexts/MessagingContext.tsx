@@ -82,6 +82,8 @@ interface MessagingContextType {
   trackEmojiUsage: (emoji: string) => Promise<void>;
   getEmojiStats: () => Promise<any[]>;
   toggleEmojiFavorite: (emoji: string) => Promise<void>;
+  // Refresh chats
+  refreshChats?: () => Promise<void>;
 }
 
 export const MessagingContext = createContext<MessagingContextType | undefined>(undefined);
@@ -940,7 +942,8 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
     getFileDownloadUrl,
     trackEmojiUsage,
     getEmojiStats,
-    toggleEmojiFavorite
+    toggleEmojiFavorite,
+    refreshChats
   };
 
   return (

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
+import { collection, getDocs, limit, orderBy, query, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { ManagementWithNavigationProps } from '@/types/common';
@@ -18,6 +18,8 @@ interface AuditRow {
 	entityId: string;
 	action: string;
 	actorId?: string;
+	actorName?: string;
+	entityName?: string;
 	timestamp?: Date;
 }
 
@@ -40,7 +42,91 @@ const SystemLogs: React.FC<ManagementWithNavigationProps> = ({ onBack, onNavigat
 			if (actor.trim()) clauses.push(where('actorId', '==', actor.trim()));
 			const q = query(collection(db, 'auditLogs'), ...clauses, orderBy('timestamp', 'desc'), limit(200));
 			const snap = await getDocs(q);
-			setRows(snap.docs.map(d => ({ id: d.id, ...d.data(), timestamp: (d.data() as any).timestamp?.toDate?.() })) as any);
+			
+			// Resolve actor names and entity names
+			const resolvedRows = await Promise.all(
+				snap.docs.map(async (d) => {
+					const data = d.data() as any;
+					const row: AuditRow = {
+						id: d.id,
+						...data,
+						timestamp: data.timestamp?.toDate?.()
+					};
+
+					// Resolve actor name from actorId
+					if (row.actorId) {
+						try {
+							const userRef = doc(db, 'users', row.actorId);
+							const userSnap = await getDoc(userRef);
+							if (userSnap.exists()) {
+								const userData = userSnap.data();
+								row.actorName = `${userData.vorname || ''} ${userData.nachname || ''}`.trim() || userData.email || row.actorId;
+							}
+						} catch (err) {
+							row.actorName = row.actorId;
+						}
+					}
+
+					// Resolve entity name based on entity type
+					if (row.entityId) {
+						try {
+							let entityRef;
+							if (row.entityType === 'projects') {
+								entityRef = doc(db, 'projects', row.entityId);
+								const entitySnap = await getDoc(entityRef);
+								if (entitySnap.exists()) {
+									const entityData = entitySnap.data();
+									row.entityName = `${entityData.projectNumber || ''} - ${entityData.name || ''}`.trim() || row.entityId;
+								}
+							} else if (row.entityType === 'personnel') {
+								entityRef = doc(db, 'personnel', row.entityId);
+								const entitySnap = await getDoc(entityRef);
+								if (entitySnap.exists()) {
+									const entityData = entitySnap.data();
+									row.entityName = `${entityData.vorname || ''} ${entityData.nachname || ''}`.trim() || row.entityId;
+								}
+							} else if (row.entityType === 'clients') {
+								entityRef = doc(db, 'clients', row.entityId);
+								const entitySnap = await getDoc(entityRef);
+								if (entitySnap.exists()) {
+									const entityData = entitySnap.data();
+									row.entityName = entityData.name || row.entityId;
+								}
+							} else if (row.entityType === 'invoices') {
+								entityRef = doc(db, 'invoices', row.entityId);
+								const entitySnap = await getDoc(entityRef);
+								if (entitySnap.exists()) {
+									const entityData = entitySnap.data();
+									row.entityName = `${entityData.number || ''}`.trim() || row.entityId;
+								}
+							} else if (row.entityType === 'materials') {
+								entityRef = doc(db, 'materials', row.entityId);
+								const entitySnap = await getDoc(entityRef);
+								if (entitySnap.exists()) {
+									const entityData = entitySnap.data();
+									row.entityName = entityData.name || row.entityId;
+								}
+							} else if (row.entityType === 'tasks') {
+								entityRef = doc(db, 'tasks', row.entityId);
+								const entitySnap = await getDoc(entityRef);
+								if (entitySnap.exists()) {
+									const entityData = entitySnap.data();
+									row.entityName = entityData.title || row.entityId;
+								}
+							}
+							if (!row.entityName) {
+								row.entityName = row.entityId;
+							}
+						} catch (err) {
+							row.entityName = row.entityId;
+						}
+					}
+
+					return row;
+				})
+			);
+
+			setRows(resolvedRows);
 		} finally {
 			setLoading(false);
 		}
@@ -260,8 +346,18 @@ const SystemLogs: React.FC<ManagementWithNavigationProps> = ({ onBack, onNavigat
 														{getEntityEmoji(r.entityType)} {getEntityName(r.entityType)}
 													</TableCell>
 													<TableCell>{getActionBadge(r.action)}</TableCell>
-													<TableCell className="font-mono text-xs">{r.actorId || '-'}</TableCell>
-													<TableCell className="font-mono text-xs text-gray-600">{r.entityId}</TableCell>
+													<TableCell className="font-mono text-xs">
+														<div className="flex flex-col gap-1">
+															<span className="text-gray-700 font-medium">{r.actorName || r.actorId || '-'}</span>
+															{r.actorName && r.actorId && <span className="text-gray-400 text-xs">{r.actorId}</span>}
+														</div>
+													</TableCell>
+													<TableCell className="font-mono text-xs text-gray-600">
+														<div className="flex flex-col gap-1">
+															<span className="text-gray-700">{r.entityName || r.entityId}</span>
+															{r.entityName && r.entityName !== r.entityId && <span className="text-gray-400 text-xs">{r.entityId}</span>}
+														</div>
+													</TableCell>
 												</TableRow>
 											))}
 										</TableBody>

@@ -21,6 +21,15 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# SSH keys
+*.key
+*.pem
+VPSCURSORKEY
+VPSCURSORKEY.pub
+
+# Cursor / Copilot local files
+.github/copilot-instructions.md
+
 ########################
 # Flutter / Dart
 ########################

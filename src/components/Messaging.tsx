@@ -52,6 +52,8 @@ const Messaging: React.FC<MessagingProps> = ({ isMinimized, onToggleMinimize, on
   const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  // Show a short hint animation for the resize handle when the messaging window opens
+  const [showResizeHint, setShowResizeHint] = useState(false);
 
   // Debug logging f�r Chats
   useEffect(() => {
@@ -560,6 +562,13 @@ const Messaging: React.FC<MessagingProps> = ({ isMinimized, onToggleMinimize, on
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging, isResizing, dragStart, resizeStart]);
+
+  // Trigger the resize hint for 5 seconds when the messaging component mounts (i.e. window opened)
+  useEffect(() => {
+    setShowResizeHint(true);
+    const t = setTimeout(() => setShowResizeHint(false), 5000);
+    return () => clearTimeout(t);
+  }, []);
 
   if (isMinimized) {
     return (
@@ -1221,13 +1230,36 @@ const Messaging: React.FC<MessagingProps> = ({ isMinimized, onToggleMinimize, on
 
       </CardContent>
       
-      {/* Resize Handle - Bottom Right Corner */}
-      <div
-        className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize bg-gray-300 hover:bg-gray-400 rounded-tl-md z-10"
-        onMouseDown={(e) => handleMouseDown(e, 'resize')}
-      >
-        <div className="w-full h-full flex items-end justify-end p-1">
-          <div className="w-3 h-3 border-r-2 border-b-2 border-gray-600 rounded-br-sm"></div>
+      {/* Resize Handle - Bottom Right Corner (larger + animated hint) */}
+      <div className="absolute bottom-0 right-0 z-10 flex items-end justify-end" style={{ pointerEvents: 'none' }}>
+        {/* Hint bubble shown for a short time when the window opens */}
+        {showResizeHint && (
+          <div className="mr-2 mb-10 bg-white/95 border border-[#058bc0] text-sm text-[#034f6a] px-3 py-1 rounded-lg shadow-lg flex items-center gap-2 transition-opacity duration-300" style={{ pointerEvents: 'none' }}>
+            <div className="flex items-center justify-center w-6 h-6 bg-[#058bc0] text-white rounded-full shadow-sm animate-bounce">
+              {/* diagonal SE arrow indicator */}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                <defs>
+                  <marker id="arrowhead-se" markerWidth="6" markerHeight="6" refX="0" refY="3" orient="auto">
+                    <path d="M0 0 L6 3 L0 6 z" fill="white" />
+                  </marker>
+                </defs>
+                <line x1="4" y1="4" x2="20" y2="20" stroke="white" strokeWidth="2" strokeLinecap="round" markerEnd="url(#arrowhead-se)" />
+              </svg>
+            </div>
+            <div>
+              <div className="font-semibold">Größe ändern</div>
+              <div className="text-xs">Ziehe die Ecke diagonal</div>
+            </div>
+          </div>
+        )}
+
+        <div
+          className="w-10 h-10 cursor-se-resize bg-gray-200 hover:bg-gray-300 rounded-tl-md flex items-end justify-end p-1 mr-2 mb-2 shadow-lg border border-gray-300"
+          onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, 'resize'); }}
+          aria-label="Resize messaging window"
+          style={{ pointerEvents: 'auto' }}
+        >
+          <div className="w-4 h-4 border-r-2 border-b-2 border-gray-600 rounded-br-sm transform rotate-45" />
         </div>
       </div>
       
