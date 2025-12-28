@@ -121,7 +121,7 @@ const EmailReplyComposer: React.FC<EmailReplyComposerProps> = ({
         }
       },
       (error) => {
-        console.error('Error loading reply:', error);
+        // Error handling - no content logged
         toast({
           title: '❌ Fehler',
           description: 'Antwort konnte nicht geladen werden',
@@ -167,7 +167,7 @@ const EmailReplyComposer: React.FC<EmailReplyComposerProps> = ({
         description: 'Änderungen wurden gespeichert',
       });
     } catch (error: any) {
-      console.error('Save error:', error);
+      // Error handling - no draft content logged
       toast({
         title: '❌ Fehler',
         description: `Speichern fehlgeschlagen: ${error.message}`,
@@ -232,7 +232,7 @@ const EmailReplyComposer: React.FC<EmailReplyComposerProps> = ({
       
       onClose();
     } catch (error: any) {
-      console.error('Send error:', error);
+      // Error handling - no email content logged
       toast({
         title: '❌ Senden fehlgeschlagen',
         description: error.message || 'Bitte versuchen Sie es später erneut',
@@ -313,7 +313,7 @@ const EmailReplyComposer: React.FC<EmailReplyComposerProps> = ({
       // Close the composer modal after opening email client
       onClose();
     } catch (error: any) {
-      console.error('Open email client error:', error);
+      // Error handling - no content logged
       toast({
         title: '❌ Fehler',
         description: error.message || 'E-Mail-Client konnte nicht geöffnet werden',
@@ -349,7 +349,7 @@ const EmailReplyComposer: React.FC<EmailReplyComposerProps> = ({
         });
       }
     } catch (error) {
-      console.error('Copy error:', error);
+      // Error handling - no content logged
       toast({
         title: '❌ Kopieren fehlgeschlagen',
         description: 'Ein Fehler ist aufgetreten',
@@ -654,6 +654,7 @@ const EmailReplyComposer: React.FC<EmailReplyComposerProps> = ({
 };
 
 export default EmailReplyComposer;
+
 
 
 

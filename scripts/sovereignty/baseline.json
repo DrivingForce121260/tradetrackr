@@ -1,0 +1,5116 @@
+{
+  "generated": "2025-12-28T22:45:03.861Z",
+  "count": 1022,
+  "findings": [
+    {
+      "file": ".aikido.yml",
+      "line": 32,
+      "match": "firebase"
+    },
+    {
+      "file": ".aikido.yml",
+      "line": 87,
+      "match": "firebase"
+    },
+    {
+      "file": ".aikido.yml",
+      "line": 107,
+      "match": "firebase"
+    },
+    {
+      "file": ".aikido.yml",
+      "line": 112,
+      "match": "firebase"
+    },
+    {
+      "file": ".aikido.yml",
+      "line": 173,
+      "match": "firebase"
+    },
+    {
+      "file": ".aikido.yml",
+      "line": 174,
+      "match": "firebase"
+    },
+    {
+      "file": ".aikido.yml",
+      "line": 175,
+      "match": "firebase"
+    },
+    {
+      "file": ".aikido.yml",
+      "line": 177,
+      "match": "firebase"
+    },
+    {
+      "file": ".aikido.yml",
+      "line": 178,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/hooks/useAuthGuard.ts",
+      "line": 3,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/hooks/useAuthGuard.ts",
+      "line": 4,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 20,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 21,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 22,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 23,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 24,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 25,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase-env.ts",
+      "line": 28,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase.ts",
+      "line": 3,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase.ts",
+      "line": 4,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase.ts",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/firebase.ts",
+      "line": 17,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/upload.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/upload.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/lib/upload.ts",
+      "line": 4,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/screens/EmailDetail.tsx",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/screens/EmailDetail.tsx",
+      "line": 17,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/screens/Login.tsx",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/screens/Login.tsx",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/screens/Review.tsx",
+      "line": 18,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/screens/Scan.tsx",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/screens/Scan.tsx",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/screens/SmartInbox.tsx",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "apps/tt-scan/src/screens/SmartInbox.tsx",
+      "line": 17,
+      "match": "firebase"
+    },
+    {
+      "file": "firebase.json",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/aiSupport.js",
+      "line": 49,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/aiSupport.js",
+      "line": 161,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/analyzeBusinessCard.js",
+      "line": 40,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/analyzeBusinessCard.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/api/index.js",
+      "line": 40,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/api/index.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/audit/onWrite.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/audit/onWrite.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/auth.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/auth.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/automation/webhook.js",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/automation/webhook.js",
+      "line": 47,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/calendar/ics.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/calendar/ics.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/categories/categoryStats.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/categories/categoryStats.js",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/categoryImport.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/categoryImport.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/categoryImport.js",
+      "line": 49,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/categoryImport.js",
+      "line": 50,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/chats/cleanupInvalidChats.js",
+      "line": 40,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/chats/cleanupInvalidChats.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/crm/createProcurementRequestFromInquiry.js",
+      "line": 48,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/crm/createProcurementRequestFromInquiry.js",
+      "line": 49,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/crm/deleteClientCascade.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/crm/deleteClientCascade.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/crm/gdprExport.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/crm/gdprExport.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/diagnostics/categoryType2Debug.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/diagnostics/categoryType2Debug.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/allocateProjectDocumentSuffix.js",
+      "line": 45,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/allocateProjectDocumentSuffix.js",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/analyzeDocument.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/analyzeDocument.js",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/audits.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/audits.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/comments.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/comments.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/finalizeDocumentProjectLink.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/finalizeDocumentProjectLink.js",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/ocrIndex.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/ocrIndex.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/onDocumentCreate.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/onDocumentCreate.js",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/projectNumberDetection.js",
+      "line": 45,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/projectNumberDetection.js",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/routeDocument.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/routeDocument.js",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/versioning.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/documents/versioning.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/email/sendTransactionalEmail.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/email/sendTransactionalEmail.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/email/updateEmailStatus.js",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/email/updateEmailStatus.js",
+      "line": 45,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/analyzeEmailMessage.js",
+      "line": 53,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/analyzeEmailMessage.js",
+      "line": 54,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/attachments.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/attachments.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/canonicalMessage.js",
+      "line": 47,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/canonicalMessage.js",
+      "line": 48,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/cleanupDuplicates.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/cleanupDuplicates.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/connectors/gmail.js",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/connectors/imap.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/connectors/microsoft365.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/crmIntegration.js",
+      "line": 55,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/crmIntegration.js",
+      "line": 56,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/deleteIncomingEmails.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/deleteIncomingEmails.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/emailAccountAssignment.js",
+      "line": 48,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/emailAccountAssignment.js",
+      "line": 49,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/emailPipeline.js",
+      "line": 52,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/emailPipeline.js",
+      "line": 53,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/generateEmailReplyDraft.js",
+      "line": 47,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/generateEmailReplyDraft.js",
+      "line": 48,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/generateReply.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/handlers.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/handlers.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/imapOAuth.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/imapOAuth.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/llmAnalysis.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/llmAnalysis.js",
+      "line": 52,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/oauth.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/oauth.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/oauth.js",
+      "line": 74,
+      "match": "googleapis.com"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/oauth.js",
+      "line": 75,
+      "match": "googleapis.com"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/processEmail.js",
+      "line": 45,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/processEmail.js",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/reanalyzeEmail.js",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/reanalyzeEmail.js",
+      "line": 47,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/reanalyzeEmails.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/reanalyzeEmails.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/sendEmailReply.js",
+      "line": 48,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/sendEmailReply.js",
+      "line": 49,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/testDataSeeder.js",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/testDataSeeder.js",
+      "line": 47,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/featureRequests/index.js",
+      "line": 40,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/featureRequests/summarizeFeatureRequest.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/gdpr/digest.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/gdpr/digest.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/gdpr/export.js",
+      "line": 40,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/gdpr/export.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/gdpr/purge.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/gdpr/purge.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/generateAufmass.js",
+      "line": 40,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/generateAufmass.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/generateAufmass.js",
+      "line": 468,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/generateAufmass.js",
+      "line": 506,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/generateAufmass.js",
+      "line": 511,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/index.js",
+      "line": 45,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/index.js",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/integrations/accounting.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/integrations/accounting.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/integrations/catalogImport.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/integrations/catalogImport.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/integrations/gaebExport.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/integrations/gaebExport.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/maintenance/dataFixes.js",
+      "line": 40,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/maintenance/dataFixes.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/materialOCR.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/materialOCR.js",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/migrations/convertPartsToType1.js",
+      "line": 48,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/migrations/convertPartsToType1.js",
+      "line": 49,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/migrations/renumberProjectNumbers.js",
+      "line": 76,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/migrations/renumberProjectNumbers.js",
+      "line": 82,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/migrations/runProjectMigration.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/migrations/runProjectMigration.js",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/migrations/runProjectMigration.js",
+      "line": 390,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/notifications/cleanup.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/notifications/cleanup.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/notifications/dispatch.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/notifications/dispatch.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/notifications/enqueue.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/notifications/enqueue.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/offers/finalizeOffer.js",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/offers/finalizeOffer.js",
+      "line": 47,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/offers/generateOfferPdf.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/offers/generateOfferPdf.js",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/offers/recalcOfferTotals.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/offers/recalcOfferTotals.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/personnel/checkVacationConflicts.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/personnel/checkVacationConflicts.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/personnel/updateVacationBalance.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/personnel/updateVacationBalance.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/procurement/generateRequestPdf.js",
+      "line": 45,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/procurement/generateRequestPdf.js",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/procurement/generateRequestPdf.js",
+      "line": 251,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/procurement/generateRequestPdf.js",
+      "line": 256,
+      "match": "firebasestorage.googleapis.com"
+    },
+    {
+      "file": "functions/lib/procurement/generateRequestPdf.js",
+      "line": 259,
+      "match": "firebasestorage.googleapis.com"
+    },
+    {
+      "file": "functions/lib/procurement/sendRequestEmail.js",
+      "line": 45,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/procurement/sendRequestEmail.js",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/projects/allocateProjectNumber.js",
+      "line": 49,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/projects/allocateProjectNumber.js",
+      "line": 50,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/projects/ensureInternalProjects.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/projects/ensureInternalProjects.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/projects/linkProject.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/projects/linkProject.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/projects/suggestProjectViaAI.js",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/projects/suggestProjectViaAI.js",
+      "line": 45,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/renderTemplate.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/renderTemplate.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/reports/executeReport.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/reports/executeReport.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/reports/exportReport.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/reports/exportReport.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/reports/scheduler.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/reports/scheduler.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/sales/createSalesOfferFromEmailInquiry.js",
+      "line": 48,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/sales/createSalesOfferFromEmailInquiry.js",
+      "line": 49,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/scripts/fix-orphaned-tasks.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/scripts/migrate-internal-projects.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/search/algolia.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/sendTemplatedEmail.js",
+      "line": 40,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/sendTemplatedEmail.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/sessions/userSession.js",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/sessions/userSession.js",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/tasks/checkTaskReminders.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/tasks/checkTaskReminders.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/utils/sanitizeForFirestore.js",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/workorders/onWorkOrderWrite.js",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/workorders/onWorkOrderWrite.js",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/zeit/approveItem.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/zeit/approveItem.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/zeit/exportTimesheet.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/zeit/exportTimesheet.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/zeit/onPunchWrite.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/zeit/onPunchWrite.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/zeit/scheduledDailyClose.js",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/lib/zeit/scheduledDailyClose.js",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/package.json",
+      "line": 4,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/package.json",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/package.json",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/package.json",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/package.json",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/package.json",
+      "line": 30,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/package.json",
+      "line": 31,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/package.json",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/aiSupport.ts",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/aiSupport.ts",
+      "line": 206,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/analyzeBusinessCard.ts",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/analyzeBusinessCard.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/api/index.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/api/index.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/audit/onWrite.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/audit/onWrite.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/audit/onWrite.ts",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/auth.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/auth.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/automation/webhook.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/automation/webhook.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/calendar/ics.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/calendar/ics.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/categories/categoryStats.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/categories/categoryStats.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/categoryImport.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/categoryImport.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/categoryImport.ts",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/categoryImport.ts",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/chats/cleanupInvalidChats.ts",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/chats/cleanupInvalidChats.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/crm/createProcurementRequestFromInquiry.ts",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/crm/createProcurementRequestFromInquiry.ts",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/crm/deleteClientCascade.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/crm/deleteClientCascade.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/crm/gdprExport.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/crm/gdprExport.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/diagnostics/categoryType2Debug.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/diagnostics/categoryType2Debug.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/allocateProjectDocumentSuffix.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/allocateProjectDocumentSuffix.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/analyzeDocument.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/analyzeDocument.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/audits.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/audits.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/comments.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/comments.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/finalizeDocumentProjectLink.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/finalizeDocumentProjectLink.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/ocrIndex.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/ocrIndex.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/onDocumentCreate.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/onDocumentCreate.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/projectNumberDetection.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/projectNumberDetection.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/routeDocument.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/routeDocument.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/versioning.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/documents/versioning.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/email/sendTransactionalEmail.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/email/sendTransactionalEmail.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/email/updateEmailStatus.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/email/updateEmailStatus.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/featureRequests/index.ts",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/featureRequests/summarizeFeatureRequest.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/gdpr/digest.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/gdpr/digest.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/gdpr/export.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/gdpr/export.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/gdpr/purge.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/gdpr/purge.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/generateAufmass.ts",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/generateAufmass.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/generateAufmass.ts",
+      "line": 574,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/generateAufmass.ts",
+      "line": 618,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/generateAufmass.ts",
+      "line": 624,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/index.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/index.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/integrations/accounting.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/integrations/accounting.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/integrations/catalogImport.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/integrations/catalogImport.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/integrations/gaebExport.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/integrations/gaebExport.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/maintenance/dataFixes.ts",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/maintenance/dataFixes.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/materialOCR.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/materialOCR.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/migrations/convertPartsToType1.ts",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/migrations/convertPartsToType1.ts",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/migrations/renumberProjectNumbers.ts",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/migrations/renumberProjectNumbers.ts",
+      "line": 48,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/migrations/runProjectMigration.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/migrations/runProjectMigration.ts",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/migrations/runProjectMigration.ts",
+      "line": 388,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/notifications/cleanup.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/notifications/cleanup.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/notifications/dispatch.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/notifications/dispatch.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/notifications/enqueue.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/notifications/enqueue.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/offers/finalizeOffer.ts",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/offers/finalizeOffer.ts",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/offers/generateOfferPdf.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/offers/generateOfferPdf.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/offers/recalcOfferTotals.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/offers/recalcOfferTotals.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/personnel/checkVacationConflicts.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/personnel/checkVacationConflicts.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/personnel/updateVacationBalance.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/personnel/updateVacationBalance.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/procurement/generateRequestPdf.ts",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/procurement/generateRequestPdf.ts",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/procurement/generateRequestPdf.ts",
+      "line": 245,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/procurement/generateRequestPdf.ts",
+      "line": 251,
+      "match": "firebasestorage.googleapis.com"
+    },
+    {
+      "file": "functions/src/procurement/generateRequestPdf.ts",
+      "line": 254,
+      "match": "firebasestorage.googleapis.com"
+    },
+    {
+      "file": "functions/src/procurement/sendRequestEmail.ts",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/procurement/sendRequestEmail.ts",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/projects/allocateProjectNumber.ts",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/projects/allocateProjectNumber.ts",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/projects/ensureInternalProjects.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/projects/ensureInternalProjects.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/projects/linkProject.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/projects/linkProject.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/projects/suggestProjectViaAI.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/projects/suggestProjectViaAI.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/renderTemplate.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/renderTemplate.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/reports/executeReport.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/reports/executeReport.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/reports/executeReport.ts",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/reports/executeReport.ts",
+      "line": 55,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/reports/executeReport.ts",
+      "line": 66,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/reports/executeReport.ts",
+      "line": 123,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/reports/exportReport.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/reports/exportReport.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/reports/scheduler.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/reports/scheduler.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/sales/createSalesOfferFromEmailInquiry.ts",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/sales/createSalesOfferFromEmailInquiry.ts",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/scripts/fix-orphaned-tasks.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/scripts/migrate-internal-projects.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/search/algolia.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/search/algolia.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/sendTemplatedEmail.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/sendTemplatedEmail.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/sessions/userSession.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/sessions/userSession.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/tasks/checkTaskReminders.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/tasks/checkTaskReminders.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/utils/safeLogger.ts",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/utils/sanitizeForFirestore.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/utils/sanitizeForFirestore.ts",
+      "line": 217,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/workorders/onWorkOrderWrite.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/workorders/onWorkOrderWrite.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/zeit/approveItem.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/zeit/approveItem.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/zeit/approveItem.ts",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/zeit/exportTimesheet.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/zeit/exportTimesheet.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/zeit/onPunchWrite.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/zeit/onPunchWrite.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/zeit/scheduledDailyClose.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/zeit/scheduledDailyClose.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "package.json",
+      "line": 28,
+      "match": "firebase"
+    },
+    {
+      "file": "package.json",
+      "line": 29,
+      "match": "firebase"
+    },
+    {
+      "file": "package.json",
+      "line": 30,
+      "match": "firebase"
+    },
+    {
+      "file": "package.json",
+      "line": 85,
+      "match": "firebase"
+    },
+    {
+      "file": "package.json",
+      "line": 111,
+      "match": "firebase"
+    },
+    {
+      "file": "public/sw.js",
+      "line": 62,
+      "match": "firebase"
+    },
+    {
+      "file": "public/sw.js",
+      "line": 109,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-admins-simple.js",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-admins-simple.js",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-admins-simple.js",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-admins-simple.js",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-admins-simple.js",
+      "line": 11,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "scripts/check-admins-simple.js",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-admins-simple.js",
+      "line": 18,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-email-permissions.js",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-email-permissions.js",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-email-permissions.js",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-email-permissions.js",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-email-permissions.js",
+      "line": 12,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "scripts/check-email-permissions.js",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-email-permissions.js",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-orphaned-summaries.js",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-orphaned-summaries.js",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-orphaned-summaries.js",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-orphaned-summaries.js",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-orphaned-summaries.js",
+      "line": 12,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "scripts/check-orphaned-summaries.js",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-orphaned-summaries.js",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-summaries.js",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-summaries.js",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-summaries.js",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-summaries.js",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-summaries.js",
+      "line": 12,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "scripts/check-summaries.js",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/check-summaries.js",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/cleanup-email-duplicates.js",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/cleanup-email-duplicates.js",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/cleanup-email-duplicates.js",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/cleanup-email-duplicates.js",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/cleanup-email-duplicates.js",
+      "line": 15,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "scripts/cleanup-email-duplicates.js",
+      "line": 17,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/cleanup-email-duplicates.js",
+      "line": 23,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/find-admins.js",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/init-archived-field.js",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/init-archived-field.js",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/init-archived-field.js",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/init-archived-field.js",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/init-archived-field.js",
+      "line": 12,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "scripts/init-archived-field.js",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/init-archived-field.js",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-simple.js",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-simple.js",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-simple.js",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-simple.js",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-simple.js",
+      "line": 12,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "scripts/migrate-documents-simple.js",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-simple.js",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-to-projects.js",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-to-projects.js",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-to-projects.js",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-to-projects.js",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-to-projects.js",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-to-projects.js",
+      "line": 17,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "scripts/migrate-documents-to-projects.js",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/migrate-documents-to-projects.js",
+      "line": 24,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/package.json",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/package.json",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/reanalyze-emails.js",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/reanalyze-emails.js",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/reanalyze-emails.js",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/reanalyze-emails.js",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/reanalyze-emails.js",
+      "line": 15,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "scripts/reanalyze-emails.js",
+      "line": 17,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/reanalyze-emails.js",
+      "line": 23,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/set-admin-role.js",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/set-admin-role.js",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/set-admin-role.js",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/set-admin-role.js",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/set-admin-role.js",
+      "line": 14,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "scripts/set-admin-role.js",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/set-admin-role.js",
+      "line": 21,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/set-admin-role.js",
+      "line": 90,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/test-offer-finalization.ts",
+      "line": 32,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/test-offer-finalization.ts",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "scripts/verify-summaries.js",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/admin/SystemLogs.tsx",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/admin/SystemLogs.tsx",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/aufmass/AufmassDialog.tsx",
+      "line": 29,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/aufmass/AufmassDialog.tsx",
+      "line": 30,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/aufmass/AufmassPreview.tsx",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/aufmass/AufmassPreview.tsx",
+      "line": 20,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/auth/SessionTimeout.tsx",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/auth/SessionTimeout.tsx",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/auth/SessionTimeout.tsx",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/BreadcrumbNavigation.tsx",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/BreadcrumbNavigation.tsx",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/CategoryType2Diagnostic.tsx",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/CategoryType2Diagnostic.tsx",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/CRM.tsx",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/CRM.tsx",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/BusinessCardScanModal.tsx",
+      "line": 286,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/BusinessCardScanModal.tsx",
+      "line": 287,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/BusinessCardScanModal.tsx",
+      "line": 297,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/BusinessCardScanModal.tsx",
+      "line": 298,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/BusinessCardScanModal.tsx",
+      "line": 315,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/BusinessCardScanModal.tsx",
+      "line": 316,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/BusinessCardUploadModal.tsx",
+      "line": 90,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/BusinessCardUploadModal.tsx",
+      "line": 91,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/BusinessCardUploadModal.tsx",
+      "line": 101,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/BusinessCardUploadModal.tsx",
+      "line": 102,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/BusinessCardUploadModal.tsx",
+      "line": 120,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/BusinessCardUploadModal.tsx",
+      "line": 121,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/EmailInquiriesTab.tsx",
+      "line": 89,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/crm/EmailInquiriesTab.tsx",
+      "line": 90,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentGrid.tsx",
+      "line": 21,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentGrid.tsx",
+      "line": 25,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentGrid.tsx",
+      "line": 26,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentGrid.tsx",
+      "line": 27,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentGrid.tsx",
+      "line": 28,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentGrid.tsx",
+      "line": 29,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentGrid.tsx",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentList.tsx",
+      "line": 21,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentList.tsx",
+      "line": 25,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentList.tsx",
+      "line": 26,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentList.tsx",
+      "line": 27,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentList.tsx",
+      "line": 28,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentList.tsx",
+      "line": 29,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentList.tsx",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 47,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 55,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 56,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 77,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 83,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 84,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 154,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 170,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 315,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 349,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 454,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 484,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 492,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 496,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentManagement.tsx",
+      "line": 501,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentPreview.tsx",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentPreview.tsx",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentPreview.tsx",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentPreview.tsx",
+      "line": 17,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/documents/DocumentCard.tsx",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/documents/DocumentCard.tsx",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/documents/DocumentList.tsx",
+      "line": 135,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/documents/ProjectAssignmentDialog.tsx",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/documents/ProjectAssignmentDialog.tsx",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/documents/ProjectSelectionModal.tsx",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/documents/ProjectSelectionModal.tsx",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentTable.tsx",
+      "line": 18,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentTable.tsx",
+      "line": 22,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentTable.tsx",
+      "line": 23,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentTable.tsx",
+      "line": 24,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentTable.tsx",
+      "line": 25,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentTable.tsx",
+      "line": 26,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentTable.tsx",
+      "line": 41,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentUploadModal.tsx",
+      "line": 27,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/DocumentUploadModal.tsx",
+      "line": 238,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/EmailAccountManager.tsx",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/EmailAccountManager.tsx",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/EmailAccountManager.tsx",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/EmailDetailDrawer.tsx",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/EmailDetailDrawer.tsx",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/EmailReplyComposer.tsx",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/EmailReplyComposer.tsx",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/EmailReplyComposer.tsx",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/EmailReplyComposer.tsx",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/EmployeeDetail.tsx",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/EmployeeDetail.tsx",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/FirestoreAdmin.tsx",
+      "line": 322,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/FirestoreAdmin.tsx",
+      "line": 323,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/FirestoreAdmin.tsx",
+      "line": 324,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/FirestoreAdmin.tsx",
+      "line": 328,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/FirestoreAdmin.tsx",
+      "line": 337,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/IntegrationsSettings.tsx",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/IntegrationsSettings.tsx",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/invoicing/DocumentHistoryPanel.tsx",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/invoicing/DocumentHistoryPanel.tsx",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/invoicing/FinalizeOfferDialog.tsx",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/invoicing/FinalizeOfferDialog.tsx",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/invoicing/InvoiceEditor.tsx",
+      "line": 18,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/invoicing/InvoiceEditor.tsx",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/invoicing/InvoicingPortal.tsx",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/invoicing/InvoicingPortal.tsx",
+      "line": 3,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/invoicing/OfferCalculationTab.tsx",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/invoicing/OfferCalculationTab.tsx",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/invoicing/OfferEditor.tsx",
+      "line": 23,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/invoicing/OfferEditor.tsx",
+      "line": 24,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/LandingPage.tsx",
+      "line": 680,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/Messaging.tsx",
+      "line": 77,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/Messaging.tsx",
+      "line": 78,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/Messaging.tsx",
+      "line": 438,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/Messaging.tsx",
+      "line": 439,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/Messaging.tsx",
+      "line": 539,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/Messaging.tsx",
+      "line": 540,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/NotificationBell.tsx",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/NotificationBell.tsx",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/PersonnelOverview.tsx",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/PersonnelOverview.tsx",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/procurement/ProcurementPortal.tsx",
+      "line": 197,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectForm.tsx",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectForm.tsx",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectInformation.tsx",
+      "line": 47,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectInformation.tsx",
+      "line": 73,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectInformation.tsx",
+      "line": 190,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectInformation.tsx",
+      "line": 194,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectInformation.tsx",
+      "line": 196,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectInformation.tsx",
+      "line": 199,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectInformation.tsx",
+      "line": 223,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectInformation.tsx",
+      "line": 541,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectInformation.tsx",
+      "line": 545,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectInformation.tsx",
+      "line": 548,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectManagement.tsx",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectManagement.tsx",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectManagement.tsx",
+      "line": 737,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectManagement.tsx",
+      "line": 738,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectManagement.tsx",
+      "line": 958,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectManagement.tsx",
+      "line": 959,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectManagement.tsx",
+      "line": 973,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectManagement.tsx",
+      "line": 974,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectManagement.tsx",
+      "line": 1281,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectManagement.tsx",
+      "line": 1282,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectManagement.tsx",
+      "line": 1344,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ProjectManagement.tsx",
+      "line": 1345,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/RecentActivityWidget.tsx",
+      "line": 4,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/RecentActivityWidget.tsx",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/RegisterForm.tsx",
+      "line": 168,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/RegisterForm.tsx",
+      "line": 169,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ReportsManagement.tsx",
+      "line": 259,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/ReportsManagement.tsx",
+      "line": 260,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/sales/EmailInquiriesTab.tsx",
+      "line": 93,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/sales/EmailInquiriesTab.tsx",
+      "line": 94,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/SchedulingBoard.tsx",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/SchedulingBoard.tsx",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/settings/RetentionSettings.tsx",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/settings/RetentionSettings.tsx",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/settings/SessionTimeoutSettings.tsx",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/settings/SessionTimeoutSettings.tsx",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/SignatureViewerModal.tsx",
+      "line": 3,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/SignatureViewerModal.tsx",
+      "line": 4,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/SignatureViewerModal.tsx",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/SignatureViewerModal.tsx",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/SmartInbox.tsx",
+      "line": 34,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/SmartInbox.tsx",
+      "line": 35,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/suppliers/resources/SupplierInvoiceEditor.tsx",
+      "line": 25,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/tasks/TaskBoard.tsx",
+      "line": 287,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/tasks/TaskBoard.tsx",
+      "line": 288,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/tasks/TaskModal.tsx",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/tasks/TaskModal.tsx",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/timeOps/LiveView.tsx",
+      "line": 26,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/UserDetailsDialog.tsx",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/UserDetailsDialog.tsx",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/UserDetailsDialog.tsx",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/UserDetailsDialog.tsx",
+      "line": 169,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/UserDetailsDialog.tsx",
+      "line": 185,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/UserDetailsDialog.tsx",
+      "line": 187,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/UserDetailsDialog.tsx",
+      "line": 575,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/WuenschDirWasModal.tsx",
+      "line": 33,
+      "match": "firebase"
+    },
+    {
+      "file": "src/components/WuenschDirWasModal.tsx",
+      "line": 34,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 17,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 18,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 20,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 54,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 55,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 56,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 57,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 58,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 59,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 64,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 68,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 70,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 71,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 87,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 88,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 89,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 90,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 91,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 92,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 106,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 110,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 111,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/env.ts",
+      "line": 112,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 14,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 22,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 69,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 70,
+      "match": "firebaseio.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 71,
+      "match": "firestore.googleapis.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 72,
+      "match": "googleapis.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 73,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 74,
+      "match": "firebasestorage.googleapis.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 75,
+      "match": "crashlytics"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 76,
+      "match": "google-analytics"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 80,
+      "match": "generativelanguage.googleapis.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 81,
+      "match": "aiplatform.googleapis.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 84,
+      "match": "api.openai.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 85,
+      "match": "openai.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 88,
+      "match": "api.anthropic.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 89,
+      "match": "anthropic.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 92,
+      "match": "openai.azure.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 99,
+      "match": "googleapis.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 100,
+      "match": "cloudfunctions.net"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 101,
+      "match": "run.app"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 102,
+      "match": "appspot.com"
+    },
+    {
+      "file": "src/config/providerPolicy.ts",
+      "line": 126,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/sovereigntyGate.ts",
+      "line": 125,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/sovereigntyGate.ts",
+      "line": 126,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 94,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 110,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 111,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 113,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 116,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 121,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 122,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 125,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 145,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 156,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 162,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 169,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 232,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 238,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 247,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 260,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 284,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 306,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 333,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 338,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 347,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 372,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 373,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 395,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 397,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 420,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 421,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 442,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 447,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 456,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 463,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 483,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 486,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 487,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 488,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 491,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 494,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 506,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 537,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 540,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 544,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 617,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 630,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "line": 1206,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 3,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 217,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 230,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 306,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 312,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 379,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 381,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 390,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 391,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 395,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 396,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 399,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 400,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 425,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 426,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 427,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 455,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 458,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 531,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 538,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 546,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 559,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 571,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 615,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 644,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 659,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 715,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 722,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 723,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 746,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 749,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 754,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 845,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 848,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 851,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 992,
+      "match": "firebase"
+    },
+    {
+      "file": "src/contexts/MessagingContext.tsx",
+      "line": 993,
+      "match": "firebase"
+    },
+    {
+      "file": "src/hooks/useCategories.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "src/hooks/useCategories.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/hooks/useFirestoreListener.ts",
+      "line": 13,
+      "match": "firebase"
+    },
+    {
+      "file": "src/hooks/useFirestoreListener.ts",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "src/lib/categories/categoryHelpers.ts",
+      "line": 25,
+      "match": "firebase"
+    },
+    {
+      "file": "src/lib/categories/categoryHelpers.ts",
+      "line": 26,
+      "match": "firebase"
+    },
+    {
+      "file": "src/lib/documents/documentAI.ts",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "src/lib/documents/documentAI.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "src/lib/featureRequests.ts",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/lib/featureRequests.ts",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "src/screens/app/DebugScreen.tsx",
+      "line": 188,
+      "match": "firebase"
+    },
+    {
+      "file": "src/screens/app/DebugScreen.tsx",
+      "line": 189,
+      "match": "firebase"
+    },
+    {
+      "file": "src/screens/app/PhotosScreen.tsx",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/screens/app/PhotosScreen.tsx",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "src/screens/app/PhotosScreen.tsx",
+      "line": 194,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 22,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 23,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/automationService.ts",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/automationService.ts",
+      "line": 20,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/automationService.ts",
+      "line": 21,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/brandingService.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/brandingService.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/calendarService.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/calendarService.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/calendarService.ts",
+      "line": 37,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/calendarService.ts",
+      "line": 39,
+      "match": "cloudfunctions.net"
+    },
+    {
+      "file": "src/services/calendarService.ts",
+      "line": 42,
+      "match": "cloudfunctions.net"
+    },
+    {
+      "file": "src/services/categoryAnalyticsService.ts",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/categoryAnalyticsService.ts",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/categoryCache.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/categoryCache.ts",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/crmService.ts",
+      "line": 21,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/crmService.ts",
+      "line": 22,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/crmService.ts",
+      "line": 23,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/datevService.ts",
+      "line": 31,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/datevService.ts",
+      "line": 32,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentManagementService.ts",
+      "line": 18,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentManagementService.ts",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentManagementService.ts",
+      "line": 20,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentManagementService.ts",
+      "line": 148,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 20,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 28,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 29,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 150,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 247,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 263,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 266,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 300,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 309,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 312,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 330,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 336,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 357,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 390,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 592,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 602,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/documentService.ts",
+      "line": 604,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/emailIntelligenceService.ts",
+      "line": 23,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/emailIntelligenceService.ts",
+      "line": 24,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/emailIntelligenceService.ts",
+      "line": 25,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/emailIntelligenceService.ts",
+      "line": 522,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/emailIntelligenceService.ts",
+      "line": 523,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/emailIntelligenceService.ts",
+      "line": 571,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/emailIntelligenceService.ts",
+      "line": 572,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/emailService.ts",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/emailService.ts",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/emailService.ts",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 14,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 16,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 18,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 24,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 29,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 33,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 34,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreOfflineQueue.ts",
+      "line": 17,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreOfflineQueue.ts",
+      "line": 18,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 18,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 697,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 698,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 700,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 707,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 717,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 754,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 761,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 763,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 764,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 770,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 774,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 786,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 794,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 797,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 809,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 811,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 815,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 829,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firestoreService.ts",
+      "line": 913,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/health.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/health.ts",
+      "line": 43,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/health.ts",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/health.ts",
+      "line": 58,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/health.ts",
+      "line": 60,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/health.ts",
+      "line": 62,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/health.ts",
+      "line": 66,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/health.ts",
+      "line": 173,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/invoicingNumbering.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/invoicingNumbering.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/invoicingService.ts",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/invoicingService.ts",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/invoicingService.ts",
+      "line": 36,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/materialOCRService.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/materialOCRService.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/materialOCRService.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/materialsService.ts",
+      "line": 27,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/materialsService.ts",
+      "line": 28,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 22,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 29,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 30,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 53,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 83,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 142,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 146,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 204,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 218,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 223,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 357,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 386,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 550,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 700,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 712,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 734,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 742,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 851,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 860,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 869,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 878,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 933,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/messagingService.ts",
+      "line": 952,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/notificationPrefsService.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/notificationPrefsService.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/notificationsService.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/notificationsService.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/offerCostingService.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/offerCostingService.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/offerHistoryService.ts",
+      "line": 18,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/offerHistoryService.ts",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/personnelService.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/personnelService.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/procurementService.ts",
+      "line": 27,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/procurementService.ts",
+      "line": 28,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/projectLinkingService.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/projectLinkingService.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/projectLinkingService.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/renderService.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/renderService.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/reportService.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/reportService.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/reportService.ts",
+      "line": 3,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/requestPdfService.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/schedulingService.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/schedulingService.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/sessionService.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/sessionService.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/supplierService.ts",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/supplierService.ts",
+      "line": 20,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/taskService.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/taskService.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/templateService.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/templateService.ts",
+      "line": 15,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/templateService.ts",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/timeAdminService.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/timeAdminService.ts",
+      "line": 21,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/timeOpsService.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/timeOpsService.ts",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/workOrderService.ts",
+      "line": 19,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/workOrderService.ts",
+      "line": 20,
+      "match": "firebase"
+    },
+    {
+      "file": "src/store/authStore.ts",
+      "line": 10,
+      "match": "firebase"
+    },
+    {
+      "file": "src/store/authStore.ts",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/store/authStore.ts",
+      "line": 56,
+      "match": "firebase"
+    },
+    {
+      "file": "src/store/authStore.ts",
+      "line": 88,
+      "match": "firebase"
+    },
+    {
+      "file": "src/tests/invoicing.spec.ts",
+      "line": 2,
+      "match": "firebase"
+    },
+    {
+      "file": "src/tests/invoicing.test.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/tests/notifications.test.ts",
+      "line": 4,
+      "match": "firebase"
+    },
+    {
+      "file": "src/tests/notifications.test.ts",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "src/tests/personnel.test.ts",
+      "line": 4,
+      "match": "firebase"
+    },
+    {
+      "file": "src/tests/scheduling.test.ts",
+      "line": 1,
+      "match": "firebase"
+    },
+    {
+      "file": "src/types/category.ts",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "src/types/category.ts",
+      "line": 27,
+      "match": "firebase"
+    },
+    {
+      "file": "src/types/category.ts",
+      "line": 28,
+      "match": "firebase"
+    },
+    {
+      "file": "src/types/categoryStats.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "src/types/documents.ts",
+      "line": 5,
+      "match": "firebase"
+    },
+    {
+      "file": "src/types/emailPipeline.ts",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/types/user.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "src/utils/categoryCreationHelpers.ts",
+      "line": 6,
+      "match": "firebase"
+    },
+    {
+      "file": "src/utils/categoryCreationHelpers.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "src/utils/sanitizeForFirestore.ts",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/utils/setupFirestore.ts",
+      "line": 11,
+      "match": "firebase"
+    },
+    {
+      "file": "src/utils/setupFirestore.ts",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "tests/firestore/offers.rules.test.ts",
+      "line": 17,
+      "match": "firebase"
+    },
+    {
+      "file": "tests/firestore/offers.rules.test.ts",
+      "line": 18,
+      "match": "firebase"
+    },
+    {
+      "file": "tools/call-migration.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "tools/call-migration.ts",
+      "line": 8,
+      "match": "firebase"
+    },
+    {
+      "file": "tools/call-migration.ts",
+      "line": 9,
+      "match": "firebase"
+    },
+    {
+      "file": "tools/call-migration.ts",
+      "line": 12,
+      "match": "firebase"
+    },
+    {
+      "file": "tools/call-migration.ts",
+      "line": 14,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "tools/call-migration.ts",
+      "line": 16,
+      "match": "firebase"
+    },
+    {
+      "file": "tools/call-migration.ts",
+      "line": 21,
+      "match": "firebase"
+    },
+    {
+      "file": "tools/call-migration.ts",
+      "line": 38,
+      "match": "firebase"
+    },
+    {
+      "file": "tools/call-migration.ts",
+      "line": 98,
+      "match": "firebase"
+    },
+    {
+      "file": "tools/fix-orphaned-tasks.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "tools/migrate-internal-projects.ts",
+      "line": 7,
+      "match": "firebase"
+    },
+    {
+      "file": "tools/migrations/renumberProjectNumbers.ts",
+      "line": 41,
+      "match": "firebase"
+    }
+  ]
+}

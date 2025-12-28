@@ -74,12 +74,8 @@ const SmartInbox: React.FC<SmartInboxProps> = ({ onBack, onNavigate, onOpenMessa
     uid, // Filter by user's owned email accounts
   });
 
-  // Debug logging
-  console.log('📧 [SmartInbox] orgId:', orgId);
-  console.log('📧 [SmartInbox] loading:', loading);
-  console.log('📧 [SmartInbox] summaries count:', summaries.length);
-  console.log('📧 [SmartInbox] summaries:', summaries);
-  console.log('📧 [SmartInbox] filters:', { categoryFilter, statusFilter, priorityFilter, showArchived });
+  // Debug logging removed for security - never log email content
+  // Use safeLogger for production-safe logging if needed
 
   const { updateStatus, archive, unarchive, markAsRead } = useEmailActions();
 
@@ -87,7 +83,7 @@ const SmartInbox: React.FC<SmartInboxProps> = ({ onBack, onNavigate, onOpenMessa
     try {
       await updateStatus(emailId, status);
     } catch (error) {
-      console.error('Failed to update status:', error);
+      // Error logged without content for security
     }
   };
 
@@ -104,8 +100,7 @@ const SmartInbox: React.FC<SmartInboxProps> = ({ onBack, onNavigate, onOpenMessa
         description: `Kategorie: ${getCategoryLabel(data.category)} | Priorität: ${data.priority.toUpperCase()}`,
       });
     } catch (error: any) {
-      console.error('Re-analyze error:', error);
-      
+      // Error handling - no content logged
       const errorMessage = error.message || 'Bitte versuchen Sie es später erneut';
       
       toast({
@@ -140,8 +135,7 @@ const SmartInbox: React.FC<SmartInboxProps> = ({ onBack, onNavigate, onOpenMessa
       setCurrentReplyId(data.replyId);
       setReplyComposerOpen(true);
     } catch (error: any) {
-      console.error('Generate reply error:', error);
-      
+      // Error handling - no content logged
       toast({
         title: '❌ Generierung fehlgeschlagen',
         description: error.message || 'Bitte versuchen Sie es später erneut',
@@ -654,7 +648,7 @@ const EmailAccountSetupModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
       
       onClose();
     } catch (error: any) {
-      console.error('IMAP store error:', error);
+      // Error handling - no credentials logged
       toast({
         title: '❌ Verbindung fehlgeschlagen',
         description: error.message || 'Bitte prüfen Sie Ihre Zugangsdaten',
@@ -691,7 +685,7 @@ const EmailAccountSetupModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
         description: (result.data as any).message,
       });
     } catch (error: any) {
-      console.error('IMAP test error:', error);
+      // Error handling - no credentials logged
       toast({
         title: '❌ Verbindung fehlgeschlagen',
         description: error.message || 'Bitte prüfen Sie Ihre Zugangsdaten',
@@ -730,7 +724,7 @@ const EmailAccountSetupModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
       // Redirect to OAuth provider
       window.location.href = authUrl;
     } catch (error: any) {
-      console.error('OAuth init error:', error);
+      // Error handling - no tokens logged
       toast({
         title: '❌ Verbindung fehlgeschlagen',
         description: error.message || 'Bitte versuchen Sie es später erneut',

@@ -27,7 +27,11 @@
     "migrate:internal-projects": "cd functions && npx ts-node src/scripts/migrate-internal-projects.ts --apply",
     "emulators": "firebase emulators:start --only firestore --project demo-tradetrackr",
     "test:rules": "firebase emulators:exec --only firestore --project demo-tradetrackr 'npx vitest run tests/firestore'",
-    "test:rules:watch": "firebase emulators:exec --only firestore --project demo-tradetrackr 'npx vitest watch tests/firestore'"
+    "test:rules:watch": "firebase emulators:exec --only firestore --project demo-tradetrackr 'npx vitest watch tests/firestore'",
+    "sovereignty:scan": "node scripts/sovereignty/check-banned-strings.js",
+    "sovereignty:scan:error": "node scripts/sovereignty/check-banned-strings.js --error",
+    "sovereignty:scan:all": "node scripts/sovereignty/check-banned-strings.js --no-baseline",
+    "sovereignty:baseline": "node scripts/sovereignty/check-banned-strings.js --write-baseline"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

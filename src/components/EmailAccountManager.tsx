@@ -77,9 +77,7 @@ const EmailAccountManager: React.FC = () => {
         
         // Validate required fields
         if (!data.provider || (!data.email && !data.emailAddress)) {
-          console.warn('[EmailAccountManager] skipping invalid account', { 
-            id: docSnap.id, 
-            hasProvider: !!data.provider,
+          // Skip invalid accounts silently - no PII logged
             hasEmail: !!(data.email || data.emailAddress),
           });
           continue;
@@ -101,7 +99,7 @@ const EmailAccountManager: React.FC = () => {
           createdAt: data.createdAt?.toDate?.() || new Date(),
         });
       }
-      console.log('📧 [EmailAccountManager] Loaded user-scoped accounts:', accountsData.length);
+      // Accounts loaded - count only, no email addresses logged
       setAccounts(accountsData);
       setLoading(false);
     });
@@ -110,15 +108,7 @@ const EmailAccountManager: React.FC = () => {
   }, [orgId, uid]);
 
   const handleSync = async (account: EmailAccount) => {
-    // Log both doc ID and emailKey for debugging
-    console.debug('[EmailAccountManager] Sync account', { 
-      accountId: account.id, 
-      emailKey: account.emailKey,
-      email: account.emailAddress,
-      ownerUid: account.ownerUid?.substring(0, 8),
-      concernId: orgId,
-    });
-    
+    // Sync triggered - no credentials logged
     setSyncing(account.id);
     try {
       const syncFunction = httpsCallable(functionsEU, 'syncEmailAccount');
@@ -150,11 +140,7 @@ const EmailAccountManager: React.FC = () => {
         description,
       });
     } catch (error: any) {
-      console.error('[EmailAccountManager] Sync error:', error);
-      // Log full error details for debugging
-      if (error?.details) {
-        console.error('[EmailAccountManager] Error details:', error.details);
-      }
+      // Error handling - no credentials or email content logged
       
       // Use centralized error message mapping
       const userMessage = getSyncErrorMessage(error);
@@ -183,23 +169,22 @@ const EmailAccountManager: React.FC = () => {
           email: emailAddress,
         });
       } catch (unassignError) {
-        console.error('Email unassignment error:', unassignError);
-        // Continue with deletion even if unassignment fails
+        // Continue with deletion even if unassignment fails - no credentials logged
       }
 
       // Step 2: Delete user-scoped account document
       // Path: concerns/{concernId}/users/{uid}/emailAccounts/{accountId}
       try {
         await deleteDoc(doc(db, `concerns/${orgId}/users/${uid}/emailAccounts`, accountId));
-        console.log('✅ Deleted user-scoped email account');
+        // Account deleted - no PII logged
       } catch (err) {
-        console.error('Error deleting user-scoped account:', err);
+        // Deletion error - no credentials logged
       }
 
       // Step 3: Also delete legacy account document (for cleanup)
       try {
         await deleteDoc(doc(db, 'emailAccounts', accountId));
-        console.log('✅ Deleted legacy email account');
+        // Legacy account deleted - no PII logged
       } catch (err) {
         // May not exist - that's OK
       }
@@ -209,7 +194,7 @@ const EmailAccountManager: React.FC = () => {
         description: `${emailAddress} wurde entfernt`,
       });
     } catch (error) {
-      console.error('Delete error:', error);
+      // Error handling - no credentials logged
       toast({
         title: '❌ Fehler beim Trennen',
         description: 'Bitte versuchen Sie es später erneut',
@@ -251,7 +236,7 @@ const EmailAccountManager: React.FC = () => {
       });
       setShowAddForm(false);
     } catch (error: any) {
-      console.error('Add account error:', error);
+      // Error handling - no credentials logged
       
       // Check for EMAIL_ALREADY_ASSIGNED error (server-side enforcement)
       const isEmailTaken = 

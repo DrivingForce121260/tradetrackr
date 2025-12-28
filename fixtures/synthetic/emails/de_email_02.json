@@ -1,0 +1,36 @@
+{
+  "id": "synth-email-002",
+  "messageId": "synth-002-msg@example.local",
+  "threadId": "synth-thread-002",
+  "provider": "synthetic",
+  "subject": "RECHNUNG Nr. 2025-1234 - Fällig 15.01.2026",
+  "from": {
+    "name": "Elektro Großhandel Schmidt",
+    "email": "buchhaltung@schmidt-elektro.example.local"
+  },
+  "to": [
+    {
+      "name": "TradeTrackr Elektro GmbH",
+      "email": "einkauf@tradetrackr.example.local"
+    }
+  ],
+  "cc": [],
+  "date": "2025-12-28T14:30:00Z",
+  "bodyText": "Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie unsere Rechnung Nr. 2025-1234.\n\nRechnungsdatum: 28.12.2025\nFälligkeitsdatum: 15.01.2026\n\nRechnungsbetrag: 2.847,50 EUR inkl. MwSt.\n\nPositionen:\n- 100m NYM-J 3x1,5 Kabel: 89,00 EUR\n- 50m NYM-J 5x2,5 Kabel: 147,50 EUR\n- 25x Schalterdosen (UP): 62,50 EUR\n- 15x Doppelsteckdosen Busch-Jaeger: 285,00 EUR\n- 10x Wechselschalter Busch-Jaeger: 75,00 EUR\n- 1x Zähleranschlusssäule: 1.890,00 EUR\n\nNetto: 2.394,00 EUR\nMwSt. 19%: 454,86 EUR\nGesamt: 2.847,86 EUR\n\nZahlungsziel: 14 Tage netto\n\nBankverbindung:\nBank: Musterbank Musterstadt\nIBAN: DE89 1234 5678 9012 3456 00\nBIC: MUSTDEFF\n\nMit freundlichen Grüßen\nIhr Elektro Großhandel Schmidt Team",
+  "bodyHtml": "<p>Sehr geehrte Damen und Herren,</p><p>anbei erhalten Sie unsere <strong>Rechnung Nr. 2025-1234</strong>.</p><table><tr><td>Rechnungsdatum:</td><td>28.12.2025</td></tr><tr><td>Fälligkeitsdatum:</td><td>15.01.2026</td></tr></table><p><strong>Rechnungsbetrag: 2.847,50 EUR inkl. MwSt.</strong></p><p>Mit freundlichen Grüßen<br>Ihr Elektro Großhandel Schmidt Team</p>",
+  "attachments": [
+    {
+      "id": "synth-att-001",
+      "fileName": "Rechnung_2025-1234.pdf",
+      "mimeType": "application/pdf",
+      "size": 125000
+    }
+  ],
+  "labels": ["INBOX"],
+  "isRead": false,
+  "category": "INVOICE",
+  "priority": "high",
+  "_synthetic": true,
+  "_description": "Lieferantenrechnung mit PDF-Anhang - typisches Zahlungsszenario"
+}
+

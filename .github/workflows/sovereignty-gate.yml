@@ -1,0 +1,86 @@
+# Sovereignty Gate - IONOS-Only Data Residency Check
+#
+# This workflow scans source files for references to banned cloud providers
+# that would violate IONOS_ONLY data sovereignty requirements.
+#
+# EXCEPTION: functions/src/emailIntelligence/** is allowed to reference
+# Google/Microsoft endpoints for upstream mailbox connectivity.
+#
+# Modes:
+#   - WARN (current): Logs violations but passes - non-blocking
+#   - ERROR (future): Fails on NEW violations vs baseline
+#
+# Baseline:
+#   - Only NEW violations (not in baseline.json) are flagged
+#   - Run `npm run sovereignty:baseline` to update baseline
+#
+# TODO: Flip to ERROR mode when Phase 3/4 migration is complete
+#
+# @see /docs/sovereignty/definition.md
+# @see /scripts/sovereignty/README.md
+
+name: Sovereignty Gate
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  sovereignty-scan:
+    name: Scan for Banned Providers
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      # Note: We don't need to install dependencies for the scanner
+      # It only uses Node.js built-in modules (fs, path)
+      
+      - name: Run Sovereignty Scanner
+        id: scan
+        env:
+          # TODO: Flip to 'error' when Phase 3/4 complete (PostgreSQL + AI Gateway migration)
+          # Currently in WARN mode - violations are logged but don't fail the build
+          SOVEREIGNTY_SCAN_MODE: warn
+          SOVEREIGNTY_SCAN_BASELINE: on
+        run: |
+          echo "::group::Sovereignty Scan Output"
+          node scripts/sovereignty/check-banned-strings.js
+          echo "::endgroup::"
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🛡️ Sovereignty Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Mode** | \`warn\` (non-blocking) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Baseline** | \`on\` (only NEW violations flagged) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Exception Path** | \`functions/src/emailIntelligence/**\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### To Enable Blocking Mode" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "When Phase 3/4 migration is complete, update this workflow:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`yaml" >> $GITHUB_STEP_SUMMARY
+          echo "SOVEREIGNTY_SCAN_MODE: error  # Was: warn" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Documentation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- [Sovereignty Definition](/docs/sovereignty/definition.md)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Scanner README](/scripts/sovereignty/README.md)" >> $GITHUB_STEP_SUMMARY

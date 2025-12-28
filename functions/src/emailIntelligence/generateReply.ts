@@ -1,11 +1,16 @@
 /**
  * Email Intelligence Agent - Generate Reply Draft
  * Uses LLM to generate a draft reply to an email
+ * 
+ * NOTE: This module is in functions/src/emailIntelligence/ which is the only
+ * location allowed to make direct calls to external AI providers.
+ * @see /docs/sovereignty/definition.md
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai'; // sovereignty:allow reason="mailbox connector module" ticket="TT-001"
 import * as functions from 'firebase-functions';
 import { LLMReplyGenerationResult } from './types';
+import { safeInfo, safeError, logLLMEvent, hashText } from '../utils/safeLogger';
 
 /**
  * Generate a reply draft using Gemini AI
@@ -20,16 +25,24 @@ export async function generateReplyDraft(
   language: 'de' | 'en' = 'de',
   instructions?: string
 ): Promise<LLMReplyGenerationResult> {
+  const startTime = Date.now();
+  
   try {
     // Get Gemini API key from environment
     const apiKey = process.env.GEMINI_API_KEY || functions.config().gemini?.api_key;
     
     if (!apiKey) {
-      functions.logger.error('❌ Gemini API key not configured');
+      safeError('Reply generation: API key not configured');
       return getFallbackReply(originalFrom, originalSubject);
     }
 
-    functions.logger.info(`🔍 Generating reply draft for email: "${originalSubject.substring(0, 50)}..."`);
+    // Safe logging: only log metadata, never content
+    logLLMEvent('Reply generation starting', {
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+      operation: 'reply-generation',
+      inputLength: originalBodyText.length,
+    });
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
@@ -51,25 +64,41 @@ export async function generateReplyDraft(
       language,
       instructions
     );
-    
-    functions.logger.info(`📤 Sending reply generation request to Gemini API`);
 
     // Call Gemini API
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
 
-    functions.logger.info(`📥 Received reply draft from Gemini API (${text.length} chars)`);
+    const durationMs = Date.now() - startTime;
+    
+    // Safe logging: only log response length, never content
+    logLLMEvent('Reply generation completed', {
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+      operation: 'reply-generation',
+      outputLength: text.length,
+      durationMs,
+      status: 'success',
+    });
 
     // Parse JSON response
     const replyDraft = parseReplyResponse(text, originalFrom, originalSubject);
     
     return replyDraft;
   } catch (error: any) {
-    functions.logger.error('❌ Reply generation error:', error);
-    if (error.message) {
-      functions.logger.error('Error message:', error.message);
-    }
+    const durationMs = Date.now() - startTime;
+    
+    // Safe error logging: only log error type, never content
+    logLLMEvent('Reply generation failed', {
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+      operation: 'reply-generation',
+      durationMs,
+      status: 'error',
+      error: { name: error.name, message: error.message, code: error.code },
+    });
+    
     return getFallbackReply(originalFrom, originalSubject);
   }
 }
@@ -165,7 +194,8 @@ function parseReplyResponse(
       jsonText = jsonMatch[0];
     }
 
-    functions.logger.info('Attempting to parse reply JSON:', jsonText.substring(0, 200));
+    // Safe logging: log parsing status without content
+    safeInfo('Reply response parsing', { responseLength: jsonText.length });
 
     const parsed = JSON.parse(jsonText);
 
@@ -181,7 +211,12 @@ function parseReplyResponse(
       ? subject
       : `Re: ${subject}`;
 
-    functions.logger.info(`Successfully parsed reply: to=${to.length}, subject="${finalSubject.substring(0, 50)}..."`);
+    // Safe logging: only log recipient count, never addresses
+    safeInfo('Reply parsed successfully', { 
+      toCount: to.length, 
+      ccCount: cc.length,
+      bodyLength: bodyText.length 
+    });
 
     return {
       subject: finalSubject,
@@ -190,9 +225,11 @@ function parseReplyResponse(
       to,
       cc,
     };
-  } catch (error) {
-    functions.logger.error('Error parsing reply response:', error);
-    functions.logger.error('Response text:', text);
+  } catch (error: any) {
+    // Safe error logging: never log the actual response text
+    safeError('Reply response parsing failed', error, { 
+      responseLength: text?.length 
+    });
     
     // Return fallback
     return getFallbackReply(fallbackTo, fallbackSubject);
@@ -211,6 +248,7 @@ function getFallbackReply(to: string, originalSubject: string): LLMReplyGenerati
     cc: [],
   };
 }
+
 
 
 

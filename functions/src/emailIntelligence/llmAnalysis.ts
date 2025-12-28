@@ -1,11 +1,16 @@
 /**
  * Email Intelligence Agent - LLM Analysis
  * Analyzes emails using Gemini API
+ * 
+ * NOTE: This module is in functions/src/emailIntelligence/ which is the only
+ * location allowed to make direct calls to external AI providers.
+ * @see /docs/sovereignty/definition.md
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai'; // sovereignty:allow reason="mailbox connector module" ticket="TT-001"
 import * as functions from 'firebase-functions';
 import { LLMAnalysisResult, EmailCategory, EmailPriority, DocumentType } from './types';
+import { safeInfo, safeError, logLLMEvent, hashText } from '../utils/safeLogger';
 
 /**
  * Analyze email content using Gemini AI
@@ -15,16 +20,24 @@ export async function runLLMAnalysis(
   bodyText: string,
   attachments: Array<{ fileName: string; mimeType: string }>
 ): Promise<LLMAnalysisResult> {
+  const startTime = Date.now();
+  
   try {
     // Get Gemini API key from environment
     const apiKey = process.env.GEMINI_API_KEY || functions.config().gemini?.api_key;
     
     if (!apiKey) {
-      functions.logger.error('❌ Gemini API key not configured - set GEMINI_API_KEY environment variable or firebase config gemini.api_key');
+      safeError('LLM analysis: API key not configured');
       return getFallbackResult();
     }
 
-    functions.logger.info(`🔍 Starting LLM analysis for email: "${subject.substring(0, 50)}..."`);
+    // Safe logging: only log subject hash and lengths, never content
+    logLLMEvent('LLM analysis starting', {
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+      operation: 'email-analysis',
+      inputLength: bodyText.length,
+    });
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
@@ -37,28 +50,41 @@ export async function runLLMAnalysis(
 
     // Build prompt
     const prompt = buildAnalysisPrompt(subject, bodyText, attachments);
-    
-    functions.logger.info(`📤 Sending request to Gemini API (model: gemini-2.5-flash)`);
 
     // Call Gemini API
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
 
-    functions.logger.info(`📥 Received response from Gemini API (${text.length} chars)`);
+    const durationMs = Date.now() - startTime;
+    
+    // Safe logging: only log response length, never content
+    logLLMEvent('LLM analysis completed', {
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+      operation: 'email-analysis',
+      outputLength: text.length,
+      durationMs,
+      status: 'success',
+    });
 
     // Parse JSON response
     const analysis = parseAnalysisResponse(text);
     
     return analysis;
   } catch (error: any) {
-    functions.logger.error('❌ LLM analysis error:', error);
-    if (error.message) {
-      functions.logger.error('Error message:', error.message);
-    }
-    if (error.response) {
-      functions.logger.error('API response:', error.response);
-    }
+    const durationMs = Date.now() - startTime;
+    
+    // Safe error logging: only log error type and message, never content
+    logLLMEvent('LLM analysis failed', {
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+      operation: 'email-analysis',
+      durationMs,
+      status: 'error',
+      error: { name: error.name, message: error.message, code: error.code },
+    });
+    
     return getFallbackResult();
   }
 }
@@ -151,7 +177,8 @@ function parseAnalysisResponse(text: string): LLMAnalysisResult {
       jsonText = jsonMatch[0];
     }
 
-    functions.logger.info('Attempting to parse JSON:', jsonText.substring(0, 200));
+    // Safe logging: log parsing status without content
+    safeInfo('LLM response parsing', { responseLength: jsonText.length });
 
     const parsed = JSON.parse(jsonText);
 
@@ -162,7 +189,12 @@ function parseAnalysisResponse(text: string): LLMAnalysisResult {
     const summary_bullets = validateSummaryBullets(parsed.summary_bullets || []);
     const priority = validatePriority(parsed.priority);
 
-    functions.logger.info(`Successfully parsed LLM response: category=${category}, confidence=${confidence}, bullets=${summary_bullets.length}`);
+    safeInfo('LLM response parsed successfully', { 
+      category, 
+      confidence, 
+      bulletCount: summary_bullets.length,
+      priority 
+    });
 
     return {
       category,
@@ -171,9 +203,11 @@ function parseAnalysisResponse(text: string): LLMAnalysisResult {
       summary_bullets,
       priority,
     };
-  } catch (error) {
-    functions.logger.error('Error parsing LLM response:', error);
-    functions.logger.error('Response text:', text);
+  } catch (error: any) {
+    // Safe error logging: never log the actual response text
+    safeError('LLM response parsing failed', error, { 
+      responseLength: text?.length 
+    });
     
     // Return fallback
     return getFallbackResult();

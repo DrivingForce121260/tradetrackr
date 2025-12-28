@@ -27,7 +27,7 @@ export async function classifyText(
     // const response = await callAIService(text, context);
     
     // For now, return a low confidence to trigger manual review
-    console.log('[classifyText] AI classification requested', { textLength: text.length, context });
+    // Note: AI classification should use @/services/ai/aiClient when implemented
     
     // Placeholder: Analyze text with simple keyword matching as fallback
     const result = await analyzeWithKeywords(text, context);
@@ -40,7 +40,7 @@ export async function classifyText(
     };
     
   } catch (error) {
-    console.error('[classifyText] AI classification error:', error);
+    // Error handling - no document content logged
     return {
       confidence: 0.0,
       reason: 'AI classification failed',

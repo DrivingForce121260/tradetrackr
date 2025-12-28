@@ -1,0 +1,51 @@
+============================================================
+SYNTHETISCHES OCR-TESTDOKUMENT
+============================================================
+Dieses Dokument simuliert OCR-Text aus einem Lieferschein.
+Es enthält KEINE echten Kundendaten.
+============================================================
+
+                    LIEFERSCHEIN
+
+Lieferschein-Nr.:     LS-2025-4567
+Datum:                28.12.2025
+Bestell-Nr.:          BE-2025-0890
+
+Lieferadresse:
+Mustermann Elektro GmbH
+z.Hd. Herr Monteur
+Baustelle Musterstraße 42
+12345 Musterstadt
+
+Rechnungsadresse:
+Mustermann Elektro GmbH
+Werkstattweg 15
+12345 Musterstadt
+
+------------------------------------------------------------
+Pos  Artikel-Nr.   Bezeichnung                    Menge  ME
+------------------------------------------------------------
+1    EL-NYM-315    NYM-J 3x1,5mm² Kabel           100    m
+2    EL-NYM-525    NYM-J 5x2,5mm² Kabel            50    m
+3    EL-SD-UP      Schalterdose UP Ø68mm           25    Stk
+4    BJ-DS-2020    Doppelsteckdose Busch-Jaeger    15    Stk
+5    BJ-WS-1010    Wechselschalter Busch-Jaeger    10    Stk
+6    EL-ZAS-SM     Zähleranschlusssäule             1    Stk
+------------------------------------------------------------
+
+Gewicht brutto:       45,5 kg
+Pakete:               3 Stk
+
+Fahrer: M. Mustermann
+Kennzeichen: XX-YY 1234
+
+------------------------------------------------------------
+Waren geprüft und vollständig erhalten:
+
+Datum: ____________    Unterschrift: ____________________
+
+============================================================
+[_synthetic = true]
+[Dieses Dokument dient nur Testzwecken]
+============================================================
+

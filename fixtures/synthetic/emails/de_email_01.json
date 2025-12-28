@@ -1,0 +1,29 @@
+{
+  "id": "synth-email-001",
+  "messageId": "synth-001-msg@example.local",
+  "threadId": "synth-thread-001",
+  "provider": "synthetic",
+  "subject": "Angebot für Elektroinstallation - Neubau Musterstraße 42",
+  "from": {
+    "name": "Max Mustermann",
+    "email": "max.mustermann@example.local"
+  },
+  "to": [
+    {
+      "name": "TradeTrackr GmbH",
+      "email": "info@tradetrackr.example.local"
+    }
+  ],
+  "cc": [],
+  "date": "2025-12-20T09:15:00Z",
+  "bodyText": "Sehr geehrte Damen und Herren,\n\nwir benötigen ein Angebot für die komplette Elektroinstallation in unserem Neubau.\n\nObjekt: Einfamilienhaus\nAdresse: Musterstraße 42, 12345 Musterstadt\nWohnfläche: ca. 180 m²\n\nGewünschte Leistungen:\n- Komplette Elektroinstallation nach DIN VDE\n- 25 Steckdosen\n- 15 Lichtschalter\n- Smart-Home Vorbereitung\n- Zählerschrank mit Smart Meter\n- Außenbeleuchtung (4 Spots)\n\nBaubeginn geplant: Februar 2026\n\nBitte senden Sie uns ein unverbindliches Angebot.\n\nMit freundlichen Grüßen\nMax Mustermann",
+  "bodyHtml": "<p>Sehr geehrte Damen und Herren,</p><p>wir benötigen ein Angebot für die komplette Elektroinstallation in unserem Neubau.</p><p><strong>Objekt:</strong> Einfamilienhaus<br><strong>Adresse:</strong> Musterstraße 42, 12345 Musterstadt<br><strong>Wohnfläche:</strong> ca. 180 m²</p><p><strong>Gewünschte Leistungen:</strong></p><ul><li>Komplette Elektroinstallation nach DIN VDE</li><li>25 Steckdosen</li><li>15 Lichtschalter</li><li>Smart-Home Vorbereitung</li><li>Zählerschrank mit Smart Meter</li><li>Außenbeleuchtung (4 Spots)</li></ul><p><strong>Baubeginn geplant:</strong> Februar 2026</p><p>Bitte senden Sie uns ein unverbindliches Angebot.</p><p>Mit freundlichen Grüßen<br>Max Mustermann</p>",
+  "attachments": [],
+  "labels": ["INBOX"],
+  "isRead": false,
+  "category": "ORDER",
+  "priority": "normal",
+  "_synthetic": true,
+  "_description": "Typische Anfrage für Elektroinstallation - Neubau"
+}
+

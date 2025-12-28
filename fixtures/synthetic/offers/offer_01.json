@@ -1,0 +1,84 @@
+{
+  "id": "synth-offer-001",
+  "number": "ANG-2025-0042",
+  "tenantId": "synth-tenant-001",
+  "state": "draft",
+  "issueDate": "2025-12-28",
+  "validUntil": "2026-01-28",
+  "client": {
+    "id": "synth-client-001",
+    "name": "Mustermann Bauherr GmbH",
+    "address": {
+      "street": "Musterstraße 42",
+      "zip": "12345",
+      "city": "Musterstadt"
+    },
+    "email": "bauherr@example.local",
+    "phone": "+49 123 456789"
+  },
+  "project": {
+    "id": "synth-project-001",
+    "name": "Neubau Musterstraße 42"
+  },
+  "positions": [
+    {
+      "position": 1,
+      "description": "Elektroinstallation komplett nach DIN VDE",
+      "unit": "pauschal",
+      "quantity": 1,
+      "unitPrice": 12500.00,
+      "total": 12500.00
+    },
+    {
+      "position": 2,
+      "description": "Steckdosen (25 Stk.) inkl. Montage",
+      "unit": "Stk",
+      "quantity": 25,
+      "unitPrice": 45.00,
+      "total": 1125.00
+    },
+    {
+      "position": 3,
+      "description": "Lichtschalter (15 Stk.) inkl. Montage",
+      "unit": "Stk",
+      "quantity": 15,
+      "unitPrice": 35.00,
+      "total": 525.00
+    },
+    {
+      "position": 4,
+      "description": "Smart-Home Vorbereitung (Leerverrohrung)",
+      "unit": "pauschal",
+      "quantity": 1,
+      "unitPrice": 1850.00,
+      "total": 1850.00
+    },
+    {
+      "position": 5,
+      "description": "Zählerschrank inkl. Smart Meter Platz",
+      "unit": "Stk",
+      "quantity": 1,
+      "unitPrice": 2200.00,
+      "total": 2200.00
+    },
+    {
+      "position": 6,
+      "description": "Außenbeleuchtung (4 LED Spots)",
+      "unit": "Stk",
+      "quantity": 4,
+      "unitPrice": 175.00,
+      "total": 700.00
+    }
+  ],
+  "subtotal": 18900.00,
+  "vatRate": 19,
+  "vatAmount": 3591.00,
+  "total": 22491.00,
+  "currency": "EUR",
+  "notes": "Alle Arbeiten nach aktuellen DIN VDE Normen. Materialpreise gültig für 30 Tage. Abrechnung nach tatsächlichem Aufwand möglich.",
+  "createdAt": "2025-12-28T10:00:00Z",
+  "updatedAt": "2025-12-28T10:00:00Z",
+  "_synthetic": true,
+  "_description": "Beispielangebot für Elektroinstallation Neubau"
+}
+

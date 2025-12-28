@@ -1,0 +1,73 @@
+{
+  "id": "synth-invoice-001",
+  "number": "RE-2025-0123",
+  "tenantId": "synth-tenant-001",
+  "state": "sent",
+  "issueDate": "2025-12-15",
+  "dueDate": "2025-12-29",
+  "client": {
+    "id": "synth-client-002",
+    "name": "Hausverwaltung Beispiel KG",
+    "address": {
+      "street": "Verwaltungsweg 7",
+      "zip": "54321",
+      "city": "Beispielstadt"
+    },
+    "email": "abrechnung@hausverwaltung.example.local",
+    "phone": "+49 987 654321"
+  },
+  "project": {
+    "id": "synth-project-002",
+    "name": "Wartung Mehrfamilienhaus Waldstraße"
+  },
+  "positions": [
+    {
+      "position": 1,
+      "description": "Jährliche Elektroprüfung nach DGUV V3",
+      "unit": "Stunden",
+      "quantity": 4,
+      "unitPrice": 75.00,
+      "total": 300.00
+    },
+    {
+      "position": 2,
+      "description": "Prüfung Brandmelder (12 Stk.)",
+      "unit": "Stk",
+      "quantity": 12,
+      "unitPrice": 15.00,
+      "total": 180.00
+    },
+    {
+      "position": 3,
+      "description": "Austausch defekter Schalter Treppenhaus",
+      "unit": "Stk",
+      "quantity": 3,
+      "unitPrice": 45.00,
+      "total": 135.00
+    },
+    {
+      "position": 4,
+      "description": "Fahrtkosten",
+      "unit": "pauschal",
+      "quantity": 1,
+      "unitPrice": 35.00,
+      "total": 35.00
+    }
+  ],
+  "subtotal": 650.00,
+  "vatRate": 19,
+  "vatAmount": 123.50,
+  "total": 773.50,
+  "currency": "EUR",
+  "paymentTerms": "Zahlbar innerhalb 14 Tagen ohne Abzug",
+  "bankDetails": {
+    "bankName": "Musterbank",
+    "iban": "DE89 1234 5678 9012 3456 00",
+    "bic": "MUSTDEFF"
+  },
+  "createdAt": "2025-12-15T14:00:00Z",
+  "updatedAt": "2025-12-15T14:00:00Z",
+  "_synthetic": true,
+  "_description": "Beispielrechnung für Wartungsarbeiten"
+}
+
