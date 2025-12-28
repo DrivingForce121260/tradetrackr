@@ -18,8 +18,9 @@ import {
   getPriorityColor,
   getStatusLabel,
 } from '@/services/emailIntelligenceService';
-import { Mail, AlertCircle, CheckCircle, Clock, Filter, User, Settings, Plus, RefreshCw, Archive, Inbox, Trash2 } from 'lucide-react';
+import { Mail, AlertCircle, CheckCircle, Clock, Filter, User, Settings, Plus, RefreshCw, Archive, Inbox, Trash2, Sparkles, Reply } from 'lucide-react';
 import EmailDetailDrawer from '@/components/EmailDetailDrawer';
+import EmailReplyComposer from '@/components/EmailReplyComposer';
 import AppHeader from '@/components/AppHeader';
 import EmailAccountManager from '@/components/EmailAccountManager';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +44,7 @@ const SmartInbox: React.FC<SmartInboxProps> = ({ onBack, onNavigate, onOpenMessa
   const { user, hasPermission } = useAuth();
   const { toast } = useToast();
   const orgId = user?.concernID || user?.ConcernID || '';
+  const uid = user?.uid || '';
 
   // Filter state
   const [categoryFilter, setCategoryFilter] = useState<EmailCategory | undefined>();
@@ -55,13 +57,29 @@ const SmartInbox: React.FC<SmartInboxProps> = ({ onBack, onNavigate, onOpenMessa
   
   // Show email account setup
   const [showAccountSetup, setShowAccountSetup] = useState(false);
+  
+  // Re-analyzing state
+  const [reanalyzingEmailId, setReanalyzingEmailId] = useState<string | null>(null);
+  
+  // Reply composer state
+  const [replyComposerOpen, setReplyComposerOpen] = useState(false);
+  const [currentReplyId, setCurrentReplyId] = useState<string | null>(null);
+  const [generatingReplyForEmail, setGeneratingReplyForEmail] = useState<string | null>(null);
 
-  // Fetch summaries
+  // Fetch summaries - filtered by current user's owned accounts
   const { summaries, loading } = useEmailSummaries(orgId, {
     category: categoryFilter,
     status: showArchived ? ('archived' as any) : statusFilter,
     priority: priorityFilter,
+    uid, // Filter by user's owned email accounts
   });
+
+  // Debug logging
+  console.log('📧 [SmartInbox] orgId:', orgId);
+  console.log('📧 [SmartInbox] loading:', loading);
+  console.log('📧 [SmartInbox] summaries count:', summaries.length);
+  console.log('📧 [SmartInbox] summaries:', summaries);
+  console.log('📧 [SmartInbox] filters:', { categoryFilter, statusFilter, priorityFilter, showArchived });
 
   const { updateStatus, archive, unarchive, markAsRead } = useEmailActions();
 
@@ -70,6 +88,67 @@ const SmartInbox: React.FC<SmartInboxProps> = ({ onBack, onNavigate, onOpenMessa
       await updateStatus(emailId, status);
     } catch (error) {
       console.error('Failed to update status:', error);
+    }
+  };
+
+  const handleReanalyze = async (emailId: string) => {
+    setReanalyzingEmailId(emailId);
+    try {
+      const reanalyzeFunction = httpsCallable(functionsEU, 'reanalyzeEmail');
+      const result = await reanalyzeFunction({ emailId });
+      
+      const data = result.data as any;
+      
+      toast({
+        title: '✅ Neu analysiert',
+        description: `Kategorie: ${getCategoryLabel(data.category)} | Priorität: ${data.priority.toUpperCase()}`,
+      });
+    } catch (error: any) {
+      console.error('Re-analyze error:', error);
+      
+      const errorMessage = error.message || 'Bitte versuchen Sie es später erneut';
+      
+      toast({
+        title: '❌ Analyse fehlgeschlagen',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setReanalyzingEmailId(null);
+    }
+  };
+
+  const handleGenerateReply = async (emailId: string) => {
+    setGeneratingReplyForEmail(emailId);
+    try {
+      const generateReplyFunction = httpsCallable(functionsEU, 'generateEmailReplyDraft');
+      const result = await generateReplyFunction({ 
+        concernId: orgId,
+        emailId,
+        tone: 'neutral',
+        language: 'de',
+      });
+      
+      const data = result.data as any;
+      
+      toast({
+        title: '✅ Antwort generiert',
+        description: 'KI-Antwort wurde erstellt',
+      });
+
+      // Open reply composer
+      setCurrentReplyId(data.replyId);
+      setReplyComposerOpen(true);
+    } catch (error: any) {
+      console.error('Generate reply error:', error);
+      
+      toast({
+        title: '❌ Generierung fehlgeschlagen',
+        description: error.message || 'Bitte versuchen Sie es später erneut',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingReplyForEmail(null);
     }
   };
 
@@ -133,7 +212,13 @@ const SmartInbox: React.FC<SmartInboxProps> = ({ onBack, onNavigate, onOpenMessa
                 </Button>
                 
                 <Button
-                  onClick={() => window.location.reload()}
+                  onClick={() => {
+                    // Force re-render by toggling loading state
+                    toast({
+                      title: "Aktualisiert",
+                      description: "Die E-Mail-Liste wird automatisch aktualisiert.",
+                    });
+                  }}
                   variant="outline"
                   className="border-2 border-gray-300 text-gray-700 hover:bg-gray-100 shadow-md font-semibold"
                 >
@@ -302,6 +387,11 @@ const SmartInbox: React.FC<SmartInboxProps> = ({ onBack, onNavigate, onOpenMessa
                           <span className="text-base font-bold text-gray-900 truncate">
                             {summary.emailFrom || 'Unbekannter Absender'}
                           </span>
+                          {summary.emailTo && (
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                              → {summary.emailTo}
+                            </span>
+                          )}
                           {summary.isNew && (
                             <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-lg animate-pulse">
                               NEU
@@ -403,6 +493,50 @@ const SmartInbox: React.FC<SmartInboxProps> = ({ onBack, onNavigate, onOpenMessa
                           <Archive className="w-3 h-3 mr-1" />
                           Archivieren
                         </Button>
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReanalyze(summary.emailId);
+                          }}
+                          disabled={reanalyzingEmailId === summary.emailId}
+                          size="sm"
+                          variant="outline"
+                          className="bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 hover:from-purple-100 hover:to-pink-100 border-2 border-purple-300 shadow-md font-semibold disabled:opacity-50"
+                        >
+                          {reanalyzingEmailId === summary.emailId ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                              Analysiere...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              Neu analysieren
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleGenerateReply(summary.emailId);
+                          }}
+                          disabled={generatingReplyForEmail === summary.emailId}
+                          size="sm"
+                          variant="outline"
+                          className="bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 hover:from-emerald-100 hover:to-teal-100 border-2 border-emerald-300 shadow-md font-semibold disabled:opacity-50"
+                        >
+                          {generatingReplyForEmail === summary.emailId ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                              Generiere...
+                            </>
+                          ) : (
+                            <>
+                              <Reply className="w-3 h-3 mr-1" />
+                              AI Antwort erstellen
+                            </>
+                          )}
+                        </Button>
                       </>
                     ) : (
                       <Button
@@ -448,6 +582,23 @@ const SmartInbox: React.FC<SmartInboxProps> = ({ onBack, onNavigate, onOpenMessa
       {/* Email Account Setup Modal */}
       {showAccountSetup && (
         <EmailAccountSetupModal onClose={() => setShowAccountSetup(false)} />
+      )}
+
+      {/* Reply Composer */}
+      {replyComposerOpen && currentReplyId && (
+        <EmailReplyComposer
+          replyId={currentReplyId}
+          onClose={() => {
+            setReplyComposerOpen(false);
+            setCurrentReplyId(null);
+          }}
+          onSent={() => {
+            toast({
+              title: '✅ E-Mail gesendet',
+              description: 'Ihre Antwort wurde erfolgreich versendet',
+            });
+          }}
+        />
       )}
 
       {/* Quick Action Sidebar - removed, using DesktopSidebar instead */}

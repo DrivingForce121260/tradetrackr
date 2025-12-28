@@ -27,19 +27,40 @@ export type DocumentType =
   | 'ID' 
   | 'OTHER';
 
+export type EmailAccountStatus = 'active' | 'disabled' | 'error';
+
 export interface EmailAccount {
-  orgId: string;
+  // Identity
+  concernId: string;           // Same as orgId for compatibility
+  orgId: string;               // Legacy field, kept for compatibility
+  ownerUid: string;            // REQUIRED: Owner user ID
+  
+  // Provider info
   provider: EmailProvider;
   emailAddress: string;
-  oauthRef: string;
+  emailKey?: string;           // Sanitized key for uniqueness checks
+  oauthRef: string;            // Reference to OAuth credentials
+  
+  // Sync state
   syncState?: {
     historyId?: string;
     deltaToken?: string;
     lastSyncedAt?: Timestamp;
+    messageCount?: number;
   };
-  active: boolean;
+  lastSyncAt?: Timestamp;
+  
+  // Status
+  status: EmailAccountStatus;
+  active: boolean;             // Legacy, use status instead
+  
+  // Sharing (optional)
+  sharedWithUids?: string[];   // Users who have shared access
+  
+  // Timestamps
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  deletedAt?: Timestamp | null; // Soft delete
 }
 
 export interface IncomingEmail {
@@ -47,6 +68,7 @@ export interface IncomingEmail {
   accountId: string;
   provider: EmailProvider;
   providerMessageId: string;
+  messageKey?: string; // Link to canonical message
   threadId: string;
   from: string;
   to: string[];
@@ -65,6 +87,7 @@ export interface IncomingEmail {
 export interface EmailAttachment {
   orgId: string;
   emailId: string;
+  messageKey?: string; // Link to canonical message
   fileName: string;
   mimeType: string;
   storagePath: string;
@@ -76,7 +99,11 @@ export interface EmailAttachment {
 
 export interface EmailSummary {
   orgId: string;
+  accountId?: string; // Link to email account for user filtering
+  messageKey?: string; // Link to canonical message
   emailId: string;
+  // HARDENED: ownerUid for security scoping - required for new docs
+  ownerUid?: string | null;
   category: EmailCategory;
   summaryBullets: string[];
   priority: EmailPriority;
@@ -93,6 +120,7 @@ export interface EmailSummary {
 export interface NormalizedEmail {
   orgId: string;
   accountId: string;
+  ownerUid?: string; // Owner user ID - required for user-scoped storage
   provider: EmailProvider;
   providerMessageId: string;
   threadId: string;
@@ -104,6 +132,7 @@ export interface NormalizedEmail {
   bodyHtml?: string;
   receivedAt: Date;
   attachments: NormalizedAttachment[];
+  headers?: Record<string, string>; // Email headers (for Message-ID extraction)
 }
 
 export interface NormalizedAttachment {
@@ -130,6 +159,61 @@ export interface LLMAnalysisResult {
   document_types: DocumentType[];
   summary_bullets: string[];
   priority: EmailPriority;
+}
+
+export type EmailReplyStatus = 
+  | 'draft' 
+  | 'generated' 
+  | 'edited' 
+  | 'sending' 
+  | 'sent' 
+  | 'send_failed';
+
+export interface EmailReply {
+  concernId: string;
+  emailId: string;
+  accountId: string;
+  provider: EmailProvider;
+  
+  threadId?: string;
+  providerMessageId?: string;
+  providerDraftId?: string;
+  providerSentId?: string;
+  
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  bodyText: string;
+  bodyHtml?: string;
+  
+  status: EmailReplyStatus;
+  lastError?: string | null;
+  
+  generatedBy: {
+    model: string;
+    temperature: number;
+  } | null;
+  
+  createdBy: string;
+  updatedBy: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  
+  history: Array<{
+    at: Timestamp;
+    by: string;
+    action: 'generated' | 'edited' | 'sent' | 'failed';
+    note?: string;
+  }>;
+}
+
+export interface LLMReplyGenerationResult {
+  subject: string;
+  bodyText: string;
+  bodyHtml?: string;
+  to: string[];
+  cc: string[];
 }
 
 

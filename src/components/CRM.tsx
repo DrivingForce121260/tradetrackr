@@ -43,7 +43,9 @@ import {
   X,
   Shield,
   Camera,
-  Upload
+  Upload,
+  UserPlus,
+  UserCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,6 +62,8 @@ import AppHeader from './AppHeader';
 import BusinessCardScanModal from './crm/BusinessCardScanModal';
 import BusinessCardUploadModal from './crm/BusinessCardUploadModal';
 import BusinessCardReviewDialog from './crm/BusinessCardReviewDialog';
+// NOTE: EmailInquiriesTab moved to Sales portal (InvoicingPortal)
+// Email inquiries are now converted to sales offers, not procurement requests
 import { useHasCamera } from '@/hooks/useHasCamera';
 import {
   CRMAccount,
@@ -115,6 +119,11 @@ const CRM: React.FC<CRMProps> = ({ onBack, onNavigate, onOpenMessaging }) => {
   const [businessCardConfidence, setBusinessCardConfidence] = useState<number>(0);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [selectedOpportunity, setSelectedOpportunity] = useState<CRMOpportunity | null>(null);
+  
+  // Convert to Customer state
+  const [showConvertToCustomerDialog, setShowConvertToCustomerDialog] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
+  const [conversionStatus, setConversionStatus] = useState<{ isConverted: boolean; customerId?: string } | null>(null);
   
   const hasCamera = useHasCamera();
   
@@ -320,6 +329,48 @@ const CRM: React.FC<CRMProps> = ({ onBack, onNavigate, onOpenMessaging }) => {
     window.open(res.url, '_blank');
   };
 
+  // Check conversion status when account is selected
+  const checkConversionStatus = async (accountId: string) => {
+    if (!crmService) return;
+    const status = await crmService.checkConversionStatus(accountId);
+    setConversionStatus(status);
+  };
+
+  // Handle converting CRM account to active customer
+  const handleConvertToCustomer = async () => {
+    if (!crmService || !selectedAccount) return;
+
+    setIsConverting(true);
+    try {
+      const result = await crmService.convertToCustomer(selectedAccount.id);
+      
+      toast({
+        title: '✅ Erfolgreich konvertiert!',
+        description: `${result.customerName} wurde als aktiver Kunde angelegt.`,
+      });
+
+      // Update conversion status
+      setConversionStatus({ isConverted: true, customerId: result.customerId });
+      
+      // Close the confirmation dialog
+      setShowConvertToCustomerDialog(false);
+      
+      // Reload accounts to get the updated tags
+      if (crmService) {
+        await loadCRMData(crmService);
+      }
+    } catch (error: any) {
+      console.error('Error converting to customer:', error);
+      toast({
+        title: 'Fehler',
+        description: error.message || 'Konvertierung fehlgeschlagen',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
   const handleCreateContact = async () => {
     if (!crmService || !newContact.accountId) return;
 
@@ -380,11 +431,13 @@ const CRM: React.FC<CRMProps> = ({ onBack, onNavigate, onOpenMessaging }) => {
     }
   };
 
-  const handleViewAccount = (account: CRMAccount) => {
+  const handleViewAccount = async (account: CRMAccount) => {
     setSelectedAccount(account);
     setEditAccountData(account);
     setIsEditingAccount(false);
     setShowAccountDetails(true);
+    // Check if already converted to customer
+    await checkConversionStatus(account.id);
   };
 
   const handleSaveAccountEdit = async () => {
@@ -668,7 +721,7 @@ const CRM: React.FC<CRMProps> = ({ onBack, onNavigate, onOpenMessaging }) => {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-gray-100 to-gray-200 p-1 rounded-lg shadow-md">
+          <TabsList className="grid w-full grid-cols-5 bg-gradient-to-r from-gray-100 to-gray-200 p-1 rounded-lg shadow-md">
             <TabsTrigger value="overview" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#058bc0] data-[state=active]:to-[#0470a0] data-[state=active]:text-white font-semibold transition-all">
               📊 Übersicht
             </TabsTrigger>
@@ -681,6 +734,7 @@ const CRM: React.FC<CRMProps> = ({ onBack, onNavigate, onOpenMessaging }) => {
             <TabsTrigger value="quotes" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#058bc0] data-[state=active]:to-[#0470a0] data-[state=active]:text-white font-semibold transition-all">
               💼 Angebote
             </TabsTrigger>
+            {/* NOTE: E-Mail-Anfragen Tab moved to Angebote/Aufträge/Rechnungen (Sales portal) */}
           </TabsList>
 
           {/* Overview Tab */}
@@ -994,6 +1048,8 @@ const CRM: React.FC<CRMProps> = ({ onBack, onNavigate, onOpenMessaging }) => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* NOTE: Email Inquiries Tab removed - now in Angebote/Aufträge/Rechnungen (Sales portal) */}
         </Tabs>
 
         {/* New Account Dialog */}
@@ -1729,6 +1785,26 @@ const CRM: React.FC<CRMProps> = ({ onBack, onNavigate, onOpenMessaging }) => {
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap items-center gap-3">
+                      {/* Convert to Customer Button */}
+                      {conversionStatus?.isConverted ? (
+                        <Button 
+                          variant="outline" 
+                          disabled
+                          className="bg-gray-400 text-white border-0 font-semibold shadow-md cursor-not-allowed"
+                        >
+                          <UserCheck className="h-4 w-4 mr-2" />
+                          Bereits Kunde
+                        </Button>
+                      ) : (
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setShowConvertToCustomerDialog(true)}
+                          className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0 font-semibold shadow-md hover:shadow-lg transition-all hover:scale-105"
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Zu Kunde konvertieren
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
                         onClick={() => setShowQuickQuote(true)}
@@ -1816,6 +1892,104 @@ const CRM: React.FC<CRMProps> = ({ onBack, onNavigate, onOpenMessaging }) => {
                       <span className="text-xl mr-2">❌</span> Schließen
                     </Button>
                   </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Convert to Customer Confirmation Dialog */}
+        {showConvertToCustomerDialog && selectedAccount && (
+          <Dialog open={showConvertToCustomerDialog} onOpenChange={setShowConvertToCustomerDialog}>
+            <DialogContent className="max-w-lg bg-gradient-to-br from-emerald-50 via-white to-teal-50 border-4 border-emerald-500 shadow-2xl">
+              <DialogHeader className="bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 text-white -mx-6 -mt-6 px-6 py-6 mb-6 shadow-xl relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse"></div>
+                <DialogTitle className="text-2xl font-bold flex items-center gap-3 relative z-10">
+                  <div className="bg-white/25 p-2.5 rounded-xl backdrop-blur-sm shadow-lg border-2 border-white/30">
+                    <UserPlus className="h-6 w-6" />
+                  </div>
+                  <div>
+                    Zu Kunde konvertieren
+                    <div className="text-xs font-normal text-white/80 mt-1">
+                      CRM-Kontakt in Kundendatenbank übertragen
+                    </div>
+                  </div>
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                <div className="bg-white border-2 border-emerald-200 rounded-lg p-4 shadow-sm">
+                  <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <span className="text-xl">📋</span>
+                    Folgende Daten werden übertragen:
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                      <span className="text-gray-600">Firmenname:</span>
+                      <span className="font-semibold text-gray-900">{selectedAccount.name}</span>
+                    </div>
+                    {selectedAccount.contactName && (
+                      <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                        <span className="text-gray-600">Ansprechpartner:</span>
+                        <span className="font-semibold text-gray-900">{selectedAccount.contactName}</span>
+                      </div>
+                    )}
+                    {(selectedAccount.contactEmail || selectedAccount.billingEmail) && (
+                      <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                        <span className="text-gray-600">E-Mail:</span>
+                        <span className="font-semibold text-gray-900">{selectedAccount.contactEmail || selectedAccount.billingEmail}</span>
+                      </div>
+                    )}
+                    {selectedAccount.contactPhone && (
+                      <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                        <span className="text-gray-600">Telefon:</span>
+                        <span className="font-semibold text-gray-900">{selectedAccount.contactPhone}</span>
+                      </div>
+                    )}
+                    {selectedAccount.addresses && selectedAccount.addresses.length > 0 && (
+                      <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                        <span className="text-gray-600">Adresse:</span>
+                        <span className="font-semibold text-gray-900 text-right">
+                          {selectedAccount.addresses[0].street}<br />
+                          {selectedAccount.addresses[0].postalCode} {selectedAccount.addresses[0].city}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                  <p className="text-sm text-emerald-800">
+                    <strong>ℹ️ Hinweis:</strong> Der CRM-Kontakt bleibt erhalten und wird mit dem neuen Kunden verknüpft. 
+                    Sie können weiterhin die CRM-Funktionen (Angebote, Timeline, etc.) nutzen.
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowConvertToCustomerDialog(false)}
+                    className="border-2 border-gray-300 text-gray-700 hover:bg-gray-100 font-semibold px-6"
+                  >
+                    Abbrechen
+                  </Button>
+                  <Button 
+                    onClick={handleConvertToCustomer}
+                    disabled={isConverting}
+                    className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all px-6"
+                  >
+                    {isConverting ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Wird konvertiert...
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Jetzt konvertieren
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             </DialogContent>
@@ -1982,7 +2156,9 @@ const CRM: React.FC<CRMProps> = ({ onBack, onNavigate, onOpenMessaging }) => {
                     description: "Angebot wurde erfolgreich erstellt",
                   });
                   // Reload quotes
-                  await loadData();
+                  if (crmService) {
+                    await loadCRMData(crmService);
+                  }
                 }}
                 onCancel={() => setShowNewQuoteDialog(false)}
               />

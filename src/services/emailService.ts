@@ -57,9 +57,33 @@ export class EmailService {
 	}
 
 	async sendEmail(request: SendEmailRequest & { concernID: string; locale?: 'de' | 'en' }): Promise<{ success: boolean; emailId: string; providerId?: string }> {
-		const fn = httpsCallable(functions as any, 'sendTransactionalEmail');
-		const result = await fn(request);
-		return result.data as any;
+		try {
+			const fn = httpsCallable(functions as any, 'sendTransactionalEmail');
+			const result = await fn(request);
+			return result.data as any;
+		} catch (error: any) {
+			// Check for specific error types
+			const errorMessage = error?.message || String(error);
+			const errorCode = error?.code;
+			
+			// CORS or network errors indicate the Cloud Function may not be deployed
+			if (errorMessage.includes('CORS') || errorMessage.includes('network') || errorCode === 'functions/unavailable') {
+				throw new Error('E-Mail-Service nicht verfügbar. Bitte kontaktieren Sie den Administrator oder versuchen Sie es später erneut.');
+			}
+			
+			// Permission errors
+			if (errorCode === 'functions/permission-denied' || errorCode === 'functions/unauthenticated') {
+				throw new Error('Keine Berechtigung zum Senden von E-Mails. Bitte melden Sie sich erneut an.');
+			}
+			
+			// Internal errors from the function
+			if (errorCode === 'functions/internal') {
+				throw new Error('Interner Fehler beim E-Mail-Versand. Bitte versuchen Sie es später erneut.');
+			}
+			
+			// Re-throw with a cleaner message
+			throw new Error(`E-Mail konnte nicht gesendet werden: ${errorMessage}`);
+		}
 	}
 
 	async resendEmail(emailId: string): Promise<{ success: boolean; emailId: string }> {

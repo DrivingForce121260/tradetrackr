@@ -312,7 +312,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ open, onOpenChange, initia
                       }}
                       showRecentFirst={false}
                       showUsageCount={false}
-                      maxSuggestions={10}
+                      maxSuggestions={50}
                       icon={<FolderOpen className="h-4 w-4" />}
                       emptyMessage="Keine Projekte gefunden"
                     />

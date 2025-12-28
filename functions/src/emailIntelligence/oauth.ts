@@ -5,6 +5,7 @@
 
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+// @ts-ignore - googleapis is optional dependency
 import { google } from 'googleapis';
 
 const db = admin.firestore();

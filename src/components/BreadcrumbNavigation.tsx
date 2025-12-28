@@ -34,6 +34,8 @@ const PAGE_LABELS: Record<string, string> = {
   'reports-builder': 'Bericht erstellen',
   'reports-scheduler': 'Berichte planen',
   customers: 'Kunden',
+  suppliers: 'Lieferanten',
+  procurement: 'Beschaffung',
   materials: 'Materialien',
   categories: 'Kategorien',
   users: 'Benutzer',
@@ -44,7 +46,7 @@ const PAGE_LABELS: Record<string, string> = {
   'notification-settings': 'Benachrichtigungen',
   'system-logs': 'System-Logs',
   settings: 'Einstellungen',
-  invoicing: 'Rechnungen',
+  invoicing: 'Angebote & Rechnungen',
   scheduling: 'Terminplanung',
   documents: 'Dokumente',
   'upload-document': 'Dokument hochladen',
@@ -67,6 +69,7 @@ const PAGE_LABELS: Record<string, string> = {
   'new-material': 'Neues Material',
   'new-project': 'Neues Projekt',
   'new-project-info': 'Neue Projektinformation',
+  'concern-management': 'Concern-Verwaltung',
 };
 
 const BreadcrumbNavigation: React.FC<BreadcrumbNavigationProps> = ({

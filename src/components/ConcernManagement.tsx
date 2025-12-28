@@ -468,125 +468,324 @@ const ConcernManagement: React.FC<ConcernManagementProps> = ({
             </CardContent>
           </Card>
 
-          {/* Branding & DATEV Settings */}
+          {/* Company Profile for Documents (German-compliant) */}
           <Card className="tradetrackr-card border-2 border-purple-500 shadow-xl overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-6 py-4">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
                 <Sparkles className="h-5 w-5" />
-                🎨 Branding & DATEV
+                📋 Firmenprofil & Dokumenteinstellungen
               </CardTitle>
             </CardHeader>
             <CardContent className="bg-gradient-to-br from-purple-50 to-pink-50 p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-800 flex items-center gap-1">
-                    <span className="text-base">🏢</span>
-                    Firmenname
-                  </Label>
-                  <Input 
-                    value={brandingEdit.companyName || ''} 
-                    onChange={e => setBrandingEdit({ ...brandingEdit, companyName: e.target.value })}
-                    className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-800 flex items-center gap-1">
-                    <span className="text-base">📧</span>
-                    E-Mail
-                  </Label>
-                  <Input 
-                    placeholder="info@firma.de" 
-                    value={brandingEdit.email || ''} 
-                    onChange={e => setBrandingEdit({ ...brandingEdit, email: e.target.value })}
-                    className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-                  />
-                  {brandingErrors.email && (<p className="text-red-600 text-sm mt-1 font-semibold">⚠️ {brandingErrors.email}</p>)}
-                </div>
-                <div className="md:col-span-2 space-y-2">
-                  <Label className="text-sm font-semibold text-gray-800 flex items-center gap-1">
-                    <span className="text-base">📍</span>
-                    Adresse
-                  </Label>
-                  <Input 
-                    placeholder="Straße Hausnr., PLZ Ort, Land" 
-                    value={brandingEdit.address || ''} 
-                    onChange={e => setBrandingEdit({ ...brandingEdit, address: e.target.value })}
-                    className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-800 flex items-center gap-1">
-                    <span className="text-base">📞</span>
-                    Telefon
-                  </Label>
-                  <Input 
-                    placeholder="+49 ..." 
-                    value={brandingEdit.phone || ''} 
-                    onChange={e => setBrandingEdit({ ...brandingEdit, phone: e.target.value })}
-                    className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-800 flex items-center gap-1">
-                    <span className="text-base">🖼️</span>
-                    Logo URL
-                  </Label>
-                  <Input 
-                    placeholder="https://.../logo.png" 
-                    value={brandingEdit.logoUrl || ''} 
-                    onChange={e => setBrandingEdit({ ...brandingEdit, logoUrl: e.target.value })}
-                    className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-                  />
-                  {brandingErrors.logoUrl && (<p className="text-red-600 text-sm mt-1 font-semibold">⚠️ {brandingErrors.logoUrl}</p>)}
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-800 flex items-center gap-1">
-                    <span className="text-base">🌍</span>
-                    Standard-Sprache
-                  </Label>
-                  <Input 
-                    placeholder="de oder en" 
-                    value={brandingEdit.defaultLocale || ''} 
-                    onChange={e => setBrandingEdit({ ...brandingEdit, defaultLocale: (e.target.value as any) })}
-                    className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-                  />
-                  {brandingErrors.locale && (<p className="text-red-600 text-sm mt-1 font-semibold">⚠️ {brandingErrors.locale}</p>)}
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-800 flex items-center gap-1">
-                    <span className="text-base">💼</span>
-                    DATEV Gegenkonto
-                  </Label>
-                  <Input 
-                    placeholder="z. B. 8400" 
-                    value={brandingEdit.datevContraAccount || ''} 
-                    onChange={e => setBrandingEdit({ ...brandingEdit, datevContraAccount: e.target.value })}
-                    className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-                  />
-                </div>
-                <div className="md:col-span-2 space-y-2">
-                  <Label className="text-sm font-semibold text-gray-800 flex items-center gap-1">
-                    <span className="text-base">📊</span>
-                    USt-Kontenmapping (JSON)
-                  </Label>
-                  <Textarea 
-                    placeholder={'{\n  "DE19": "8400",\n  "DE7": "8300",\n  "DE0": "8195"\n}'} 
-                    value={JSON.stringify(brandingEdit.taxAccountMapping || {}, null, 2)} 
-                    onChange={e => {
-                      try {
-                        const val = JSON.parse(e.target.value || '{}');
-                        setBrandingEdit({ ...brandingEdit, taxAccountMapping: val });
-                        setBrandingErrors(prev => ({ ...prev, json: undefined }));
-                      } catch {
-                        setBrandingErrors(prev => ({ ...prev, json: 'Ungültiges JSON' }));
-                      }
-                    }}
-                    className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 font-mono text-sm min-h-[120px]"
-                  />
-                  {brandingErrors.json && (<p className="text-red-600 text-sm mt-1 font-semibold">⚠️ {brandingErrors.json}</p>)}
+              {/* Section: Basic Company Info */}
+              <div className="mb-6">
+                <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-lg">🏢</span> Firmendaten
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2 space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Firmenname *</Label>
+                    <Input 
+                      placeholder="Musterfirma" 
+                      value={brandingEdit.companyName || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, companyName: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Rechtsform</Label>
+                    <Input 
+                      placeholder="GmbH, UG, GbR, etc." 
+                      value={brandingEdit.legalForm || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, legalForm: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="mt-6 flex justify-end gap-3">
+
+              {/* Section: Address */}
+              <div className="mb-6">
+                <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-lg">📍</span> Adresse
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-3 space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Straße & Hausnummer *</Label>
+                    <Input 
+                      placeholder="Musterstraße 123" 
+                      value={brandingEdit.street || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, street: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">PLZ *</Label>
+                    <Input 
+                      placeholder="12345" 
+                      value={brandingEdit.postalCode || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, postalCode: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Stadt *</Label>
+                    <Input 
+                      placeholder="Musterstadt" 
+                      value={brandingEdit.city || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, city: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Land</Label>
+                    <Input 
+                      placeholder="Deutschland" 
+                      value={brandingEdit.country || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, country: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section: Contact */}
+              <div className="mb-6">
+                <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-lg">📞</span> Kontakt
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">E-Mail</Label>
+                    <Input 
+                      placeholder="info@firma.de" 
+                      value={brandingEdit.email || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, email: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                    {brandingErrors.email && (<p className="text-red-600 text-sm mt-1 font-semibold">⚠️ {brandingErrors.email}</p>)}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Telefon</Label>
+                    <Input 
+                      placeholder="+49 123 456789" 
+                      value={brandingEdit.phone || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, phone: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Website</Label>
+                    <Input 
+                      placeholder="www.firma.de" 
+                      value={brandingEdit.website || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, website: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section: Tax & Legal */}
+              <div className="mb-6">
+                <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-lg">📑</span> Steuer & Rechtliches
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">USt-IdNr. (VAT ID)</Label>
+                    <Input 
+                      placeholder="DE123456789" 
+                      value={brandingEdit.vatId || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, vatId: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Steuernummer</Label>
+                    <Input 
+                      placeholder="123/456/78901" 
+                      value={brandingEdit.taxNumber || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, taxNumber: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Handelsregister</Label>
+                    <Input 
+                      placeholder="HRB 12345, Amtsgericht München" 
+                      value={brandingEdit.commercialRegister || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, commercialRegister: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Geschäftsführer / Inhaber</Label>
+                    <Input 
+                      placeholder="Max Mustermann" 
+                      value={brandingEdit.managingDirector || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, managingDirector: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="md:col-span-2 flex items-center gap-4 p-4 bg-amber-50 border-2 border-amber-200 rounded-xl">
+                    <input 
+                      type="checkbox" 
+                      id="isSmallBusiness"
+                      checked={brandingEdit.isSmallBusiness || false}
+                      onChange={e => setBrandingEdit({ ...brandingEdit, isSmallBusiness: e.target.checked })}
+                      className="w-5 h-5 rounded border-2 border-amber-400 text-amber-600 focus:ring-amber-500"
+                    />
+                    <label htmlFor="isSmallBusiness" className="text-sm font-semibold text-amber-800">
+                      ⚠️ Kleinunternehmer nach § 19 UStG (keine Umsatzsteuer ausweisen)
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section: Bank Details */}
+              <div className="mb-6">
+                <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-lg">🏦</span> Bankverbindung
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Bank</Label>
+                    <Input 
+                      placeholder="Sparkasse Musterstadt" 
+                      value={brandingEdit.bankName || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, bankName: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">IBAN</Label>
+                    <Input 
+                      placeholder="DE89 3704 0044 0532 0130 00" 
+                      value={brandingEdit.iban || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, iban: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">BIC</Label>
+                    <Input 
+                      placeholder="COBADEFFXXX" 
+                      value={brandingEdit.bic || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, bic: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section: Document Settings */}
+              <div className="mb-6">
+                <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-lg">📝</span> Dokumenteinstellungen
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Logo URL</Label>
+                    <Input 
+                      placeholder="https://.../logo.png" 
+                      value={brandingEdit.logoUrl || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, logoUrl: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                    {brandingErrors.logoUrl && (<p className="text-red-600 text-sm mt-1 font-semibold">⚠️ {brandingErrors.logoUrl}</p>)}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Standard-Sprache</Label>
+                    <select 
+                      value={brandingEdit.defaultLocale || 'de'} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, defaultLocale: e.target.value as 'de' | 'en' })}
+                      className="w-full h-10 px-3 border-2 border-gray-300 rounded-md focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    >
+                      <option value="de">🇩🇪 Deutsch</option>
+                      <option value="en">🇬🇧 Englisch</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Angebot Gültigkeit (Tage)</Label>
+                    <Input 
+                      type="number"
+                      placeholder="14" 
+                      value={brandingEdit.offerValidityDays || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, offerValidityDays: parseInt(e.target.value) || undefined })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="md:col-span-3 space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Zahlungsbedingungen</Label>
+                    <Input 
+                      placeholder="Zahlbar innerhalb von 14 Tagen ohne Abzug." 
+                      value={brandingEdit.paymentTermsText || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, paymentTermsText: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="md:col-span-3 space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Angebot Fußzeile (optional)</Label>
+                    <Textarea 
+                      placeholder="Optionaler Text für die Fußzeile von Angeboten" 
+                      value={brandingEdit.offerFooterText || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, offerFooterText: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 min-h-[80px]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section: DATEV Integration */}
+              <div className="mb-6">
+                <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-lg">💼</span> DATEV Integration
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">DATEV Gegenkonto</Label>
+                    <Input 
+                      placeholder="z. B. 8400" 
+                      value={brandingEdit.datevContraAccount || ''} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, datevContraAccount: e.target.value })}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">Standard USt-Satz (%)</Label>
+                    <select 
+                      value={brandingEdit.defaultVatRate || 19} 
+                      onChange={e => setBrandingEdit({ ...brandingEdit, defaultVatRate: parseInt(e.target.value) })}
+                      className="w-full h-10 px-3 border-2 border-gray-300 rounded-md focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                    >
+                      <option value={19}>19% (Standard)</option>
+                      <option value={7}>7% (Ermäßigt)</option>
+                      <option value={0}>0% (Steuerfrei)</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2 space-y-2">
+                    <Label className="text-sm font-semibold text-gray-800">USt-Kontenmapping (JSON)</Label>
+                    <Textarea 
+                      placeholder={'{\n  "DE19": "8400",\n  "DE7": "8300",\n  "DE0": "8195"\n}'} 
+                      value={JSON.stringify(brandingEdit.taxAccountMapping || {}, null, 2)} 
+                      onChange={e => {
+                        try {
+                          const val = JSON.parse(e.target.value || '{}');
+                          setBrandingEdit({ ...brandingEdit, taxAccountMapping: val });
+                          setBrandingErrors(prev => ({ ...prev, json: undefined }));
+                        } catch {
+                          setBrandingErrors(prev => ({ ...prev, json: 'Ungültiges JSON' }));
+                        }
+                      }}
+                      className="border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 font-mono text-sm min-h-[100px]"
+                    />
+                    {brandingErrors.json && (<p className="text-red-600 text-sm mt-1 font-semibold">⚠️ {brandingErrors.json}</p>)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3 pt-4 border-t-2 border-purple-200">
                 <Button 
                   variant="outline"
                   onClick={loadBranding}
@@ -600,7 +799,7 @@ const ConcernManagement: React.FC<ConcernManagementProps> = ({
                   disabled={brandingSaving}
                   className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
                 >
-                  {brandingSaving ? '💾 Speichern...' : '✅ Speichern'}
+                  {brandingSaving ? '💾 Speichern...' : '✅ Firmenprofil speichern'}
                 </Button>
               </div>
             </CardContent>

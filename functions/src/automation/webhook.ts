@@ -9,8 +9,22 @@ import * as functions from 'firebase-functions';
 import express from 'express';
 import type { Request, Response } from 'express';
 import * as crypto from 'crypto';
+// @ts-ignore - @google/generative-ai is optional
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import type { AutomationPayload } from '../../../src/types/automation';
+
+// Local type definition (avoiding cross-reference to parent src)
+interface AutomationPayload {
+  action: string;
+  data: any;
+  metadata?: any;
+  intent?: string;
+  summary?: string;
+  client?: any;
+  timestamp?: any;
+  source?: string;
+  type?: string;
+  [key: string]: any; // Allow any additional properties
+}
 
 const db = admin.firestore();
 const app = express();

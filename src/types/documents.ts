@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // DOCUMENT MANAGEMENT TYPES - TradeTrackr Portal
 // ============================================================================
 
@@ -40,6 +40,7 @@ export type DocumentStatus =
   | "ai_requested" 
   | "ai_processing" 
   | "needs_review" 
+  | "needs_project_selection"  // New: requires user to select project (PN not found or ambiguous)
   | "stored" 
   | "rejected";
 
@@ -48,6 +49,9 @@ export interface DocRecord {
   orgId?: string;                       // Organization ID (concernID equivalent)
   concernId?: string;                   // Alias for orgId (for backwards compatibility)
   projectId: string;                    // NOW MANDATORY - always links to a project (external or internal)
+  projectNumber?: string | null;        // Denormalized project number (e.g., "PN-0AA012") for fast display
+  projectDocSuffix?: number | null;     // Per-project document suffix (1-9999) - only set after finalization
+  designation?: string | null;          // Full document designation: {projectNumber}-{suffix4} (e.g., "PN-0AA012-0001")
   categoryId?: string | null;           // NEW: reference to /categories/{categoryId} - optional but recommended for semantic documents
   employeeId?: string | null;
   clientId?: string | null;
@@ -67,6 +71,7 @@ export interface DocRecord {
     ocrApplied?: boolean;
     textSample?: string | null;        // short snippet indexed for search
     hashSha256?: string;               // dedupe
+    detectedProjectNumbers?: string[]; // PN-?????? patterns found in text (for disambiguation)
   };
   tags?: string[];
   notes?: string;

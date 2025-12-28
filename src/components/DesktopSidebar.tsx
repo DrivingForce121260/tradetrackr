@@ -26,6 +26,7 @@ import {
   Mail,
   ChevronLeft,
   ChevronRight,
+  Truck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -57,10 +58,12 @@ const PAGE_LABELS: Record<string, string> = {
   crm: 'CRM',
   'smart-inbox': 'Smart Inbox',
   invoicing: 'Angebote & Rechnungen',
+  suppliers: 'Lieferanten',
+  procurement: 'Beschaffung',
   categories: 'Kategorien',
   materials: 'Materialien',
   documents: 'Dokumente',
-  personnel: 'Personal',
+  personnel: 'Personalübersicht',
   users: 'Benutzer',
   'concern-management': 'Concern-Verwaltung',
   automation: 'Automation',
@@ -68,7 +71,14 @@ const PAGE_LABELS: Record<string, string> = {
   'time-ops-live': 'Zeit | Ops',
   settings: 'Einstellungen',
   templates: 'Vorlagen',
+  scheduling: 'Personaleinsatzplan',
+  vacations: 'Urlaubskalender',
+  'system-logs': 'System Logs',
 };
+
+// Helper to sort nav items alphabetically by label (German, case-insensitive)
+const sortNavItems = (items: NavItem[]): NavItem[] =>
+  [...items].sort((a, b) => a.label.localeCompare(b.label, 'de', { sensitivity: 'base' }));
 
 const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className }) => {
   const { currentPage, navigateTo } = useNavigation();
@@ -100,7 +110,7 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className }) => {
     {
       id: 'projects-tasks',
       label: 'Projekte & Aufgaben',
-      items: [
+      items: sortNavItems([
         {
           id: 'projects',
           label: 'Projekte',
@@ -125,12 +135,18 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className }) => {
           icon: <FileText className="h-5 w-5" />,
           permission: 'view_reports',
         },
-      ],
+        {
+          id: 'documents',
+          label: 'Dokumente',
+          icon: <FileText className="h-5 w-5" />,
+          permission: 'view_documents',
+        },
+      ]),
     },
     {
       id: 'crm-sales',
       label: 'CRM & Vertrieb',
-      items: [
+      items: sortNavItems([
         {
           id: 'crm',
           label: 'CRM',
@@ -153,12 +169,22 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className }) => {
           label: 'Angebote & Rechnungen',
           icon: <Euro className="h-5 w-5" />,
         },
-      ],
+        {
+          id: 'suppliers',
+          label: 'Lieferanten',
+          icon: <Truck className="h-5 w-5" />,
+        },
+      ]),
     },
     {
       id: 'resources',
       label: 'Ressourcen',
-      items: [
+      items: sortNavItems([
+        {
+          id: 'procurement',
+          label: 'Beschaffung',
+          icon: <ClipboardList className="h-5 w-5" />,
+        },
         {
           id: 'categories',
           label: 'Kategorien',
@@ -171,45 +197,26 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className }) => {
           icon: <Package className="h-5 w-5" />,
           permission: 'view_materials',
         },
-        {
-          id: 'documents',
-          label: 'Dokumente',
-          icon: <FileText className="h-5 w-5" />,
-          permission: 'view_documents',
-        },
-      ],
+      ]),
     },
     {
-      id: 'personnel',
-      label: 'Personal',
-      items: [
+      id: 'operations',
+      label: 'Operations',
+      items: sortNavItems([
         {
           id: 'personnel',
           label: 'Personalübersicht',
           icon: <Users className="h-5 w-5" />,
         },
         {
-          id: 'users',
-          label: 'Benutzer',
-          icon: <Users className="h-5 w-5" />,
-          permission: 'view_users',
+          id: 'scheduling',
+          label: 'Personaleinsatzplan',
+          icon: <Calendar className="h-5 w-5" />,
         },
         {
           id: 'vacations',
           label: 'Urlaubskalender',
           icon: <Calendar className="h-5 w-5" />,
-        },
-      ],
-    },
-    {
-      id: 'time',
-      label: 'Zeit',
-      items: [
-        {
-          id: 'time-admin',
-          label: 'Zeit | Admin',
-          icon: <Clock className="h-5 w-5" />,
-          permission: 'admin',
         },
         {
           id: 'time-ops-live',
@@ -217,12 +224,18 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className }) => {
           icon: <Activity className="h-5 w-5" />,
           permission: 'supervisor',
         },
-      ],
+      ]),
     },
     {
       id: 'administration',
       label: 'Administration',
-      items: [
+      items: sortNavItems([
+        {
+          id: 'users',
+          label: 'Benutzer',
+          icon: <Users className="h-5 w-5" />,
+          permission: 'view_users',
+        },
         {
           id: 'automation',
           label: 'Automation',
@@ -241,11 +254,23 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className }) => {
           icon: <Settings className="h-5 w-5" />,
         },
         {
+          id: 'system-logs',
+          label: 'System Logs',
+          icon: <Shield className="h-5 w-5" />,
+          permission: 'admin',
+        },
+        {
           id: 'templates',
           label: 'Vorlagen',
           icon: <Database className="h-5 w-5" />,
         },
-      ],
+        {
+          id: 'time-admin',
+          label: 'Zeit | Admin',
+          icon: <Clock className="h-5 w-5" />,
+          permission: 'admin',
+        },
+      ]),
     },
   ];
 
@@ -267,7 +292,8 @@ const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className }) => {
       'customers': 'text-teal-600',
       'smart-inbox': 'text-pink-600',
       'invoicing': 'text-emerald-600',
-      'categories': 'text-orange-600',
+      'procurement': 'text-orange-600',
+      'categories': 'text-orange-500',
       'materials': 'text-amber-600',
       'documents': 'text-sky-600',
       'personnel': 'text-violet-600',

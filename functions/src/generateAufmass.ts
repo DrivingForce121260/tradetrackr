@@ -4,6 +4,7 @@
 
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+// @ts-ignore - puppeteer is optional dependency
 import * as puppeteer from 'puppeteer';
 import * as crypto from 'crypto';
 import { format } from 'date-fns';

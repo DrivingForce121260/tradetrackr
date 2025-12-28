@@ -46,6 +46,9 @@ function decryptPassword(encrypted: string, ivHex: string): string {
 
 /**
  * Store IMAP account credentials
+ * 
+ * CRITICAL: This function now enforces email uniqueness via emailAccountIndex.
+ * The email must be available (not assigned to another user) before storing.
  */
 export const storeImapAccount = functions
   .region('europe-west1')
@@ -54,6 +57,7 @@ export const storeImapAccount = functions
       throw new functions.https.HttpsError('unauthenticated', 'User not authenticated');
     }
 
+    const callerUid = context.auth.uid;
     const { orgId, emailAddress, host, port, user, password, tls } = data;
 
     if (!orgId || !emailAddress || !host || !port || !user || !password) {
@@ -63,17 +67,36 @@ export const storeImapAccount = functions
       );
     }
 
+    // Verify user has access to this org
+    const userDoc = await db.collection('users').doc(callerUid).get();
+    const userData = userDoc.data();
+    const userOrgId = userData?.concernID || userData?.ConcernID;
+
+    if (userOrgId !== orgId) {
+      throw new functions.https.HttpsError('permission-denied', 'Access denied to this organization');
+    }
+
+    // ========================================
+    // CRITICAL: Check email availability FIRST
+    // ========================================
+    const { checkEmailAvailability } = require('./emailAccountAssignment');
+    const availability = await checkEmailAvailability(orgId, callerUid, emailAddress);
+
+    if (!availability.available) {
+      functions.logger.warn('storeImapAccount: email already assigned to another user', {
+        orgId,
+        emailAddress,
+        callerUid: callerUid.substring(0, 8),
+        reason: availability.reason,
+      });
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'EMAIL_ALREADY_ASSIGNED'
+      );
+    }
+
     try {
-      // Verify user has access to this org
-      const userDoc = await db.collection('users').doc(context.auth.uid).get();
-      const userData = userDoc.data();
-      const userOrgId = userData?.concernID || userData?.ConcernID;
-
-      if (userOrgId !== orgId) {
-        throw new functions.https.HttpsError('permission-denied', 'Access denied to this organization');
-      }
-
-      // IMPORTANT: Test connection before storing!
+      // Test IMAP connection before storing
       functions.logger.info(`Testing IMAP connection for ${emailAddress}...`);
       
       const imaps = require('imap-simple');
@@ -102,24 +125,81 @@ export const storeImapAccount = functions
         );
       }
 
-      // Encrypt password
-      const { encrypted, iv } = encryptPassword(password);
+      // ========================================
+      // CRITICAL: Assign email in index BEFORE storing account
+      // This ensures atomicity of the assignment
+      // ========================================
+      const crypto = require('crypto');
+      const normalizedEmail = emailAddress.toLowerCase().trim();
+      const emailKey = crypto.createHash('sha256').update(normalizedEmail).digest('hex').substring(0, 32);
+      const indexRef = db.doc(`concerns/${orgId}/emailAccountIndex/${emailKey}`);
+      const now = admin.firestore.FieldValue.serverTimestamp();
 
       // Create account ID
       const accountId = `${orgId}_${emailAddress.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-      // Store email account
-      await db.collection('emailAccounts').doc(accountId).set({
-        orgId,
-        provider: 'imap',
-        emailAddress,
-        oauthRef: accountId,
-        active: true,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      // Use transaction to ensure atomicity of assignment + account creation
+      await db.runTransaction(async (transaction: admin.firestore.Transaction) => {
+        const indexDoc = await transaction.get(indexRef);
+
+        // Double-check assignment in transaction
+        if (indexDoc.exists) {
+          const indexData = indexDoc.data();
+          if (indexData?.assignedToUid !== callerUid && indexData?.status === 'assigned') {
+            throw new functions.https.HttpsError(
+              'failed-precondition',
+              'EMAIL_ALREADY_ASSIGNED'
+            );
+          }
+        }
+
+        // Assign email to user in index
+        transaction.set(indexRef, {
+          email: normalizedEmail,
+          emailKey,
+          assignedToUid: callerUid,
+          assignedAt: now,
+          updatedAt: now,
+          provider: 'imap',
+          accountId,
+          status: 'assigned',
+        }, { merge: true });
+
+        // Store email account in USER-SCOPED path
+        // Path: concerns/{concernId}/users/{uid}/emailAccounts/{accountId}
+        const userEmailAccountRef = db.doc(
+          `concerns/${orgId}/users/${callerUid}/emailAccounts/${accountId}`
+        );
+        transaction.set(userEmailAccountRef, {
+          id: accountId,
+          concernId: orgId,
+          ownerUid: callerUid,
+          email: normalizedEmail,
+          emailKey,
+          provider: 'imap',
+          oauthRef: accountId,
+          status: 'connected',
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        // ALSO store in legacy location for sync function compatibility
+        // TODO: Remove this after migrating sync function to user-scoped paths
+        transaction.set(db.collection('emailAccounts').doc(accountId), {
+          orgId,
+          provider: 'imap',
+          emailAddress,
+          oauthRef: accountId,
+          active: true,
+          ownerUid: callerUid,
+          createdAt: now,
+          updatedAt: now,
+        });
       });
 
-      // Store encrypted credentials
+      // Encrypt password and store credentials (outside transaction - not critical for uniqueness)
+      const { encrypted, iv } = encryptPassword(password);
       await db.collection('_oauth_tokens').doc(accountId).set({
         imapConfig: {
           host,
@@ -127,12 +207,12 @@ export const storeImapAccount = functions
           user,
           encryptedPassword: encrypted,
           iv,
-          tls: tls !== false, // Default to true
+          tls: tls !== false,
         },
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      functions.logger.info(`IMAP account stored: ${emailAddress} for org ${orgId}`);
+      functions.logger.info(`IMAP account stored and assigned: ${emailAddress} for org ${orgId} to user ${callerUid.substring(0, 8)}`);
 
       return {
         success: true,

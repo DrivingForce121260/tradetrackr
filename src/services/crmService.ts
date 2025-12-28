@@ -16,9 +16,10 @@ import {
   limit,
   writeBatch,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  onSnapshot
 } from 'firebase/firestore';
-import { db, functions } from '@/config/firebase';
+import { db, functionsEU } from '@/config/firebase';
 import { httpsCallable } from 'firebase/functions';
 import {
   CRMAccount,
@@ -674,6 +675,569 @@ export class CRMService {
     const res = await call({ clientId, concernID: this.concernID, mode } as any);
     return res.data as any;
   }
+
+  // ============================================================================
+  // CONVERT CRM ACCOUNT TO CUSTOMER
+  // ============================================================================
+
+  /**
+   * Converts a CRM account to an active customer in the customer database.
+   * Maps CRM account fields to Customer fields and creates a new customer entry.
+   * Also updates the CRM account to mark it as converted.
+   * 
+   * @param accountId - The ID of the CRM account to convert
+   * @returns The ID of the newly created customer
+   */
+  async convertToCustomer(accountId: string): Promise<{ customerId: string; customerName: string }> {
+    try {
+      // Get the CRM account
+      const account = await this.getAccount(accountId);
+      if (!account) {
+        throw new Error('CRM-Konto nicht gefunden');
+      }
+
+      // Check if already converted
+      if ((account as any).convertedToCustomerId) {
+        throw new Error('Dieses Konto wurde bereits in einen Kunden umgewandelt');
+      }
+
+      // Extract the main address
+      const mainAddress = account.addresses?.find(addr => addr.isDefault) 
+        || account.addresses?.[0] 
+        || { street: '', city: '', postalCode: '', country: '' };
+
+      // Create customer data from CRM account
+      // Using field names that match the Customer interface in @/types/customer.ts
+      const customerData = {
+        concernID: this.concernID,
+        // Standard Customer fields (used by CustomerManagement)
+        name: account.name,
+        company: account.name, // Company name is typically the same as account name
+        email: account.contactEmail || account.billingEmail || '',
+        phone: account.contactPhone || '',
+        address: mainAddress.street || '',
+        city: mainAddress.city || '',
+        postalCode: mainAddress.postalCode || '',
+        contactPerson: account.contactName || '',
+        notes: account.notes || '',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        // Legacy fields for backward compatibility
+        cusName: account.name,
+        cusContact: account.contactName || '',
+        cusAddress: mainAddress.street ? `${mainAddress.street}, ${mainAddress.postalCode || ''} ${mainAddress.city || ''}`.trim() : '',
+        cusTel: account.contactPhone || '',
+        cusEmail: account.contactEmail || account.billingEmail || '',
+        dateCreated: new Date(),
+        // Additional metadata
+        crmAccountId: accountId,
+        vatId: account.vatId || '',
+        legalForm: account.legalForm || '',
+      };
+
+      // Create the customer in Firestore
+      const customerRef = await addDoc(collection(db, 'customers'), customerData);
+      const customerId = customerRef.id;
+
+      // Update the CRM account to mark it as converted
+      await this.updateAccount(accountId, {
+        convertedToCustomerId: customerId,
+        convertedAt: new Date(),
+        tags: [...(account.tags || []), 'converted-to-customer']
+      } as Partial<CRMAccount>);
+
+      // Update account stats
+      await this.updateAccount(accountId, {
+        stats: {
+          ...account.stats,
+          totalProjects: account.stats?.totalProjects || 0,
+          lifetimeValue: account.stats?.lifetimeValue || 0
+        }
+      });
+
+      return { customerId, customerName: account.name };
+    } catch (error) {
+      console.error('Error converting CRM account to customer:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Checks if a CRM account has already been converted to a customer.
+   * 
+   * @param accountId - The ID of the CRM account to check
+   * @returns Object with conversion status and customer ID if converted
+   */
+  async checkConversionStatus(accountId: string): Promise<{ isConverted: boolean; customerId?: string }> {
+    try {
+      const account = await this.getAccount(accountId);
+      if (!account) {
+        return { isConverted: false };
+      }
+      
+      const convertedId = (account as any).convertedToCustomerId;
+      return {
+        isConverted: !!convertedId,
+        customerId: convertedId
+      };
+    } catch (error) {
+      console.error('Error checking conversion status:', error);
+      return { isConverted: false };
+    }
+  }
+}
+
+// ============================================================================
+// EMAIL-DERIVED CRM FUNCTIONS (Separate from CRMService class)
+// ============================================================================
+
+import { CRMEmailCompany, CRMEmailNote, EmailInquiry, EmailInquiryStatus } from '@/types/crm';
+
+/**
+ * Get email-derived CRM companies for the current user
+ */
+export async function getEmailDerivedCompanies(
+  concernId: string,
+  ownerUid: string
+): Promise<CRMEmailCompany[]> {
+  try {
+    const q = query(
+      collection(db, `concerns/${concernId}/crmCompanies`),
+      where('ownerUid', '==', ownerUid),
+      orderBy('lastInquiryAt', 'desc'),
+      limit(100)
+    );
+    
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+      updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
+      lastInquiryAt: doc.data().lastInquiryAt?.toDate?.() || new Date(),
+    })) as CRMEmailCompany[];
+  } catch (error) {
+    console.error('[CRM] Error loading email-derived companies:', error);
+    return [];
+  }
+}
+
+/**
+ * Subscribe to email-derived CRM companies
+ */
+export function subscribeToEmailDerivedCompanies(
+  concernId: string,
+  ownerUid: string,
+  callback: (companies: CRMEmailCompany[]) => void
+): () => void {
+  const q = query(
+    collection(db, `concerns/${concernId}/crmCompanies`),
+    where('ownerUid', '==', ownerUid),
+    orderBy('lastInquiryAt', 'desc'),
+    limit(100)
+  );
+  
+  return onSnapshot(q, (snapshot) => {
+    const companies = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+      updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
+      lastInquiryAt: doc.data().lastInquiryAt?.toDate?.() || new Date(),
+    })) as CRMEmailCompany[];
+    
+    callback(companies);
+  }, (error) => {
+    console.error('[CRM] Subscription error:', error);
+    callback([]);
+  });
+}
+
+/**
+ * Get CRM notes for a specific company
+ */
+export async function getCompanyNotes(
+  concernId: string,
+  ownerUid: string,
+  companyId: string
+): Promise<CRMEmailNote[]> {
+  try {
+    const q = query(
+      collection(db, `concerns/${concernId}/crmNotes`),
+      where('ownerUid', '==', ownerUid),
+      where('companyId', '==', companyId),
+      orderBy('receivedAt', 'desc'),
+      limit(50)
+    );
+    
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+      updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
+      receivedAt: doc.data().receivedAt?.toDate?.() || new Date(),
+    })) as CRMEmailNote[];
+  } catch (error) {
+    console.error('[CRM] Error loading company notes:', error);
+    return [];
+  }
+}
+
+/**
+ * Subscribe to CRM notes for a company
+ */
+export function subscribeToCompanyNotes(
+  concernId: string,
+  ownerUid: string,
+  companyId: string,
+  callback: (notes: CRMEmailNote[]) => void
+): () => void {
+  const q = query(
+    collection(db, `concerns/${concernId}/crmNotes`),
+    where('ownerUid', '==', ownerUid),
+    where('companyId', '==', companyId),
+    orderBy('receivedAt', 'desc'),
+    limit(50)
+  );
+  
+  return onSnapshot(q, (snapshot) => {
+    const notes = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+      updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
+      receivedAt: doc.data().receivedAt?.toDate?.() || new Date(),
+    })) as CRMEmailNote[];
+    
+    callback(notes);
+  }, (error) => {
+    console.error('[CRM] Notes subscription error:', error);
+    callback([]);
+  });
+}
+
+/**
+ * Get email-derived company count for dashboard
+ */
+export async function getEmailDerivedCompanyStats(
+  concernId: string,
+  ownerUid: string
+): Promise<{ total: number; newThisWeek: number }> {
+  try {
+    const q = query(
+      collection(db, `concerns/${concernId}/crmCompanies`),
+      where('ownerUid', '==', ownerUid)
+    );
+    
+    const snapshot = await getDocs(q);
+    const total = snapshot.size;
+    
+    // Count companies created in the last 7 days
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    const newThisWeek = snapshot.docs.filter(doc => {
+      const createdAt = doc.data().createdAt?.toDate?.();
+      return createdAt && createdAt > oneWeekAgo;
+    }).length;
+    
+    return { total, newThisWeek };
+  } catch (error) {
+    console.error('[CRM] Error loading stats:', error);
+    return { total: 0, newThisWeek: 0 };
+  }
+}
+
+// ============================================================================
+// EMAIL INQUIRIES (Incoming Requests)
+// ============================================================================
+
+/**
+ * Subscribe to email inquiries
+ */
+export function subscribeToEmailInquiries(
+  concernId: string,
+  ownerUid: string,
+  statusFilter?: EmailInquiryStatus,
+  callback?: (inquiries: EmailInquiry[]) => void
+): () => void {
+  const constraints: any[] = [
+    where('ownerUid', '==', ownerUid),
+    orderBy('receivedAt', 'desc'),
+    limit(100),
+  ];
+  
+  if (statusFilter) {
+    constraints.splice(1, 0, where('status', '==', statusFilter));
+  }
+  
+  const q = query(
+    collection(db, `concerns/${concernId}/emailInquiries`),
+    ...constraints
+  );
+  
+  return onSnapshot(q, (snapshot) => {
+    const inquiries = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+      updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
+      receivedAt: doc.data().receivedAt?.toDate?.() || new Date(),
+    })) as EmailInquiry[];
+    
+    if (callback) callback(inquiries);
+  }, (error) => {
+    console.error('[CRM] Email inquiries subscription error:', error);
+    if (callback) callback([]);
+  });
+}
+
+/**
+ * Update email inquiry status
+ */
+export async function updateEmailInquiryStatus(
+  concernId: string,
+  ownerUid: string,
+  inquiryId: string,
+  newStatus: EmailInquiryStatus
+): Promise<void> {
+  const inquiryRef = doc(db, `concerns/${concernId}/emailInquiries/${inquiryId}`);
+  
+  // Verify ownership before update
+  const inquiryDoc = await getDoc(inquiryRef);
+  if (!inquiryDoc.exists()) {
+    throw new Error('Anfrage nicht gefunden');
+  }
+  if (inquiryDoc.data()?.ownerUid !== ownerUid) {
+    throw new Error('Keine Berechtigung');
+  }
+  
+  await updateDoc(inquiryRef, {
+    status: newStatus,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Link email inquiry to project
+ */
+export async function linkInquiryToProject(
+  concernId: string,
+  ownerUid: string,
+  inquiryId: string,
+  projectId: string,
+  projectNumber: string
+): Promise<void> {
+  const inquiryRef = doc(db, `concerns/${concernId}/emailInquiries/${inquiryId}`);
+  
+  // Verify ownership before update
+  const inquiryDoc = await getDoc(inquiryRef);
+  if (!inquiryDoc.exists()) {
+    throw new Error('Anfrage nicht gefunden');
+  }
+  if (inquiryDoc.data()?.ownerUid !== ownerUid) {
+    throw new Error('Keine Berechtigung');
+  }
+  
+  await updateDoc(inquiryRef, {
+    projectId,
+    projectNumber,
+    linkedProjectId: projectId,
+    linkedProjectNumber: projectNumber,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Link CRM Note to project
+ */
+export async function linkCrmNoteToProject(
+  concernId: string,
+  noteId: string,
+  projectId: string,
+  projectNumber: string
+): Promise<void> {
+  const noteRef = doc(db, `concerns/${concernId}/crmNotes/${noteId}`);
+  
+  const noteDoc = await getDoc(noteRef);
+  if (!noteDoc.exists()) {
+    throw new Error('Notiz nicht gefunden');
+  }
+  
+  await updateDoc(noteRef, {
+    linkedProjectId: projectId,
+    linkedProjectNumber: projectNumber,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Link Email Inquiry to project (canonical source)
+ * Also mirrors linkage to crmNote if it exists (in one batch)
+ */
+export async function linkEmailInquiryToProject(
+  concernId: string,
+  inquiryId: string,
+  projectId: string,
+  projectNumber: string
+): Promise<void> {
+  const inquiryRef = doc(db, `concerns/${concernId}/emailInquiries/${inquiryId}`);
+  
+  const inquiryDoc = await getDoc(inquiryRef);
+  if (!inquiryDoc.exists()) {
+    throw new Error('Anfrage nicht gefunden');
+  }
+  
+  const inquiryData = inquiryDoc.data();
+  const crmNoteId = inquiryData?.crmNoteId;
+  
+  // Use batch for atomic update of both documents
+  const batch = writeBatch(db);
+  
+  // Update emailInquiry (canonical source)
+  batch.update(inquiryRef, {
+    linkedProjectId: projectId,
+    linkedProjectNumber: projectNumber,
+    updatedAt: serverTimestamp(),
+  });
+  
+  // Mirror to crmNote if exists
+  if (crmNoteId) {
+    const noteRef = doc(db, `concerns/${concernId}/crmNotes/${crmNoteId}`);
+    const noteDoc = await getDoc(noteRef);
+    if (noteDoc.exists()) {
+      batch.update(noteRef, {
+        linkedProjectId: projectId,
+        linkedProjectNumber: projectNumber,
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }
+  
+  // Also update linked sales offer if exists (PHASE G: Projekt verknüpfen propagation)
+  const linkedSalesOfferId = inquiryData?.linkedSalesOfferId;
+  if (linkedSalesOfferId) {
+    const offerRef = doc(db, `offers/${linkedSalesOfferId}`);
+    const offerDoc = await getDoc(offerRef);
+    if (offerDoc.exists()) {
+      batch.update(offerRef, {
+        linkedProjectId: projectId,
+        linkedProjectNumber: projectNumber,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  }
+  
+  await batch.commit();
+}
+
+/**
+ * Create procurement request from CRM email inquiry
+ * Uses Cloud Function for idempotency and cross-collection atomicity
+ * Also ensures CRM company/note are created if not present.
+ */
+export async function createProcurementRequestFromInquiry(
+  concernId: string,
+  inquiryId: string,
+  options?: {
+    title?: string;
+    projectId?: string;
+    projectNumber?: string;
+    projectName?: string;
+  }
+): Promise<{ 
+  requestId: string; 
+  alreadyExists: boolean; 
+  crmCompanyId?: string; 
+  crmNoteId?: string;
+}> {
+  const createRequest = httpsCallable<
+    { concernId: string; inquiryId: string; title?: string; projectId?: string; projectNumber?: string; projectName?: string },
+    { requestId: string; alreadyExists: boolean; crmCompanyId?: string; crmNoteId?: string }
+  >(functionsEU, 'createProcurementRequestFromInquiry');
+  
+  const result = await createRequest({
+    concernId,
+    inquiryId,
+    title: options?.title,
+    projectId: options?.projectId,
+    projectNumber: options?.projectNumber,
+    projectName: options?.projectName,
+  });
+  
+  return result.data;
+}
+
+/**
+ * Get email inquiry stats for dashboard
+ */
+export async function getEmailInquiryStats(
+  concernId: string,
+  ownerUid: string
+): Promise<{ total: number; new: number; inReview: number }> {
+  try {
+    const q = query(
+      collection(db, `concerns/${concernId}/emailInquiries`),
+      where('ownerUid', '==', ownerUid)
+    );
+    
+    const snapshot = await getDocs(q);
+    const docs = snapshot.docs.map(d => d.data());
+    
+    return {
+      total: docs.length,
+      new: docs.filter(d => d.status === 'new').length,
+      inReview: docs.filter(d => d.status === 'in_review').length,
+    };
+  } catch (error) {
+    console.error('[CRM] Error loading inquiry stats:', error);
+    return { total: 0, new: 0, inReview: 0 };
+  }
+}
+
+/**
+ * Create Sales Offer Draft from Email Inquiry
+ * Uses Cloud Function for idempotency and cross-collection atomicity.
+ * Also creates CRM company/note at conversion time.
+ * 
+ * This is for CUSTOMER INQUIRIES (incoming sales requests).
+ * For SUPPLIER OFFERS, use createProcurementRequestFromInquiry instead.
+ */
+export async function createSalesOfferFromEmailInquiry(
+  concernId: string,
+  inquiryId: string,
+  options?: {
+    title?: string;
+    projectId?: string;
+    projectNumber?: string;
+    projectName?: string;
+    customerId?: string;
+  }
+): Promise<{ 
+  offerId: string; 
+  offerNumber: string;
+  alreadyExists: boolean; 
+  crmCompanyId?: string; 
+  crmNoteId?: string;
+}> {
+  const createOffer = httpsCallable<
+    { concernId: string; inquiryId: string; title?: string; projectId?: string; projectNumber?: string; projectName?: string; customerId?: string },
+    { offerId: string; offerNumber: string; alreadyExists: boolean; crmCompanyId?: string; crmNoteId?: string }
+  >(functionsEU, 'createSalesOfferFromEmailInquiry');
+  
+  const result = await createOffer({
+    concernId,
+    inquiryId,
+    title: options?.title,
+    projectId: options?.projectId,
+    projectNumber: options?.projectNumber,
+    projectName: options?.projectName,
+    customerId: options?.customerId,
+  });
+
+  return result.data;
 }
 
 export default CRMService;

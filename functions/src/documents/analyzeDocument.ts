@@ -8,6 +8,8 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { detectAndResolveProjectNumber } from './projectNumberDetection';
+import { allocateProjectDocumentSuffix, buildDocumentDesignation } from './allocateProjectDocumentSuffix';
 
 const db = admin.firestore();
 const storage = admin.storage();
@@ -247,6 +249,20 @@ export const analyzeDocument = functions.https.onCall(
       const textSample = extractedKeywords.join(' ').substring(0, 5000);
       const extractedData = aiResult.extractedData || {};
 
+      // ============================================
+      // PROJECT NUMBER DETECTION
+      // ============================================
+      
+      const concernId = docData.concernId || docData.orgId;
+      let projectLinkResult = null;
+      
+      if (concernId && textSample) {
+        console.log('[analyzeDocument] Detecting project number in text...');
+        projectLinkResult = await detectAndResolveProjectNumber(concernId, textSample);
+        
+        console.log('[analyzeDocument] Project detection result:', projectLinkResult);
+      }
+
       // Update document with AI decision
       const updates: any = {
         aiDecision: {
@@ -258,6 +274,11 @@ export const analyzeDocument = functions.https.onCall(
         'meta.textSample': textSample
       };
 
+      // Store detected project numbers for disambiguation
+      if (projectLinkResult && projectLinkResult.detectedPatterns.length > 0) {
+        updates['meta.detectedProjectNumbers'] = projectLinkResult.detectedPatterns;
+      }
+
       // Store document number and date if found
       if (extractedData.documentNumber) {
         updates['meta.number'] = extractedData.documentNumber;
@@ -266,22 +287,89 @@ export const analyzeDocument = functions.https.onCall(
         updates['meta.date'] = extractedData.documentDate;
       }
 
-      if (aiResult.confidence >= 0.85 && aiResult.type) {
-        // High confidence - auto-store
-        updates.type = aiResult.type;
-        updates.typeConfidence = aiResult.confidence;
-        updates.status = 'stored';
+      // ============================================
+      // HANDLE PROJECT NUMBER DETECTION OUTCOME
+      // ============================================
+      
+      if (projectLinkResult?.resolution === 'single' && projectLinkResult.projectId) {
+        // Success! Resolve project and allocate suffix
+        console.log('[analyzeDocument] Auto-linking to project:', projectLinkResult.projectId);
         
-        console.log('[analyzeDocument] High confidence, auto-storing as:', aiResult.type);
-      } else {
-        // Low confidence - needs manual review
-        if (aiResult.type) {
+        try {
+          // Fetch project to get projectNumber
+          const projectDoc = await db.collection('projects').doc(projectLinkResult.projectId).get();
+          
+          if (projectDoc.exists) {
+            const projectData = projectDoc.data();
+            const projectNumber = projectData?.projectNumber;
+            
+            if (projectNumber) {
+              // Allocate suffix
+              const allocationResult = await allocateProjectDocumentSuffix.run({
+                concernId,
+                projectId: projectLinkResult.projectId
+              }, {
+                auth: context.auth,
+                instanceIdToken: context.instanceIdToken,
+                rawRequest: context.rawRequest
+              } as any);
+              
+              const suffix = allocationResult.suffix;
+              const designation = buildDocumentDesignation(projectNumber, suffix);
+              
+              // Update document with project link and designation
+              updates.projectId = projectLinkResult.projectId;
+              updates.projectNumber = projectNumber;
+              updates.projectDocSuffix = suffix;
+              updates.designation = designation;
+              updates['meta.autoLinked'] = true;
+              updates['meta.autoLinkedReason'] = projectLinkResult.reason;
+              
+              console.log('[analyzeDocument] Auto-linked with designation:', designation);
+            } else {
+              console.warn('[analyzeDocument] Project has no projectNumber, cannot finalize');
+              updates.status = 'needs_project_selection';
+              updates['meta.projectLinkError'] = 'Project has no projectNumber';
+            }
+          } else {
+            console.warn('[analyzeDocument] Project not found:', projectLinkResult.projectId);
+            updates.status = 'needs_project_selection';
+            updates['meta.projectLinkError'] = 'Project not found';
+          }
+        } catch (linkError: any) {
+          console.error('[analyzeDocument] Error auto-linking project:', linkError);
+          updates.status = 'needs_project_selection';
+          updates['meta.projectLinkError'] = linkError.message;
+        }
+      } else if (projectLinkResult && ['none', 'multiple', 'not_found'].includes(projectLinkResult.resolution)) {
+        // Project number detection failed - needs manual selection
+        console.log('[analyzeDocument] Project number detection requires manual selection:', projectLinkResult.reason);
+        updates.status = 'needs_project_selection';
+        updates['meta.projectDetectionReason'] = projectLinkResult.reason;
+      }
+
+      // ============================================
+      // FINALIZE STATUS (if not already set by project linking)
+      // ============================================
+      
+      if (!updates.status) {
+        if (aiResult.confidence >= 0.85 && aiResult.type) {
+          // High confidence - auto-store
           updates.type = aiResult.type;
           updates.typeConfidence = aiResult.confidence;
+          updates.status = 'stored';
+          
+          console.log('[analyzeDocument] High confidence, auto-storing as:', aiResult.type);
+        } else {
+          // Low confidence - needs manual review
+          if (aiResult.type) {
+            updates.type = aiResult.type;
+            updates.typeConfidence = aiResult.confidence;
+          }
+          updates.status = 'needs_review';
+          
+          console.log('[analyzeDocument] Low confidence, needs manual review');
         }
-        updates.status = 'needs_review';
-        
-        console.log('[analyzeDocument] Low confidence, needs manual review');
       }
 
       await docRef.update(updates);

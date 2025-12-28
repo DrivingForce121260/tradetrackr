@@ -53,6 +53,8 @@ const Settings = lazy(() => import('./Settings'));
 const SmartInbox = lazy(() => import('./SmartInbox'));
 const LoadingAndToastDemo = lazy(() => import('./LoadingAndToastDemo'));
 const CategoryAnalytics = lazy(() => import('./analytics/CategoryAnalytics'));
+const SupplierManagement = lazy(() => import('./suppliers/SupplierManagement'));
+const ProcurementPortal = lazy(() => import('./procurement/ProcurementPortal'));
 
 // Loading fallback component
 const PageLoadingFallback: React.FC = () => (
@@ -166,6 +168,10 @@ const MainAppContent: React.FC = () => {
         return <Suspense fallback={<PageLoadingFallback />}><CustomerManagement onBack={handleBackToDashboard} onNavigate={navigateTo} onOpenMessaging={() => setIsMessagingOpen(true)} /></Suspense>;
       case 'invoicing':
         return <Suspense fallback={<PageLoadingFallback />}><InvoicingPortal onBack={handleBackToDashboard} onNavigate={navigateTo} onOpenMessaging={() => setIsMessagingOpen(true)} /></Suspense>;
+      case 'suppliers':
+        return <Suspense fallback={<PageLoadingFallback />}><SupplierManagement onBack={handleBackToDashboard} onNavigate={navigateTo} onOpenMessaging={() => setIsMessagingOpen(true)} /></Suspense>;
+      case 'procurement':
+        return <Suspense fallback={<PageLoadingFallback />}><ProcurementPortal onBack={handleBackToDashboard} onNavigate={navigateTo} onOpenMessaging={() => setIsMessagingOpen(true)} /></Suspense>;
       case 'scheduling':
         return <Suspense fallback={<PageLoadingFallback />}><SchedulingBoard onBack={handleBackToDashboard} onNavigate={navigateTo} onOpenMessaging={() => setIsMessagingOpen(true)} /></Suspense>;
       case 'auftraggeber':

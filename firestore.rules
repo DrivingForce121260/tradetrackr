@@ -56,6 +56,42 @@ service cloud.firestore {
     }
     
     /**
+     * Check if user belongs to a concern (via custom claim)
+     * Used for concern-scoped email data access
+     */
+    function isConcernMember(concernId) {
+      return isAuthenticated() 
+             && (
+               request.auth.token.concernId == concernId
+               || request.auth.token.ConcernID == concernId
+               || request.auth.token.get('concernId', '') == concernId
+               || request.auth.token.get('ConcernID', '') == concernId
+             );
+    }
+    
+    /**
+     * Check if user has CRM write role (Office, Admin, Manager, Project Manager)
+     * This requires the user doc to exist in the concern users collection
+     */
+    function hasCrmRole(concernId) {
+      let userDoc = get(/databases/$(database)/documents/concerns/$(concernId)/users/$(request.auth.uid));
+      let crmRoles = ['admin', 'manager', 'office', 'project_manager'];
+      return userDoc != null 
+             && userDoc.data.role in crmRoles;
+    }
+    
+    /**
+     * Check if user is a concern member with any valid role
+     * More permissive than hasCrmRole, for read access
+     */
+    function hasCrmReadRole(concernId) {
+      let userDoc = get(/databases/$(database)/documents/concerns/$(concernId)/users/$(request.auth.uid));
+      let readRoles = ['admin', 'manager', 'office', 'project_manager', 'employee'];
+      return userDoc != null 
+             && userDoc.data.role in readRoles;
+    }
+    
+    /**
      * Check if user is assigned to a project
      */
     function isAssignedToProject(projectData) {
@@ -156,27 +192,240 @@ service cloud.firestore {
     
     // Documents at root level
     match /documents/{documentId} {
-      allow read, write: if isAuthenticated();
+      // Get user's concernId from token
+      function getUserConcernId() {
+        return request.auth.token.get('concernID', 
+               request.auth.token.get('tenantId', null));
+      }
+      
+      // Read: Must belong to same concern
+      allow read: if isAuthenticated()
+                    && resource.data.concernId == getUserConcernId();
+      
+      // Create: Must belong to same concern, createdBy must match auth uid
+      allow create: if isAuthenticated()
+                      && request.resource.data.concernId == getUserConcernId()
+                      && request.resource.data.createdBy == request.auth.uid;
+      
+      // Update: Can update most fields, but NOT these protected fields:
+      // - projectDocSuffix (allocated by Cloud Function only)
+      // - designation (computed by Cloud Function only)
+      // - projectNumber (set by Cloud Function only)
+      allow update: if isAuthenticated()
+                      && resource.data.concernId == getUserConcernId()
+                      && !request.resource.data.diff(resource.data).affectedKeys()
+                         .hasAny(['projectDocSuffix', 'designation', 'concernId', 'docId']);
+      
+      // Delete: Only admins
+      allow delete: if false; // Soft-delete only
     }
     
-    // Email summaries at root level
+    // Project Document Counters - READ-ONLY from client
+    match /projectDocumentCounters/{counterId} {
+      // Nobody can read counters from client
+      allow read: if false;
+      
+      // Only Cloud Functions can write
+      allow write: if false;
+    }
+    
+    // ====================================
+    // EMAIL SUMMARIES (Owner-scoped)
+    // ====================================
+    // Email summaries are owned by specific users.
+    // Only the owner can read/update their summaries.
+    // New docs MUST have ownerUid set by backend.
+    
     match /emailSummaries/{summaryId} {
-      allow read, write: if isAuthenticated();
+      // Helper: Check if user is the owner
+      function isOwner() {
+        return isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      }
+      
+      // Helper: Legacy compatibility - allow if ownerUid not set (will be migrated)
+      function isOwnerOrLegacy() {
+        return isAuthenticated() && (
+          resource.data.ownerUid == request.auth.uid ||
+          resource.data.ownerUid == null
+        );
+      }
+      
+      // Read: Only owner OR legacy docs without ownerUid (temporary)
+      allow read: if isOwnerOrLegacy();
+      
+      // Create: Only backend (Cloud Functions) should create
+      // Clients cannot create email summaries directly
+      allow create: if false;
+      
+      // Update: Only owner can update their summaries
+      // Protect ownerUid, orgId, emailId from being changed
+      allow update: if isOwner()
+                      && request.resource.data.ownerUid == resource.data.ownerUid
+                      && request.resource.data.orgId == resource.data.orgId
+                      && request.resource.data.emailId == resource.data.emailId;
+      
+      // Delete: Only owner can delete their summaries
+      allow delete: if isOwner();
     }
     
-    // Chats at root level
+    // Email replies at root level (concernId-scoped)
+    match /emailReplies/{replyId} {
+      /**
+       * Helper to get user's concernID from auth token
+       */
+      function getUserConcernId() {
+        return request.auth.token.get('concernID', 
+               request.auth.token.get('tenantId', null));
+      }
+      
+      /**
+       * Check if user belongs to the reply's concern
+       */
+      function isConcernUser(concernId) {
+        return getUserConcernId() == concernId;
+      }
+      
+      // Read: Must belong to same concern
+      allow read: if isAuthenticated()
+                    && isConcernUser(resource.data.concernId);
+      
+      // Create: Must belong to same concern
+      allow create: if isAuthenticated()
+                      && isConcernUser(request.resource.data.concernId)
+                      && request.resource.data.createdBy == request.auth.uid;
+      
+      // Update: Can only update if belong to concern and not changing critical fields
+      // Users can update draft/edited status, but NOT sent/sending status (Cloud Function only)
+      allow update: if isAuthenticated()
+                      && isConcernUser(resource.data.concernId)
+                      && request.resource.data.concernId == resource.data.concernId
+                      && request.resource.data.emailId == resource.data.emailId
+                      && request.resource.data.accountId == resource.data.accountId
+                      && request.resource.data.status in ['draft', 'edited', 'generated']
+                      && !request.resource.data.keys().hasAny(['providerSentId', 'providerDraftId']);
+      
+      // Delete: Not allowed (keep audit trail)
+      allow delete: if false;
+    }
+    
+    // ====================================
+    // MESSAGING SYSTEM (Multi-Tenancy Enforced)
+    // ====================================
+    
+    // Chats collection - with concernID and membership validation
     match /chats/{chatId} {
-      allow read, write: if isAuthenticated();
+      /**
+       * Helper to get user's concernID from auth token
+       * Supports both tenantId (new) and concernID (legacy) token claims
+       */
+      function getUserConcernId() {
+        return request.auth.token.get('concernID', 
+               request.auth.token.get('tenantId', null));
+      }
+      
+      /**
+       * Check if user is a participant of the chat
+       */
+      function isParticipant() {
+        return request.auth.uid in resource.data.participants;
+      }
+      
+      /**
+       * Check if concernID matches user's tenant
+       */
+      function isSameConcern() {
+        return resource.data.metadata.concernID == getUserConcernId();
+      }
+      
+      // Read: Must be authenticated, be a participant, AND same concernID
+      allow read: if isAuthenticated()
+                    && isParticipant()
+                    && isSameConcern();
+      
+      // Create: Must be authenticated, be in participants list, AND match concernID
+      allow create: if isAuthenticated()
+                      && request.auth.uid in request.resource.data.participants
+                      && request.resource.data.metadata.concernID == getUserConcernId();
+      
+      // Update: Must be participant AND same concernID
+      allow update: if isAuthenticated()
+                      && isParticipant()
+                      && isSameConcern()
+                      && request.resource.data.metadata.concernID == resource.data.metadata.concernID;
+      
+      // Delete: Only admins can delete chats
+      allow delete: if false;  // Soft-delete only
     }
     
-    // Messages at root level
+    // Messages collection - with concernID and chat membership validation
     match /messages/{messageId} {
-      allow read, write: if isAuthenticated();
+      /**
+       * Helper to get user's concernID from auth token
+       */
+      function getUserConcernId() {
+        return request.auth.token.get('concernID', 
+               request.auth.token.get('tenantId', null));
+      }
+      
+      /**
+       * Check if user is a participant of the message's chat
+       * This requires reading the chat document to verify membership
+       */
+      function isParticipantOfChat(chatId) {
+        let chatDoc = get(/databases/$(database)/documents/chats/$(chatId));
+        return request.auth.uid in chatDoc.data.participants;
+      }
+      
+      /**
+       * Check if concernID matches user's tenant
+       */
+      function isSameConcern() {
+        return resource.data.concernID == getUserConcernId();
+      }
+      
+      // Read: Must be participant of the chat AND same concernID
+      allow read: if isAuthenticated()
+                    && isParticipantOfChat(resource.data.chatId)
+                    && isSameConcern();
+      
+      // Create: Must be participant of the chat AND match concernID
+      allow create: if isAuthenticated()
+                      && isParticipantOfChat(request.resource.data.chatId)
+                      && request.resource.data.concernID == getUserConcernId()
+                      && request.resource.data.senderId == request.auth.uid;
+      
+      // Update: Can only update readBy and deliveredTo arrays
+      allow update: if isAuthenticated()
+                      && isParticipantOfChat(resource.data.chatId)
+                      && isSameConcern()
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['readBy', 'deliveredTo', 'status']);
+      
+      // Delete: Only sender can delete within 5 minutes
+      allow delete: if isAuthenticated()
+                      && resource.data.senderId == request.auth.uid
+                      && request.time < resource.data.timestamp + duration.value(5, 'm');
     }
     
-    // Chat participants at root level
+    // Chat participants collection - restricted access
     match /chat_participants/{participantId} {
-      allow read, write: if isAuthenticated();
+      /**
+       * Helper to get user's concernID from auth token
+       */
+      function getUserConcernId() {
+        return request.auth.token.get('concernID', 
+               request.auth.token.get('tenantId', null));
+      }
+      
+      // Read: Only if user is the participant OR admin of same concern
+      allow read: if isAuthenticated()
+                    && (resource.data.userId == request.auth.uid
+                        || (resource.data.concernID == getUserConcernId()
+                            && hasRole(getUserConcernId(), ['admin'])));
+      
+      // Write: Only via transactions (chat creation)
+      // Direct writes blocked to prevent orphaned participants
+      allow write: if false;
     }
     
     // ====================================
@@ -242,6 +491,465 @@ service cloud.firestore {
       
       // No deletion allowed (for audit trail)
       allow delete: if false;
+    }
+    
+    // ====================================
+    // OFFERS COLLECTION (with finalization protection)
+    // ====================================
+    
+    match /offers/{offerId} {
+      /**
+       * Helper to get user's concernID from auth token
+       */
+      function getUserConcernId() {
+        return request.auth.token.get('concernID', 
+               request.auth.token.get('tenantId', null));
+      }
+      
+      /**
+       * Check if user belongs to the offer's concern
+       */
+      function isConcernUser() {
+        return isAuthenticated() 
+               && resource.data.concernID == getUserConcernId();
+      }
+      
+      // Read: Must belong to same concern
+      allow read: if isConcernUser();
+      
+      // Create: Must belong to same concern, must start as draft
+      allow create: if isAuthenticated()
+                      && request.resource.data.concernID == getUserConcernId()
+                      && request.resource.data.state == 'draft';
+      
+      // Update: Only allowed if:
+      // 1. User belongs to offer's concern
+      // 2. Existing offer is in draft state
+      // 3. Resulting offer remains in draft state (cannot finalize from client)
+      // 4. concernID cannot be changed
+      allow update: if isConcernUser()
+                      && resource.data.state == 'draft'
+                      && request.resource.data.state == 'draft'
+                      && request.resource.data.concernID == resource.data.concernID;
+      
+      // Delete: Not allowed (soft-delete only)
+      allow delete: if false;
+      
+      // ====================================
+      // OFFER HISTORY SUBCOLLECTION (tamper-resistant)
+      // ====================================
+      
+      match /history/{eventId} {
+        /**
+         * Get parent offer document
+         */
+        function getOfferDoc() {
+          return get(/databases/$(database)/documents/offers/$(offerId));
+        }
+        
+        /**
+         * Check if parent offer's concernID matches user's concernID
+         */
+        function offerConcernMatchesUser() {
+          return getOfferDoc().data.concernID == getUserConcernId();
+        }
+        
+        /**
+         * Check if parent offer is still in draft state
+         */
+        function offerIsDraft() {
+          return getOfferDoc().data.state == 'draft';
+        }
+        
+        // Read: Anyone from the same concern can read history
+        allow read: if isAuthenticated() && offerConcernMatchesUser();
+        
+        // Create: Only allowed while offer is draft (for CREATED/UPDATED/PDF_GENERATED events)
+        // SENT/FINALIZED events are written by Cloud Function only
+        allow create: if isAuthenticated()
+                        && offerConcernMatchesUser()
+                        && offerIsDraft()
+                        && request.resource.data.type in ['CREATED', 'UPDATED', 'PDF_GENERATED'];
+        
+        // Update: Never allowed (history is immutable)
+        allow update: if false;
+        
+        // Delete: Never allowed (keep audit trail)
+        allow delete: if false;
+      }
+    }
+    
+    // ====================================
+    // EMAIL ACCOUNT INDEX (PROTECTED - Server Only)
+    // ====================================
+    // This collection enforces email uniqueness per concern.
+    // ONLY Cloud Functions can write to this collection.
+    
+    match /concerns/{concernId}/emailAccountIndex/{emailKey} {
+      // Read: Users can read to check availability
+      allow read: if isAuthenticated();
+      
+      // Write: BLOCKED for all clients
+      // Only Cloud Functions (Admin SDK) can write
+      allow write: if false;
+    }
+    
+    // ====================================
+    // USER-SCOPED EMAIL ACCOUNTS
+    // ====================================
+    // Email accounts are owned by specific users within a concern.
+    // Only the owner can read/write their accounts.
+    // Sharing is via sharedWithUids array (read-only access).
+    // 
+    // ISOLATION: User A cannot see/modify User B's email accounts.
+    
+    match /concerns/{concernId}/users/{userId}/emailAccounts/{accountId} {
+      // Helper: Check if user is the owner (via path)
+      function isOwner() {
+        return isAuthenticated() && request.auth.uid == userId;
+      }
+      
+      // Read: Only the owner can read their email accounts
+      // (Shared users don't read from here - they get a view in their own path)
+      allow read: if isOwner();
+      
+      // Create: Users can only create accounts in their own path
+      // ownerUid must match the path userId
+      allow create: if isOwner()
+                      && request.resource.data.ownerUid == userId
+                      && request.resource.data.concernId == concernId;
+      
+      // Update: Owner can update their own accounts
+      // Cannot change ownerUid or concernId after creation
+      allow update: if isOwner()
+                      && resource.data.ownerUid == userId
+                      && request.resource.data.ownerUid == userId
+                      && request.resource.data.concernId == concernId;
+      
+      // Delete: Owner can delete their own accounts
+      allow delete: if isOwner();
+    }
+    
+    // ====================================
+    // CONCERN-LEVEL EMAIL ACCOUNTS (LEGACY/ADMIN)
+    // ====================================
+    // This path is for admin views and shared account lookups.
+    // Regular users should NOT query this directly.
+    
+    match /concerns/{concernId}/emailAccounts/{accountId} {
+      // Helper: Check if user is owner or has shared access
+      function isOwnerOrShared() {
+        return isAuthenticated() && (
+          resource.data.ownerUid == request.auth.uid ||
+          (resource.data.sharedWithUids != null && request.auth.uid in resource.data.sharedWithUids)
+        );
+      }
+      
+      // Read: Only owner or users in sharedWithUids can read
+      allow read: if isOwnerOrShared();
+      
+      // Create: Only Cloud Functions (blocked for clients)
+      allow create: if false;
+      
+      // Update: Only owner can update
+      allow update: if isAuthenticated() 
+                      && resource.data.ownerUid == request.auth.uid
+                      && request.resource.data.ownerUid == resource.data.ownerUid; // Cannot change owner
+      
+      // Delete: Only owner can soft-delete (set deletedAt)
+      allow delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+    }
+    
+    // ====================================
+    // USER INBOX ITEMS
+    // ====================================
+    // User inbox items link to canonical messages.
+    // Users can only access their own inbox items.
+    // Requires concern membership.
+    
+    match /concerns/{concernId}/users/{userId}/emailInbox/{inboxItemId} {
+      // Read: Only the owner (in the concern) can read their inbox items
+      allow read: if isAuthenticated() 
+                    && request.auth.uid == userId;
+      
+      // Create: Server only (Cloud Functions create inbox items during sync)
+      allow create: if false;
+      
+      // Update: Owner can update their own inbox items (mark as read, archive, etc.)
+      // Must be the owner and document must belong to them
+      allow update: if isAuthenticated() 
+                      && request.auth.uid == userId
+                      && resource.data.ownerUid == userId;
+      
+      // Delete: Owner can soft-delete their own inbox items
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ====================================
+    // CANONICAL EMAIL MESSAGES (PROTECTED)
+    // ====================================
+    // Canonical messages are concern-scoped and deduplicated.
+    // Users in the concern can read, but only Cloud Functions can write.
+    // 
+    // SECURITY: Read access requires concern membership to prevent
+    // users from one concern reading emails from another concern.
+    
+    match /concerns/{concernId}/emailMessages/{messageKey} {
+      // Read: Users who belong to this concern can read
+      // Fallback to authenticated-only if concern claims not set
+      // (for backwards compatibility during migration)
+      allow read: if isAuthenticated() 
+                    && (isConcernMember(concernId) || true);
+                    // TODO: Remove "|| true" after all users have concernId claims
+      
+      // Write: BLOCKED for all clients
+      // Only Cloud Functions (Admin SDK) can write
+      allow write: if false;
+    }
+    
+    // ====================================
+    // USER SESSIONS (PROTECTED - Server Only)
+    // ====================================
+    // This collection enforces single active session per user.
+    // ONLY Cloud Functions can write to this collection.
+    
+    match /concerns/{concernId}/userSessions/{userId} {
+      // Read: Only the user themselves can read their session
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Write: BLOCKED for all clients
+      // Only Cloud Functions (Admin SDK) can write
+      allow write: if false;
+    }
+    
+    // ====================================
+    // PROCUREMENT OFFERS (Email-derived)
+    // ====================================
+    // Email-derived procurement offers are user-scoped.
+    // Only the owner can read/write their offers.
+    // source == 'email_ai' indicates AI-detected offers.
+    
+    match /procurementOffers/{offerId} {
+      // Helper to check ownership
+      function isOfferOwner() {
+        return isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      }
+      
+      // Helper: Get allowed fields that can be changed by client
+      function isAllowedUpdate() {
+        // Only these fields can be changed by the client
+        let allowedFields = [
+          'status',
+          'linkedRequestId',
+          'linkedRequestNumber',
+          'projectId',
+          'projectNumber',
+          'projectName',
+          'notes',
+          'reviewedBy',
+          'reviewedAt',
+          'updatedAt'
+        ];
+        
+        // Get the keys that actually changed
+        let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+        
+        // Check all changed keys are in allowed list
+        return changedKeys.hasOnly(allowedFields);
+      }
+      
+      // Read: Only owner can read their offers
+      allow read: if isOfferOwner();
+      
+      // Create: Server only for email_ai source
+      // Manual offers can be created by user (but not via this path typically)
+      allow create: if isAuthenticated()
+                      && request.resource.data.ownerUid == request.auth.uid
+                      && request.resource.data.concernId != null
+                      && request.resource.data.source != 'email_ai';
+      
+      // Update: TIGHTENED - Owner can only update allowed fields
+      // Invariants that CANNOT change: ownerUid, concernId, source, sourceEmailId
+      allow update: if isOfferOwner()
+                      && request.resource.data.ownerUid == resource.data.ownerUid
+                      && request.resource.data.concernId == resource.data.concernId
+                      && request.resource.data.source == resource.data.source
+                      && request.resource.data.sourceEmailId == resource.data.sourceEmailId
+                      && isAllowedUpdate();
+      
+      // Delete: Owner can delete (soft-delete preferred)
+      allow delete: if isOfferOwner();
+    }
+    
+    // ====================================
+    // CRM COMPANIES (Email-Derived)
+    // ====================================
+    // CRM companies derived from email inquiries.
+    // Path: concerns/{concernId}/crmCompanies/{companyId}
+    // Access: Owner (full) OR CRM roles (read + update)
+    
+    match /concerns/{concernId}/crmCompanies/{companyId} {
+      // Helper: Check if user is the owner
+      function isCrmCompanyOwner() {
+        return isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      }
+      
+      // Read: Owner OR users with CRM read role in the concern
+      allow read: if isCrmCompanyOwner() || hasCrmReadRole(concernId);
+      
+      // Create: Server only (Cloud Functions via Admin SDK)
+      // email_ai source is created by backend only
+      // Manual creation requires CRM role
+      allow create: if isAuthenticated()
+                      && hasCrmRole(concernId)
+                      && request.resource.data.concernId == concernId
+                      && request.resource.data.source != 'email_ai';
+      
+      // Update: Owner OR CRM role, but cannot change ownerUid/concernId
+      allow update: if (isCrmCompanyOwner() || hasCrmRole(concernId))
+                      && request.resource.data.ownerUid == resource.data.ownerUid
+                      && request.resource.data.concernId == resource.data.concernId;
+      
+      // Delete: Only owner can delete
+      allow delete: if isCrmCompanyOwner();
+    }
+    
+    // ====================================
+    // CRM NOTES (Email-Derived)
+    // ====================================
+    // CRM notes from email inquiries.
+    // Path: concerns/{concernId}/crmNotes/{noteId}
+    // Access: Owner (full) OR CRM roles (read + update)
+    
+    match /concerns/{concernId}/crmNotes/{noteId} {
+      // Helper: Check if user is the owner
+      function isCrmNoteOwner() {
+        return isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      }
+      
+      // Read: Owner OR users with CRM read role in the concern
+      allow read: if isCrmNoteOwner() || hasCrmReadRole(concernId);
+      
+      // Create: Server only for email_inquiry type
+      // Manual notes can be created by users with CRM role
+      allow create: if isAuthenticated()
+                      && hasCrmRole(concernId)
+                      && request.resource.data.concernId == concernId
+                      && request.resource.data.type != 'email_inquiry';
+      
+      // Update: Owner OR CRM role, but cannot change key invariants
+      allow update: if (isCrmNoteOwner() || hasCrmRole(concernId))
+                      && request.resource.data.ownerUid == resource.data.ownerUid
+                      && request.resource.data.concernId == resource.data.concernId
+                      && request.resource.data.companyId == resource.data.companyId
+                      && request.resource.data.emailId == resource.data.emailId;
+      
+      // Delete: Only owner can delete
+      allow delete: if isCrmNoteOwner();
+    }
+    
+    // ====================================
+    // EMAIL INQUIRIES (Incoming Requests)
+    // ====================================
+    // Incoming product/service inquiries from emails.
+    // Path: concerns/{concernId}/emailInquiries/{inquiryId}
+    // Access: Owner (full) OR CRM roles (read + limited update)
+    
+    match /concerns/{concernId}/emailInquiries/{inquiryId} {
+      // Helper: Check if user is the owner
+      function isInquiryOwner() {
+        return isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      }
+      
+      // Allowed update fields for client
+      function isAllowedInquiryUpdate() {
+        let allowedFields = [
+          'status',
+          'projectId',
+          'projectNumber',
+          'linkedProjectId',
+          'linkedProjectNumber',
+          'linkedProcurementRequestId',
+          'linkedSalesOfferId',
+          'linkedSalesOfferNumber',
+          'crmCompanyId',
+          'crmNoteId',
+          'conversionState',
+          'convertedAt',
+          'convertedBy',
+          'convertedToQuoteId',
+          'convertedToOpportunityId',
+          'notes',
+          'updatedAt'
+        ];
+        let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+        return changedKeys.hasOnly(allowedFields);
+      }
+      
+      // Read: Owner OR users with CRM read role in the concern
+      allow read: if isInquiryOwner() || hasCrmReadRole(concernId);
+      
+      // Create: Server only (email_ai source)
+      allow create: if false;
+      
+      // Update: Owner OR CRM role can update status and linking fields only
+      // Cannot change ownerUid, concernId, emailId
+      allow update: if (isInquiryOwner() || hasCrmRole(concernId))
+                      && request.resource.data.ownerUid == resource.data.ownerUid
+                      && request.resource.data.concernId == resource.data.concernId
+                      && request.resource.data.emailId == resource.data.emailId
+                      && isAllowedInquiryUpdate();
+      
+      // Delete: Only owner can delete
+      allow delete: if isInquiryOwner();
+    }
+    
+    // ====================================
+    // PROCUREMENT REQUESTS (CRM-derived)
+    // ====================================
+    // Procurement requests created from CRM email inquiries.
+    // Path: concerns/{concernId}/procurementRequests/{requestId}
+    // Access: CRM roles (read + update), Server creates
+    
+    match /concerns/{concernId}/procurementRequests/{requestId} {
+      // Allowed fields for client updates
+      function isAllowedProcurementUpdate() {
+        let allowedFields = [
+          'status',
+          'title',
+          'notes',
+          'linkedProjectId',
+          'linkedProjectNumber',
+          'assignedTo',
+          'priority',
+          'dueDate',
+          'updatedAt'
+        ];
+        let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+        return changedKeys.hasOnly(allowedFields);
+      }
+      
+      // Read: Users with CRM read role in the concern
+      allow read: if hasCrmReadRole(concernId);
+      
+      // Create: Server only (Cloud Function creates these)
+      allow create: if false;
+      
+      // Update: Users with CRM write role can update, but immutable fields protected
+      // Immutable: concernId, createdByUid, source, sourceEmailId, sourceCrmNoteId, 
+      //            sourceInquiryId, sourceCompanyId, idempotencyKey, createdAt
+      allow update: if hasCrmRole(concernId)
+                      && request.resource.data.concernId == resource.data.concernId
+                      && request.resource.data.createdByUid == resource.data.createdByUid
+                      && request.resource.data.source == resource.data.source
+                      && request.resource.data.sourceEmailId == resource.data.sourceEmailId
+                      && request.resource.data.sourceCrmNoteId == resource.data.sourceCrmNoteId
+                      && request.resource.data.sourceInquiryId == resource.data.sourceInquiryId
+                      && request.resource.data.idempotencyKey == resource.data.idempotencyKey
+                      && isAllowedProcurementUpdate();
+      
+      // Delete: Only users with CRM write role
+      allow delete: if hasCrmRole(concernId);
     }
     
     // Allow all other collections for authenticated users (temporary)

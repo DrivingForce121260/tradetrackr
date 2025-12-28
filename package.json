@@ -16,7 +16,18 @@
     "build:android:debug": "cd android && gradlew.bat assembleDebug",
     "build:android:local": "powershell -ExecutionPolicy Bypass -File build-local-apk.ps1",
     "build:android:auto": "powershell -ExecutionPolicy Bypass -File auto-build-apk.ps1",
-    "build:android:watch": "powershell -ExecutionPolicy Bypass -File auto-build-apk.ps1 -Watch"
+    "build:android:watch": "powershell -ExecutionPolicy Bypass -File auto-build-apk.ps1 -Watch",
+    "migrate:projects:dry-run": "cd functions && npx ts-node src/migrations/renumberProjectNumbers.ts --dry-run",
+    "migrate:projects:apply": "cd functions && npx ts-node src/migrations/renumberProjectNumbers.ts --apply",
+    "migrate:projects:call:dry-run": "GOOGLE_APPLICATION_CREDENTIALS='' npx ts-node tools/call-migration.ts --dry-run",
+    "migrate:projects:call:apply": "GOOGLE_APPLICATION_CREDENTIALS='' npx ts-node tools/call-migration.ts --apply",
+    "fix:orphaned-tasks:dry-run": "cd functions && npx ts-node src/scripts/fix-orphaned-tasks.ts --dry-run",
+    "fix:orphaned-tasks": "cd functions && npx ts-node src/scripts/fix-orphaned-tasks.ts --fix",
+    "migrate:internal-projects:dry-run": "cd functions && npx ts-node src/scripts/migrate-internal-projects.ts --dry-run",
+    "migrate:internal-projects": "cd functions && npx ts-node src/scripts/migrate-internal-projects.ts --apply",
+    "emulators": "firebase emulators:start --only firestore --project demo-tradetrackr",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-tradetrackr 'npx vitest run tests/firestore'",
+    "test:rules:watch": "firebase emulators:exec --only firestore --project demo-tradetrackr 'npx vitest watch tests/firestore'"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -93,11 +104,15 @@
   },
   "devDependencies": {
     "@babel/core": "^7.23.5",
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "@types/node": "^25.0.3",
     "@types/react": "~18.2.45",
     "@types/react-native": "~0.73.0",
     "@vitejs/plugin-react": "^5.1.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.3",
-    "vite": "^7.2.2"
+    "vite": "^7.2.2",
+    "vitest": "^4.0.16"
   },
   "private": true
 }

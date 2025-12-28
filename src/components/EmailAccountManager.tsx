@@ -1,21 +1,30 @@
 /**
  * Email Account Manager Component
  * Displays and manages connected email accounts
+ * 
+ * ISOLATION: Only shows accounts owned by the current user.
+ * Uses user-scoped path: concerns/{concernId}/users/{uid}/emailAccounts/*
  */
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functionsEU } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
-import { Mail, Trash2, RefreshCw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Mail, Trash2, RefreshCw, CheckCircle, XCircle, AlertCircle, Plus, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { getSyncErrorMessage } from '@/services/emailIntelligenceService';
 
 interface EmailAccount {
   id: string;
   orgId: string;
+  ownerUid?: string;
   provider: 'gmail' | 'm365' | 'imap';
   emailAddress: string;
+  emailKey?: string;
   active: boolean;
   syncState?: {
     lastSyncedAt?: Date;
@@ -31,55 +40,128 @@ const EmailAccountManager: React.FC = () => {
   const [accounts, setAccounts] = useState<EmailAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [adding, setAdding] = useState(false);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    email: '',
+    host: 'imap.ionos.de',
+    port: '993',
+    user: '',
+    password: '',
+    tls: true,
+  });
+
+  // Get the current user's UID
+  const uid = user?.uid || '';
 
   useEffect(() => {
-    if (!orgId) {
+    if (!orgId || !uid) {
       setLoading(false);
       return;
     }
 
-    const q = query(
-      collection(db, 'emailAccounts'),
-      where('orgId', '==', orgId)
+    // Query USER-SCOPED email accounts
+    // Path: concerns/{concernId}/users/{uid}/emailAccounts/*
+    const userEmailAccountsRef = collection(
+      db, 
+      `concerns/${orgId}/users/${uid}/emailAccounts`
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const accountsData: EmailAccount[] = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          orgId: data.orgId,
+    const unsubscribe = onSnapshot(userEmailAccountsRef, (snapshot) => {
+      const accountsData: EmailAccount[] = [];
+      
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+        
+        // Validate required fields
+        if (!data.provider || (!data.email && !data.emailAddress)) {
+          console.warn('[EmailAccountManager] skipping invalid account', { 
+            id: docSnap.id, 
+            hasProvider: !!data.provider,
+            hasEmail: !!(data.email || data.emailAddress),
+          });
+          continue;
+        }
+        
+        accountsData.push({
+          id: docSnap.id,
+          orgId: data.concernId || orgId,
+          ownerUid: data.ownerUid || uid,
           provider: data.provider,
-          emailAddress: data.emailAddress,
-          active: data.active,
-          syncState: data.syncState ? {
-            lastSyncedAt: data.syncState.lastSyncedAt?.toDate(),
-          } : undefined,
-          createdAt: data.createdAt?.toDate() || new Date(),
-        };
-      });
+          emailAddress: data.email || data.emailAddress,
+          emailKey: data.emailKey,
+          active: data.active !== false && data.status !== 'disconnected',
+          syncState: data.lastSyncAt ? {
+            lastSyncedAt: data.lastSyncAt?.toDate?.() || data.lastSyncAt,
+          } : (data.syncState?.lastSyncedAt ? {
+            lastSyncedAt: data.syncState.lastSyncedAt?.toDate?.() || data.syncState.lastSyncedAt,
+          } : undefined),
+          createdAt: data.createdAt?.toDate?.() || new Date(),
+        });
+      }
+      console.log('📧 [EmailAccountManager] Loaded user-scoped accounts:', accountsData.length);
       setAccounts(accountsData);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [orgId]);
+  }, [orgId, uid]);
 
-  const handleSync = async (accountId: string) => {
-    setSyncing(accountId);
+  const handleSync = async (account: EmailAccount) => {
+    // Log both doc ID and emailKey for debugging
+    console.debug('[EmailAccountManager] Sync account', { 
+      accountId: account.id, 
+      emailKey: account.emailKey,
+      email: account.emailAddress,
+      ownerUid: account.ownerUid?.substring(0, 8),
+      concernId: orgId,
+    });
+    
+    setSyncing(account.id);
     try {
       const syncFunction = httpsCallable(functionsEU, 'syncEmailAccount');
-      const result = await syncFunction({ accountId });
+      const result = await syncFunction({ 
+        concernId: orgId,
+        accountId: account.id,
+      });
+      
+      const resultData = result.data as any;
+      
+      // Build success message with details
+      let description = `${resultData.messageCount || 0} E-Mails synchronisiert`;
+      
+      // Add processing results
+      if (resultData.processed !== undefined) {
+        description = `${resultData.processed} E-Mails verarbeitet`;
+        if (resultData.failed > 0) {
+          description += ` (${resultData.failed} Fehler)`;
+        }
+      }
+      
+      // Notify if more emails are waiting
+      if (resultData.hasMore) {
+        description += `. Weitere ${resultData.skippedCount || 'mehrere'} E-Mails vorhanden - erneut synchronisieren.`;
+      }
       
       toast({
         title: '✅ Synchronisierung erfolgreich',
-        description: `${(result.data as any).messageCount} E-Mails synchronisiert`,
+        description,
       });
-    } catch (error) {
-      console.error('Sync error:', error);
+    } catch (error: any) {
+      console.error('[EmailAccountManager] Sync error:', error);
+      // Log full error details for debugging
+      if (error?.details) {
+        console.error('[EmailAccountManager] Error details:', error.details);
+      }
+      
+      // Use centralized error message mapping
+      const userMessage = getSyncErrorMessage(error);
+
       toast({
         title: '❌ Synchronisierung fehlgeschlagen',
-        description: 'Bitte versuchen Sie es später erneut',
+        description: userMessage,
         variant: 'destructive',
       });
     } finally {
@@ -93,7 +175,34 @@ const EmailAccountManager: React.FC = () => {
     }
 
     try {
-      await deleteDoc(doc(db, 'emailAccounts', accountId));
+      // Step 1: Unassign email from user (releases the assignment for others)
+      try {
+        const unassignFunction = httpsCallable(functionsEU, 'unassignEmailAccount');
+        await unassignFunction({
+          concernId: orgId,
+          email: emailAddress,
+        });
+      } catch (unassignError) {
+        console.error('Email unassignment error:', unassignError);
+        // Continue with deletion even if unassignment fails
+      }
+
+      // Step 2: Delete user-scoped account document
+      // Path: concerns/{concernId}/users/{uid}/emailAccounts/{accountId}
+      try {
+        await deleteDoc(doc(db, `concerns/${orgId}/users/${uid}/emailAccounts`, accountId));
+        console.log('✅ Deleted user-scoped email account');
+      } catch (err) {
+        console.error('Error deleting user-scoped account:', err);
+      }
+
+      // Step 3: Also delete legacy account document (for cleanup)
+      try {
+        await deleteDoc(doc(db, 'emailAccounts', accountId));
+        console.log('✅ Deleted legacy email account');
+      } catch (err) {
+        // May not exist - that's OK
+      }
       
       toast({
         title: '✅ Konto getrennt',
@@ -106,6 +215,67 @@ const EmailAccountManager: React.FC = () => {
         description: 'Bitte versuchen Sie es später erneut',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleAddAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdding(true);
+
+    try {
+      // Store IMAP account (server enforces email uniqueness via transaction)
+      const storeFunction = httpsCallable(functionsEU, 'storeImapAccount');
+      const result = await storeFunction({
+        orgId,
+        emailAddress: formData.email,
+        host: formData.host,
+        port: parseInt(formData.port),
+        user: formData.user || formData.email, // Default user to email if not provided
+        password: formData.password,
+        tls: formData.tls,
+      });
+
+      toast({
+        title: '✅ E-Mail-Konto verbunden',
+        description: (result.data as any).message || 'Konto erfolgreich hinzugefügt',
+      });
+
+      // Reset form and close
+      setFormData({
+        email: '',
+        host: 'imap.ionos.de',
+        port: '993',
+        user: '',
+        password: '',
+        tls: true,
+      });
+      setShowAddForm(false);
+    } catch (error: any) {
+      console.error('Add account error:', error);
+      
+      // Check for EMAIL_ALREADY_ASSIGNED error (server-side enforcement)
+      const isEmailTaken = 
+        error.code === 'functions/failed-precondition' ||
+        error.message?.includes('EMAIL_ALREADY_ASSIGNED');
+      
+      if (isEmailTaken) {
+        toast({
+          title: '❌ E-Mail bereits vergeben',
+          description: 'Dieses E-Mail-Konto ist bereits einem anderen Benutzer in diesem Unternehmen zugewiesen.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      const errorMessage = error.message || 'Bitte überprüfen Sie Ihre Eingaben';
+      
+      toast({
+        title: '❌ Verbindung fehlgeschlagen',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -152,9 +322,131 @@ const EmailAccountManager: React.FC = () => {
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">
-        Verbundene E-Mail-Konten ({accounts.length})
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold text-gray-900">
+          Verbundene E-Mail-Konten ({accounts.length})
+        </h3>
+        <Button
+          onClick={() => setShowAddForm(!showAddForm)}
+          variant="outline"
+          size="sm"
+          className="border-2 border-[#058bc0] text-[#058bc0] hover:bg-[#058bc0] hover:text-white"
+        >
+          {showAddForm ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+          {showAddForm ? 'Abbrechen' : 'Konto hinzufügen'}
+        </Button>
+      </div>
+
+      {/* Add Account Form */}
+      {showAddForm && (
+        <form onSubmit={handleAddAccount} className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-[#058bc0]">
+          <h4 className="font-semibold text-gray-900 mb-4">IMAP-Konto hinzufügen</h4>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="email">E-Mail-Adresse *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="ihre-email@domain.com"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="host">IMAP Server *</Label>
+                <Input
+                  id="host"
+                  value={formData.host}
+                  onChange={(e) => setFormData({ ...formData, host: e.target.value })}
+                  placeholder="imap.ionos.de"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="port">Port *</Label>
+                <Input
+                  id="port"
+                  value={formData.port}
+                  onChange={(e) => setFormData({ ...formData, port: e.target.value })}
+                  placeholder="993"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="user">Benutzername (optional)</Label>
+              <Input
+                id="user"
+                value={formData.user}
+                onChange={(e) => setFormData({ ...formData, user: e.target.value })}
+                placeholder="Leer lassen für E-Mail-Adresse"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Standard: Ihre E-Mail-Adresse wird als Benutzername verwendet
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="password">Passwort *</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Ihr IMAP-Passwort"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Bei 2FA: App-spezifisches Passwort verwenden
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                id="tls"
+                type="checkbox"
+                checked={formData.tls}
+                onChange={(e) => setFormData({ ...formData, tls: e.target.checked })}
+                className="w-4 h-4 text-[#058bc0] border-gray-300 rounded focus:ring-[#058bc0]"
+              />
+              <Label htmlFor="tls" className="font-normal">SSL/TLS verwenden (empfohlen)</Label>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAddForm(false)}
+                disabled={adding}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                type="submit"
+                disabled={adding}
+                className="bg-[#058bc0] hover:bg-[#047ba8] text-white"
+              >
+                {adding ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Verbinde...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Konto verbinden
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </form>
+      )}
       
       <div className="space-y-3">
         {accounts.map((account) => (
@@ -186,7 +478,7 @@ const EmailAccountManager: React.FC = () => {
             
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => handleSync(account.id)}
+                onClick={() => handleSync(account)}
                 disabled={syncing === account.id}
                 className="p-2 text-[#058bc0] hover:bg-[#058bc0] hover:text-white rounded-lg transition-colors disabled:opacity-50"
                 title="Synchronisieren"

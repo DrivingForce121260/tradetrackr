@@ -2,7 +2,7 @@ export type LocaleCode = 'de' | 'en';
 
 export type DocumentType = 'offer' | 'order' | 'invoice';
 
-export type OfferState = 'draft' | 'sent' | 'accepted';
+export type OfferState = 'draft' | 'sent' | 'accepted' | 'rejected';
 export type OrderState = 'open' | 'in-progress' | 'done';
 export type InvoiceState = 'draft' | 'sent' | 'paid' | 'overdue';
 
@@ -69,6 +69,31 @@ export interface Totals {
 	grandTotalGross: number;
 }
 
+/**
+ * Issuer snapshot - frozen company profile at document creation time
+ * Ensures documents remain accurate even if company details change later
+ */
+export interface IssuerSnapshot {
+	companyName: string;
+	legalForm?: string;
+	street?: string;
+	postalCode?: string;
+	city?: string;
+	country?: string;
+	email?: string;
+	phone?: string;
+	website?: string;
+	vatId?: string; // USt-IdNr.
+	taxNumber?: string; // Steuernummer
+	commercialRegister?: string; // Handelsregister
+	managingDirector?: string; // Geschäftsführer
+	bankName?: string;
+	iban?: string;
+	bic?: string;
+	isSmallBusiness?: boolean; // Kleinunternehmer §19 UStG
+	logoUrl?: string;
+}
+
 export interface BaseDocument {
 	id: string;
 	number: string; // YYYY-#### per type
@@ -76,12 +101,15 @@ export interface BaseDocument {
 	concernID: string;
 	clientId: string;
 	clientSnapshot: Pick<Client, 'name' | 'billingAddress' | 'vatId' | 'currency' | 'defaultTaxKey'>;
+	issuerSnapshot?: IssuerSnapshot; // Frozen company profile at document creation
 	locale: LocaleCode;
 	currency: CurrencyCode;
 	issueDate: string; // ISO date (YYYY-MM-DD)
+	validUntil?: string; // Offer validity date (ISO date)
 	dueDate?: string; // invoices
 	noteInternal?: string;
 	noteCustomer?: string;
+	paymentTermsText?: string; // Payment terms for this document
 	lineItems: LineItem[];
 	additionalDiscountAbs?: number; // absolute document-level
 	taxKeys: TaxKey[]; // used to compute totals
@@ -89,6 +117,9 @@ export interface BaseDocument {
 	createdBy: string; // uid
 	createdAt: string;
 	updatedAt: string;
+	// PDF generation
+	pdfStoragePath?: string; // Cloud Storage path
+	pdfGeneratedAt?: string; // ISO timestamp
 }
 
 export interface CalcSummary {
@@ -104,10 +135,23 @@ export interface CalcSummary {
 	snapshotLocked?: boolean; // if true, costs are frozen
 }
 
+/**
+ * User identity snapshot for audit trail
+ */
+export interface UserSnapshot {
+	userId: string;
+	name: string;
+}
+
 export interface Offer extends BaseDocument {
 	documentType: 'offer';
 	state: OfferState;
 	calcSummary?: CalcSummary; // optional costing summary
+	// Finalization fields (set when offer is sent/finalized)
+	sentAt?: any; // Firestore Timestamp or ISO string (backward compatible)
+	sentBy?: UserSnapshot;
+	finalizedAt?: any; // Firestore Timestamp or ISO string
+	finalizedBy?: UserSnapshot;
 }
 
 export interface Order extends BaseDocument {
@@ -116,6 +160,64 @@ export interface Order extends BaseDocument {
 	relatedOfferId?: string;
 }
 
+/**
+ * Payment method for invoice payments
+ */
+export type PaymentMethod = 'UEBERWEISUNG' | 'BAR' | 'EC' | 'KREDITKARTE' | 'PAYPAL' | 'SONSTIGES';
+
+/**
+ * Payment status for invoices
+ */
+export type PaymentStatus = 'open' | 'partial' | 'paid' | 'overpaid';
+
+/**
+ * Payment method display labels (German)
+ */
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+	UEBERWEISUNG: 'Überweisung',
+	BAR: 'Bar',
+	EC: 'EC-Karte',
+	KREDITKARTE: 'Kreditkarte',
+	PAYPAL: 'PayPal',
+	SONSTIGES: 'Sonstiges',
+};
+
+/**
+ * Payment status display labels (German)
+ */
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+	open: 'Offen',
+	partial: 'Teilweise bezahlt',
+	paid: 'Bezahlt',
+	overpaid: 'Überbezahlt',
+};
+
+/**
+ * Invoice payment document (stored in invoices/{invoiceId}/payments/{paymentId})
+ */
+export interface InvoicePayment {
+	id?: string; // Firestore doc ID, added on read
+	invoiceId: string;
+	concernID: string;
+	
+	amountCents: number; // integer, avoids float issues
+	currency: 'EUR';
+	
+	paidAt: any; // Firestore Timestamp
+	method: PaymentMethod;
+	
+	reference?: string; // optional payment reference
+	note?: string; // optional note
+	
+	recordedByUserId: string;
+	recordedByUserName: string;
+	
+	createdAt: any; // serverTimestamp
+}
+
+/**
+ * @deprecated Use InvoicePayment instead - kept for backward compatibility
+ */
 export interface Payment {
 	id: string;
 	concernID: string;
@@ -132,8 +234,18 @@ export interface Invoice extends BaseDocument {
 	documentType: 'invoice';
 	state: InvoiceState;
 	relatedOrderId?: string;
-	paymentsTotal?: number; // computed
-	openAmount?: number; // computed
+	relatedOrderNumber?: string; // Human-readable order number (e.g., "AU-2025-0007") for PDF display
+	
+	// Payment tracking fields (computed on payment capture)
+	paymentStatus?: PaymentStatus; // 'open' | 'partial' | 'paid' | 'overpaid'
+	paidAmountCents?: number; // sum of all payments in cents
+	openAmountCents?: number; // max(total - sum, 0) in cents
+	lastPaymentAt?: any; // Firestore Timestamp of most recent payment
+	paidAt?: any; // Firestore Timestamp when fully paid
+	
+	// Legacy fields (deprecated, kept for backward compatibility)
+	paymentsTotal?: number; // @deprecated use paidAmountCents
+	openAmount?: number; // @deprecated use openAmountCents
 }
 
 export interface NumberCounter {

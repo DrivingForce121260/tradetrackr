@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { 
   signInWithEmailAndPassword, 
   signOut, 
@@ -22,6 +22,16 @@ import {
   categoryService
 } from '@/services/firestoreService';
 import { cleanupDemoData } from '@/utils/demoData';
+import {
+  createSessionId,
+  claimSession,
+  startHeartbeat,
+  stopHeartbeat,
+  releaseSession,
+  setupTabCloseHandler,
+  getCurrentSessionId,
+  setSessionInvalidatedCallback,
+} from '@/services/sessionService';
 
 // Funktion zur Generierung der Concern-ID
 const generateConcernId = (): string => {
@@ -83,6 +93,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Session state
+  const [sessionBlocked, setSessionBlocked] = useState(false);
+  const [sessionBlockMessage, setSessionBlockMessage] = useState('');
+  const tabCloseCleanup = useRef<(() => void) | null>(null);
   
   // Neue Synchronisations-States
   const [autoSyncActive, setAutoSyncActive] = useState(false);
@@ -280,6 +295,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
         
+
+        // ====================================
+        // SESSION CLAIM (Single active session)
+        // ====================================
+        if (userWithUid.concernID && !userWithUid.isDemoUser) {
+          const sessionId = createSessionId();
+          const sessionResult = await claimSession(
+            userWithUid.concernID,
+            firebaseUser.uid,
+            sessionId
+          );
+
+          if (!sessionResult.success) {
+            console.log('🚫 [Auth] Session claim denied, signing out');
+            await signOut(auth);
+            setSessionBlocked(true);
+            setSessionBlockMessage(
+              sessionResult.message || 
+              'Dieses Konto ist bereits angemeldet. Bitte melden Sie sich zuerst auf dem anderen Gerät ab.'
+            );
+            throw new Error(sessionResult.message || 'SESSION_BLOCKED');
+          }
+
+          // Setup callback for when session is invalidated by another device
+          setSessionInvalidatedCallback(async () => {
+            console.log('🚫 [Auth] Session invalidated by another device, signing out');
+            setSessionBlocked(true);
+            setSessionBlockMessage(
+              'Ihre Sitzung wurde von einem anderen Gerät übernommen. Sie werden abgemeldet.'
+            );
+            await signOut(auth);
+            setUser(null);
+          });
+
+          // Start heartbeat to keep session alive
+          startHeartbeat(userWithUid.concernID, firebaseUser.uid);
+
+          // Setup tab close handler
+          tabCloseCleanup.current = setupTabCloseHandler(
+            userWithUid.concernID,
+            firebaseUser.uid
+          );
+        }
+        // ====================================
 
         setUser(userWithUid);
 
@@ -590,10 +649,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
+      // Release session before signing out
+      if (user?.concernID && !user?.isDemoUser && getCurrentSessionId()) {
+        stopHeartbeat();
+        await releaseSession(user.concernID, user.uid || '');
+      }
+
+      // Cleanup tab close handler
+      if (tabCloseCleanup.current) {
+        tabCloseCleanup.current();
+        tabCloseCleanup.current = null;
+      }
+
       await signOut(auth);
       setUser(null);
+      setSessionBlocked(false);
+      setSessionBlockMessage('');
     } catch (error) {
-
+      console.error('❌ Logout error:', error);
       throw error;
     }
   };

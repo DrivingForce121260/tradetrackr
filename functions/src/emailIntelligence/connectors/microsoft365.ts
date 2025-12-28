@@ -81,10 +81,10 @@ export class Microsoft365Connector extends BaseEmailConnector {
         message.from?.emailAddress?.address || ''
       );
 
-      // Extract body
+      // Extract body - use null instead of undefined for Firestore
       const bodyHtml = message.body?.contentType === 'html' 
         ? message.body.content 
-        : undefined;
+        : null;
       const bodyText = message.body?.contentType === 'text' 
         ? message.body.content 
         : (bodyHtml ? this.stripHtml(bodyHtml) : '');

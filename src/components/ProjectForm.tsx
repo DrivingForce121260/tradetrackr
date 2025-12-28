@@ -465,7 +465,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, initialData }) => {
                   </SelectItem>
                 ))
               ) : (
-                <SelectItem value="" disabled>
+                <SelectItem value="__no_customers__" disabled>
                   Keine Kunden verfügbar
                 </SelectItem>
               )}

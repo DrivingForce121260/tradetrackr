@@ -267,37 +267,80 @@ export async function ensureInternalProjects(concernId: string): Promise<void> {
  * Get all internal projects for an organization
  */
 export async function getInternalProjects(concernId: string) {
+  console.log('[getInternalProjects] Loading internal projects for concernId:', concernId);
+  
   const projectsQuery = query(
     collection(db, 'projects'),
     where('concernID', '==', concernId),
-    where('type', '==', 'internal'),
-    where('active', '!=', false)
+    where('type', '==', 'internal')
   );
   
   const snapshot = await getDocs(projectsQuery);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
+  console.log('[getInternalProjects] Found', snapshot.docs.length, 'internal projects');
+  
+  const projects = snapshot.docs
+    .filter(doc => {
+      const data = doc.data();
+      // Include only active internal projects
+      return data.active !== false;
+    })
+    .map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        projectName: data.projectName || data.name || 'Unnamed Internal Project',
+        type: data.type,
+        internalCategory: data.internalCategory,
+        concernID: data.concernID,
+        ...data
+      };
+    });
+  
+  console.log('[getInternalProjects] Returning', projects.length, 'active internal projects');
+  return projects;
 }
 
 /**
  * Get all external (customer) projects for an organization
  */
 export async function getExternalProjects(concernId: string) {
+  console.log('[getExternalProjects] Loading projects for concernId:', concernId);
+  
   const projectsQuery = query(
     collection(db, 'projects'),
-    where('concernID', '==', concernId),
-    where('projectStatus', 'in', ['active', 'planning', 'in-progress'])
+    where('concernID', '==', concernId)
   );
   
   const snapshot = await getDocs(projectsQuery);
-  return snapshot.docs
-    .filter(doc => doc.data().type !== 'internal')
-    .map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+  console.log('[getExternalProjects] Found', snapshot.docs.length, 'total projects');
+  
+  const projects = snapshot.docs
+    .filter(doc => {
+      const data = doc.data();
+      // Exclude internal projects
+      if (data.type === 'internal') return false;
+      
+      // Include active projects (check both projectStatus and status fields)
+      const status = data.projectStatus || data.status;
+      const isActive = !status || status === 'active' || status === 'planning' || status === 'in-progress';
+      
+      return isActive;
+    })
+    .map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        projectName: data.projectName || data.name || 'Unnamed Project',
+        projectNumber: data.projectNumber,
+        projectStatus: data.projectStatus || data.status,
+        concernID: data.concernID,
+        type: data.type,
+        ...data
+      };
+    });
+  
+  console.log('[getExternalProjects] Returning', projects.length, 'external projects');
+  return projects;
 }
 
 

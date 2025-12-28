@@ -1,7 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import AppHeader from '@/components/AppHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/AuthContext';
 import NotificationSettings from './NotificationSettings';
 import RetentionSettings from './settings/RetentionSettings';
 import CategoryManager from './settings/CategoryManager';
@@ -11,7 +10,6 @@ import { ManagementWithNavigationProps } from '@/types/common';
 const CalendarIntegration = lazy(() => import('@/components/settings/CalendarIntegration'));
 
 const Settings: React.FC<ManagementWithNavigationProps> = ({ onBack, onNavigate, onOpenMessaging }) => {
-	const { hasPermission } = useAuth();
 	return (
 		<div className="min-h-screen tradetrackr-gradient-blue">
 			<AppHeader
@@ -52,14 +50,14 @@ const Settings: React.FC<ManagementWithNavigationProps> = ({ onBack, onNavigate,
 							>
 								📁 Kategorien
 							</TabsTrigger>
-							<TabsTrigger 
-								value="session-timeout"
-								className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#058bc0] data-[state=active]:to-[#0470a0] data-[state=active]:text-white font-semibold"
-								aria-label="Session-Timeout Einstellungen"
-							>
-								⏱️ Session-Timeout
-							</TabsTrigger>
-						</TabsList>
+						<TabsTrigger 
+							value="session-timeout"
+							className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#058bc0] data-[state=active]:to-[#0470a0] data-[state=active]:text-white font-semibold"
+							aria-label="Session-Timeout Einstellungen"
+						>
+							⏱️ Session-Timeout
+						</TabsTrigger>
+					</TabsList>
 						<TabsContent value="notifications">
 							<NotificationSettings onBack={onBack} onOpenMessaging={onOpenMessaging} />
 						</TabsContent>
@@ -79,15 +77,15 @@ const Settings: React.FC<ManagementWithNavigationProps> = ({ onBack, onNavigate,
 						<TabsContent value="categories">
 							<CategoryManager onBack={onBack} onOpenMessaging={onOpenMessaging} />
 						</TabsContent>
-						<TabsContent value="session-timeout">
-							<SessionTimeoutSettings />
-						</TabsContent>
-					</Tabs>
-				</div>
+					<TabsContent value="session-timeout">
+						<SessionTimeoutSettings />
+					</TabsContent>
+				</Tabs>
 			</div>
-
-			{/* Quick Action Sidebar */}
 		</div>
+
+		{/* Quick Action Sidebar */}
+	</div>
 	);
 };
 

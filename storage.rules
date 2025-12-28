@@ -81,6 +81,50 @@ service firebase.storage {
     }
     
     // ====================================
+    // MESSAGING CHAT FILES
+    // ====================================
+    
+    // Chat attachments: chats/{chatId}/{fileName}
+    // Users can upload files to chats they are participants of
+    // Note: Chat membership validation happens in Firestore rules
+    match /chats/{chatId}/{fileName} {
+      // Allow authenticated users to read chat files
+      allow read: if isAuthenticated();
+      
+      // Allow authenticated users to upload files to chats
+      // File size limit: 50MB
+      allow create: if isAuthenticated()
+                       && request.resource.size < 50 * 1024 * 1024; // 50MB
+      
+      // Allow users to delete their own uploads
+      allow delete: if isAuthenticated()
+                       && (request.auth.uid == resource.metadata.uploadedBy
+                           || (request.auth.token.role != null 
+                               && request.auth.token.role == 'admin'));
+      
+      // No updates allowed (files are immutable)
+      allow update: if false;
+    }
+    
+    // Chat thumbnails: thumbnails/{fileName}
+    // Thumbnails for chat images
+    match /thumbnails/{fileName} {
+      // Allow authenticated users to read thumbnails
+      allow read: if isAuthenticated();
+      
+      // Allow authenticated users to upload thumbnails
+      // File size limit: 5MB (thumbnails should be small)
+      allow create: if isAuthenticated()
+                       && request.resource.size < 5 * 1024 * 1024; // 5MB
+      
+      // Allow users to delete thumbnails
+      allow delete: if isAuthenticated();
+      
+      // No updates allowed (thumbnails are immutable)
+      allow update: if false;
+    }
+    
+    // ====================================
     // CONCERNS-SCOPED DOCUMENT STORAGE
     // ====================================
     
@@ -137,6 +181,24 @@ service firebase.storage {
                        && request.auth.token.tenantId == tenantId
                        && request.resource.size < 20 * 1024 * 1024; // 20MB
       
+      allow update, delete: if false;
+    }
+    
+    // ====================================
+    // KATEGORIEN: PER-USER IMPORT FILES
+    // ====================================
+    
+    // Kategorien: per-user import files for AI Category Import
+    match /kategorien/{userId}/{fileName} {
+      // Read allowed for the owner
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Upload allowed for the owner, with size limit (50MB)
+      allow create: if isAuthenticated() 
+                       && request.auth.uid == userId 
+                       && request.resource.size < 50 * 1024 * 1024;
+      
+      // No updates/deletes (immutable once uploaded)
       allow update, delete: if false;
     }
   }

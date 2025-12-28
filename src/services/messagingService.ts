@@ -17,7 +17,8 @@
   writeBatch,
   arrayUnion,
   arrayRemove,
-  increment
+  increment,
+  runTransaction
 } from 'firebase/firestore';
 import { 
   ref, 
@@ -35,7 +36,7 @@ const COLLECTIONS = {
   CHATS: 'chats',
   MESSAGES: 'messages',
   CHAT_PARTICIPANTS: 'chat_participants'
-};
+} as const;
 
 // Interfaces für Firebase
 export interface FirebaseUser {
@@ -84,6 +85,7 @@ export interface FirebaseMessage {
   chatId: string;
   text: string;
   senderId: string;
+  senderName?: string; // Fallback field for older messages
   timestamp: Timestamp;
   status: 'sent' | 'delivered' | 'read';
   readBy: string[];
@@ -132,12 +134,11 @@ export interface ChatParticipant {
   isActive: boolean;
   lastReadAt: Timestamp;
   unreadCount: number;
+  concernID: string;  // Add concernID for multi-tenancy enforcement
 }
 
 // Messaging Service Class
 export class MessagingService {
-  private portalVersion: string = 'v2'; // Aktuelle Version
-  private fallbackMode: boolean = false;
   private currentUser: FirebaseUser;
   private concernID: string;
   private storage: any;
@@ -146,62 +147,10 @@ export class MessagingService {
     this.currentUser = user;
     this.concernID = concernID;
     this.storage = storage;
-    
-    // Überprüfe Portal-Version und aktiviere Fallback-Modus bei Bedarf
-    this.detectPortalVersion();
+    console.log('🏗️ [MessagingService] Constructor called with concernID:', concernID);
+    console.log('🏗️ [MessagingService] User concernID:', (user as any).concernID);
   }
   
-  // Portal-Version erkennen und Fallback-Modus aktivieren
-  private async detectPortalVersion() {
-    try {
-      console.log('🔍 [MessagingService] Detecting portal version...');
-      
-      // Versuche, auf verschiedene Collections zuzugreifen
-      const testCollections = [
-        COLLECTIONS.CHATS,
-        'chats_v2', 
-        'direct_chats',
-        'messages',
-        'messages_v2'
-      ];
-      
-      let accessibleCollections = 0;
-      for (const collectionName of testCollections) {
-        try {
-          const testQuery = query(collection(db, collectionName), limit(1));
-          await getDocs(testQuery);
-          accessibleCollections++;
-          // Only log in development
-          if (import.meta.env.DEV) {
-            console.log(`✅ [MessagingService] Collection ${collectionName} accessible`);
-          }
-        } catch (error) {
-          // Expected - optional collections may not exist, silent fail
-          if (import.meta.env.DEV) {
-            console.debug(`Collection ${collectionName} not accessible (expected if v2 not migrated)`);
-          }
-        }
-      }
-      
-      // Wenn weniger als 2 Collections zugänglich sind, aktiviere Fallback-Modus
-      if (accessibleCollections < 2) {
-        this.fallbackMode = true;
-        this.portalVersion = 'v1';
-        if (import.meta.env.DEV) {
-          console.log('⚠️ [MessagingService] Fallback mode activated - using v1 compatibility');
-        }
-      } else {
-        if (import.meta.env.DEV) {
-          console.log('✅ [MessagingService] Using standard mode - v2 compatibility');
-        }
-      }
-      
-    } catch (error) {
-      console.warn('⚠️ [MessagingService] Could not detect portal version, using fallback mode:', error);
-      this.fallbackMode = true;
-      this.portalVersion = 'v1';
-    }
-  }
 
   // ===== USER MANAGEMENT =====
   
@@ -211,7 +160,7 @@ export class MessagingService {
     const userRef = doc(db, COLLECTIONS.USERS, this.currentUser.uid);
     await updateDoc(userRef, {
       status,
-      lastSeen: serverTimestamp()
+      lastSeen: serverTimestamp() as any
     });
   }
 
@@ -253,57 +202,38 @@ export class MessagingService {
   }
 
   async getConcernMembers(): Promise<FirebaseUser[]> {
-    console.log('🔍 getConcernMembers called with concernID:', this.concernID);
-    
     if (!this.concernID) {
       console.warn('⚠️ No concernID provided');
       return [];
     }
-    
+
     try {
-      // Zuerst alle Benutzer auflisten (für Debug-Zwecke)
-      const allUsersRef = collection(db, COLLECTIONS.USERS);
-      const allUsersSnapshot = await getDocs(allUsersRef);
-      console.log('🔍 All users in collection:', allUsersSnapshot.size);
-      
-      allUsersSnapshot.forEach((doc) => {
-        const data = doc.data();
-        console.log('👥 All user:', doc.id, 'concernID:', data.concernID, 'email:', data.email);
-      });
-      
-      // Dann nach der spezifischen concernID filtern
       const usersRef = collection(db, COLLECTIONS.USERS);
       const q = query(
         usersRef,
         where('concernID', '==', this.concernID)
       );
-      
-      console.log('🔍 Querying users collection with concernID:', this.concernID);
+
       const querySnapshot = await getDocs(q);
-      console.log('📊 Query result - documents found:', querySnapshot.size);
-      
       const members: FirebaseUser[] = [];
-      
+
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        console.log('👤 User document:', doc.id, data);
-        
+
         const member: FirebaseUser = {
           uid: doc.id,
           email: data.email || '',
           displayName: data.displayName || `${data.vorname || ''} ${data.nachname || ''}`.trim() || data.email || 'Unbekannter Benutzer',
           photoURL: data.photoURL || data.photoUrl, // Support both photoURL and photoUrl
           status: data.status || 'offline',
-          lastSeen: data.lastSeen || Timestamp.now(),
+          lastSeen: data.lastSeen || Timestamp.now() as Timestamp,
           concernID: data.concernID || this.concernID,
           role: data.role || 'user'
         };
-        
+
         members.push(member);
-        console.log('✅ Added member:', member);
       });
-      
-      console.log('📊 Total members found:', members.length);
+
       return members;
     } catch (error) {
       console.error('❌ Error getting concern members:', error);
@@ -318,136 +248,106 @@ export class MessagingService {
       console.log('🔍 [MessagingService] Creating direct chat with user:', otherUserId);
       console.log('🔍 [MessagingService] Current user:', this.currentUser.uid);
       console.log('🔍 [MessagingService] Concern ID:', this.concernID);
-      
-      // Fallback: Prüfe verschiedene Collection-Namen für Chats
-      const chatCollections = [COLLECTIONS.CHATS, 'chats_v2', 'direct_chats', 'user_chats'];
-      let existingChatId: string | null = null;
-      
-      // Suche nach bestehenden Chats in allen möglichen Collections
-      for (const collectionName of chatCollections) {
-        try {
-          console.log(`🔍 [MessagingService] Searching in collection: ${collectionName}`);
-          
-          // Flexible Suche nach Chats (verschiedene Feldstrukturen)
-          const queries = [
-            // Standard-Struktur
-            query(
-              collection(db, collectionName),
-              where('type', '==', 'direct'),
-              where('participants', 'array-contains', this.currentUser.uid)
-            ),
-            // Fallback-Struktur (ältere Versionen)
-            query(
-              collection(db, collectionName),
-              where('participants', 'array-contains', this.currentUser.uid)
-            ),
-            // Einfache Struktur
-            query(
-              collection(db, collectionName),
-              where('user1', '==', this.currentUser.uid)
-            ),
-            query(
-              collection(db, collectionName),
-              where('user2', '==', this.currentUser.uid)
-            )
-          ];
-          
-          for (const q of queries) {
-            try {
-              const snapshot = await getDocs(q);
-              console.log(`🔍 [MessagingService] Found ${snapshot.size} chats in ${collectionName}`);
-              
-              snapshot.forEach((doc) => {
-                const chatData = doc.data();
-                console.log('🔍 [MessagingService] Checking chat:', doc.id, chatData);
-                
-                // Verschiedene Möglichkeiten, wie Teilnehmer gespeichert sein könnten
-                const participants = chatData.participants || 
-                                   [chatData.user1, chatData.user2].filter(Boolean) ||
-                                   [chatData.createdBy, chatData.assignedTo].filter(Boolean);
-                
-                if (participants.includes(otherUserId)) {
-                  existingChatId = doc.id;
-                  console.log('✅ [MessagingService] Found matching chat:', existingChatId);
-                  return;
-                }
-              });
-              
-              if (existingChatId) break;
-            } catch (queryError) {
-              console.warn(`⚠️ [MessagingService] Query failed for ${collectionName}:`, queryError);
-            }
-          }
-          
-          if (existingChatId) break;
-        } catch (collectionError) {
-          console.warn(`⚠️ [MessagingService] Collection ${collectionName} not accessible:`, collectionError);
-        }
-      }
-      
-      if (existingChatId) {
-        console.log('✅ [MessagingService] Returning existing chat:', existingChatId);
-        return existingChatId;
-      }
-      
-      console.log('🆕 [MessagingService] No existing chat found, creating new one...');
-      
-      // Versuche Chat in verschiedenen Collections zu erstellen
-      let chatRef;
-      for (const collectionName of chatCollections) {
-        try {
-          // Erstelle kompatible Chat-Daten für verschiedene Versionen
-          const chatData: any = {
-            type: 'direct',
-            name: '',
-            participants: [this.currentUser.uid, otherUserId],
-            unreadCount: {
-              [this.currentUser.uid]: 0,
-              [otherUserId]: 0
-            },
-            metadata: {
-              createdBy: this.currentUser.uid,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-              concernID: this.concernID
-            },
-            // Fallback-Felder für ältere Versionen
-            concernID: this.concernID,
-            user1: this.currentUser.uid,
-            user2: otherUserId,
-            createdBy: this.currentUser.uid,
-            createdAt: serverTimestamp()
-          };
 
-          console.log(`🔍 [MessagingService] Creating chat in ${collectionName}:`, chatData);
-          chatRef = await addDoc(collection(db, collectionName), chatData);
-          console.log(`✅ [MessagingService] New chat created in ${collectionName} with ID:`, chatRef.id);
-          break;
-        } catch (createError) {
-          console.warn(`⚠️ [MessagingService] Failed to create chat in ${collectionName}:`, createError);
+      // Use transaction for atomic chat creation
+      const chatId = await runTransaction(db, async (transaction) => {
+        // 1. Search for existing chat
+        console.log('🔍 [MessagingService] Searching for existing chat...');
+        const q = query(
+          collection(db, COLLECTIONS.CHATS),
+          where('type', '==', 'direct'),
+          where('participants', 'array-contains', this.currentUser.uid)
+        );
+
+        const snapshot = await getDocs(q);
+        console.log('🔍 [MessagingService] Found', snapshot.size, 'potential existing chats');
+
+        let existingChatId: string | null = null;
+
+        snapshot.forEach((doc) => {
+          const chatData = doc.data();
+          const participants = chatData.participants || [];
+          
+          // Check if this chat is with the target user AND same concernID
+          if (participants.includes(otherUserId) && 
+              chatData.metadata?.concernID === this.concernID) {
+            existingChatId = doc.id;
+            console.log('✅ [MessagingService] Found existing chat:', existingChatId);
+          }
+        });
+
+        if (existingChatId) {
+          console.log('✅ [MessagingService] Returning existing chat:', existingChatId);
+          return existingChatId;
         }
-      }
-      
-      if (!chatRef) {
-        throw new Error('Could not create chat in any collection');
-      }
-      
-      // Chat-Participants erstellen (optional, da nicht alle Versionen das benötigen)
-      try {
-        console.log('🔧 [MessagingService] Creating chat participants...');
-        await this.createChatParticipants(chatRef.id, [this.currentUser.uid, otherUserId]);
-        console.log('✅ [MessagingService] Chat participants created successfully');
-      } catch (participantError) {
-        console.warn('⚠️ [MessagingService] Could not create chat participants:', participantError);
-      }
-      
-      return chatRef.id;
-    } catch (error) {
-      console.error('❌ [MessagingService] Error creating direct chat:', error);
+
+        console.log('🆕 [MessagingService] No existing chat found, creating new one...');
+
+        // 2. Create new chat document
+        const chatRef = doc(collection(db, COLLECTIONS.CHATS));
+        const chatData = {
+          type: 'direct' as const,
+          name: '',
+          participants: [this.currentUser.uid, otherUserId],
+          unreadCount: {
+            [this.currentUser.uid]: 0,
+            [otherUserId]: 0
+          },
+          metadata: {
+            createdBy: this.currentUser.uid,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            concernID: this.concernID  // Critical for multi-tenancy
+          }
+        };
+
+        console.log('📝 [MessagingService] Chat data to create:', chatData);
+
+        // 3. Create chat participants in same transaction
+        const participant1Ref = doc(collection(db, COLLECTIONS.CHAT_PARTICIPANTS));
+        const participant2Ref = doc(collection(db, COLLECTIONS.CHAT_PARTICIPANTS));
+
+        const participant1Data = {
+          chatId: chatRef.id,
+          userId: this.currentUser.uid,
+          joinedAt: serverTimestamp(),
+          role: 'admin' as const,
+          isActive: true,
+          lastReadAt: serverTimestamp(),
+          unreadCount: 0,
+          concernID: this.concernID  // Add concernID to participants
+        };
+
+        const participant2Data = {
+          chatId: chatRef.id,
+          userId: otherUserId,
+          joinedAt: serverTimestamp(),
+          role: 'member' as const,
+          isActive: true,
+          lastReadAt: serverTimestamp(),
+          unreadCount: 0,
+          concernID: this.concernID  // Add concernID to participants
+        };
+
+        // ATOMIC WRITES: Chat + both participants
+        transaction.set(chatRef, chatData);
+        transaction.set(participant1Ref, participant1Data);
+        transaction.set(participant2Ref, participant2Data);
+
+        console.log('✅ [MessagingService] Transaction prepared for chat:', chatRef.id);
+        return chatRef.id;
+      });
+
+      console.log('✅ [MessagingService] Chat created successfully:', chatId);
+      return chatId;
+
+    } catch (error: any) {
+      console.error('❌ [MessagingService] Transaction failed:', error);
       console.error('❌ [MessagingService] Error details:', {
-        message: error.message,
-        code: error.code,
-        stack: error.stack
+        message: error?.message,
+        code: error?.code,
+        otherUserId,
+        concernID: this.concernID
       });
       throw error;
     }
@@ -464,8 +364,8 @@ export class MessagingService {
       },
       metadata: {
         createdBy: this.currentUser.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp() as any,
+        updatedAt: serverTimestamp() as any,
         concernID: this.concernID
       },
       groupInfo: {
@@ -493,8 +393,8 @@ export class MessagingService {
       },
       metadata: {
         createdBy: this.currentUser.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp() as any,
+        updatedAt: serverTimestamp() as any,
         concernID: this.concernID
       },
       controllingInfo: {
@@ -520,10 +420,10 @@ export class MessagingService {
       const participantData: ChatParticipant = {
         chatId,
         userId,
-        joinedAt: serverTimestamp(),
+        joinedAt: serverTimestamp() as any,
         role: userId === this.currentUser.uid ? 'admin' : 'member',
         isActive: true,
-        lastReadAt: serverTimestamp(),
+        lastReadAt: serverTimestamp() as any,
         unreadCount: 0
       };
       batch.set(participantRef, participantData);
@@ -537,137 +437,110 @@ export class MessagingService {
   async sendMessage(chatId: string, text: string, media?: any): Promise<string> {
     try {
       console.log('📤 [MessagingService] Sending message to chat:', chatId);
-      console.log('📤 [MessagingService] Message text:', text);
-      console.log('📤 [MessagingService] Media:', media);
       console.log('📤 [MessagingService] Current user:', this.currentUser.uid);
       console.log('📤 [MessagingService] Concern ID:', this.concernID);
-      
-      // Fallback: Prüfe ob der Chat existiert, bevor wir eine Nachricht senden
-      try {
+
+      // Use Firestore Transaction for atomic writes
+      const messageId = await runTransaction(db, async (transaction) => {
+        // 1. Verify chat exists and user has access
         const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
-        const chatSnap = await getDoc(chatRef);
-        
+        const chatSnap = await transaction.get(chatRef);
+
         if (!chatSnap.exists()) {
-          console.warn('⚠️ [MessagingService] Chat does not exist, creating fallback chat...');
-          // Erstelle einen Fallback-Chat mit minimalen Daten
-          await setDoc(chatRef, {
-            type: 'direct',
-            name: 'Fallback Chat',
-            participants: [this.currentUser.uid],
-            unreadCount: { [this.currentUser.uid]: 0 },
-            metadata: {
-              createdBy: this.currentUser.uid,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-              concernID: this.concernID
-            }
+          throw new Error(`Chat ${chatId} does not exist`);
+        }
+
+        const chatData = chatSnap.data();
+        
+        // 2. Verify concernID matches (multi-tenancy)
+        if (chatData.metadata?.concernID !== this.concernID) {
+          console.error('❌ ConcernID mismatch:', {
+            chatConcernID: chatData.metadata?.concernID,
+            userConcernID: this.concernID
           });
-          console.log('✅ [MessagingService] Fallback chat created');
+          throw new Error('ConcernID mismatch - access denied');
         }
-      } catch (chatError) {
-        console.warn('⚠️ [MessagingService] Could not verify/create fallback chat:', chatError);
-      }
-      
-      // Lade den vollständigen Benutzernamen aus Firestore
-      let senderDisplayName = this.currentUser.displayName || this.currentUser.email;
-      try {
-        const userRef = doc(db, COLLECTIONS.USERS, this.currentUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          // Versuche zuerst vorname + nachname, dann displayName, dann email
-          const fullName = `${userData.vorname || ''} ${userData.nachname || ''}`.trim();
-          if (fullName) {
-            senderDisplayName = fullName;
-          } else if (userData.displayName) {
-            senderDisplayName = userData.displayName;
-          } else if (userData.email) {
-            senderDisplayName = userData.email;
+
+        // 3. Verify user is a participant
+        if (!chatData.participants?.includes(this.currentUser.uid)) {
+          throw new Error('User is not a participant of this chat');
+        }
+
+        // 4. Load sender display name
+        let senderDisplayName = this.currentUser.displayName || this.currentUser.email;
+        try {
+          const userRef = doc(db, COLLECTIONS.USERS, this.currentUser.uid);
+          const userSnap = await transaction.get(userRef);
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            const fullName = `${userData.vorname || ''} ${userData.nachname || ''}`.trim();
+            senderDisplayName = fullName || userData.displayName || userData.email || senderDisplayName;
           }
+        } catch (error) {
+          console.warn('⚠️ Could not load user display name:', error);
         }
-      } catch (error) {
-        console.warn('⚠️ [MessagingService] Could not load user display name, using fallback:', error);
-      }
 
-      // Erstelle eine kompatible Nachricht mit Fallback-Feldern
-      const messageData: any = {
-        chatId,
-        text,
-        senderId: this.currentUser.uid,
-        timestamp: serverTimestamp(),
-        status: 'sent',
-        readBy: [this.currentUser.uid],
-        deliveredTo: [],
-        // Fallback-Felder für ältere Portal-Versionen
-        concernID: this.concernID,
-        senderName: senderDisplayName,
-        messageType: 'text'
-      };
-
-      // Nur media setzen, wenn es gültig ist
-      if (media && typeof media === 'object' && Object.keys(media).length > 0) {
-        messageData.media = media;
-        messageData.messageType = 'media';
-        console.log('📤 [MessagingService] Media data added to message');
-      }
-
-      console.log('🔍 [MessagingService] Message data to send:', messageData);
-      
-      // Versuche zuerst die Standard-Collection
-      let messageRef;
-      try {
-        messageRef = await addDoc(collection(db, COLLECTIONS.MESSAGES), messageData);
-        console.log('✅ [MessagingService] Message sent to standard collection:', messageRef.id);
-      } catch (standardError) {
-        console.warn('⚠️ [MessagingService] Standard collection failed, trying fallback...', standardError);
-        
-        // Fallback: Versuche alternative Collection-Namen
-        const fallbackCollections = ['messages_v2', 'chat_messages', 'direct_messages'];
-        let fallbackSuccess = false;
-        
-        for (const fallbackCollection of fallbackCollections) {
-          try {
-            messageRef = await addDoc(collection(db, fallbackCollection), messageData);
-            console.log(`✅ [MessagingService] Message sent to fallback collection ${fallbackCollection}:`, messageRef.id);
-            fallbackSuccess = true;
-            break;
-          } catch (fallbackError) {
-            console.warn(`⚠️ [MessagingService] Fallback collection ${fallbackCollection} failed:`, fallbackError);
-          }
-        }
-        
-        if (!fallbackSuccess) {
-          throw new Error('All message collections failed');
-        }
-      }
-      
-      try {
-        // Chat aktualisieren (mit Fallback)
-        console.log('🔧 [MessagingService] Updating chat metadata...');
-        await this.updateChatLastMessage(chatId, {
-          text,
+        // 5. Create message document
+        const messageRef = doc(collection(db, COLLECTIONS.MESSAGES));
+        const messageData: any = {
+          chatId,
+          text: text.trim(),
           senderId: this.currentUser.uid,
+          senderName: senderDisplayName,
           timestamp: serverTimestamp(),
-          messageId: messageRef.id
-        });
-        console.log('✅ [MessagingService] Chat metadata updated successfully');
+          status: 'sent',
+          readBy: [this.currentUser.uid],
+          deliveredTo: [],
+          concernID: this.concernID,  // Critical for security rules
+          messageType: 'text'
+        };
 
-        // Unread-Count für andere Teilnehmer erhöhen
-        console.log('🔧 [MessagingService] Incrementing unread count...');
-        await this.incrementUnreadCount(chatId, this.currentUser.uid);
-        console.log('✅ [MessagingService] Unread count incremented successfully');
-      } catch (error) {
-        console.warn('⚠️ [MessagingService] Could not update chat metadata:', error);
-        // Nachricht wurde trotzdem gesendet
-      }
-      
-      return messageRef.id;
-    } catch (error) {
-      console.error('❌ [MessagingService] Failed to send message:', error);
+        // Add media if provided
+        if (media && typeof media === 'object' && Object.keys(media).length > 0) {
+          messageData.media = media;
+          messageData.messageType = 'media';
+        }
+
+        // 6. ATOMIC WRITES: All or nothing
+        transaction.set(messageRef, messageData);
+
+        // 7. Update chat's lastMessage
+        transaction.update(chatRef, {
+          lastMessage: {
+            text: text.trim(),
+            senderId: this.currentUser.uid,
+            timestamp: serverTimestamp(),
+            messageId: messageRef.id
+          },
+          'metadata.updatedAt': serverTimestamp()
+        });
+
+        // 8. Increment unreadCount for other participants
+        const unreadUpdates: Record<string, any> = {};
+        chatData.participants.forEach((participantId: string) => {
+          if (participantId !== this.currentUser.uid) {
+            unreadUpdates[`unreadCount.${participantId}`] = increment(1);
+          }
+        });
+        
+        if (Object.keys(unreadUpdates).length > 0) {
+          transaction.update(chatRef, unreadUpdates);
+        }
+
+        console.log('✅ [MessagingService] Transaction committed successfully');
+        return messageRef.id;
+      });
+
+      console.log('✅ [MessagingService] Message sent with ID:', messageId);
+      return messageId;
+
+    } catch (error: any) {
+      console.error('❌ [MessagingService] Transaction failed:', error);
       console.error('❌ [MessagingService] Error details:', {
-        message: error.message,
-        code: error.code,
-        stack: error.stack
+        message: error?.message,
+        code: error?.code,
+        chatId,
+        concernID: this.concernID
       });
       throw error;
     }
@@ -678,7 +551,7 @@ export class MessagingService {
       chatId,
       text,
       senderId: this.currentUser.uid,
-      timestamp: serverTimestamp(),
+      timestamp: serverTimestamp() as any,
       status: 'sent',
       readBy: [this.currentUser.uid],
       deliveredTo: [],
@@ -698,7 +571,7 @@ export class MessagingService {
       await this.updateChatLastMessage(chatId, {
         text,
         senderId: this.currentUser.uid,
-        timestamp: serverTimestamp(),
+        timestamp: serverTimestamp() as any,
         messageId: messageRef.id
       });
 
@@ -720,7 +593,7 @@ export class MessagingService {
       if (chatSnap.exists()) {
         await updateDoc(chatRef, {
           lastMessage,
-          'metadata.updatedAt': serverTimestamp()
+          'metadata.updatedAt': serverTimestamp() as any
         });
       } else {
         console.warn('⚠️ Chat document does not exist:', chatId);
@@ -799,7 +672,7 @@ export class MessagingService {
     if (!participantSnap.empty) {
       const participantRef = doc(db, COLLECTIONS.CHAT_PARTICIPANTS, participantSnap.docs[0].id);
       await updateDoc(participantRef, {
-        lastReadAt: serverTimestamp(),
+        lastReadAt: serverTimestamp() as any,
         unreadCount: 0
       });
     }
@@ -826,86 +699,58 @@ export class MessagingService {
 
   subscribeToChats(callback: (chats: FirebaseChat[]) => void): () => void {
     console.log('🔍 [MessagingService] Subscribing to chats...');
-    
-    // Sammle alle verfügbaren Chat-Collections
-    const chatCollections = this.fallbackMode 
-      ? ['chats_v1', 'direct_chats', 'user_chats', COLLECTIONS.CHATS]
-      : [COLLECTIONS.CHATS, 'chats_v2', 'direct_chats'];
-    
-    const unsubscribers: (() => void)[] = [];
-    
-    chatCollections.forEach(collectionName => {
-      try {
-        const q = this.fallbackMode
-          ? query(collection(db, collectionName)) // Einfache Abfrage für v1
-          : query(collection(db, collectionName), where('metadata.concernID', '==', this.concernID));
-        
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-          const chats: FirebaseChat[] = [];
-          querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            
-            // Konvertiere v1-Format zu v2-Format
-            if (this.fallbackMode) {
-              const convertedData = this.convertV1ChatToV2(data, doc.id);
-              chats.push(convertedData);
-            } else {
-              chats.push({ chatId: doc.id, ...data } as FirebaseChat);
-            }
-          });
-          
-          console.log(`📱 [MessagingService] Received ${chats.length} chats from ${collectionName}`);
-          callback(chats);
-        }, (error) => {
-          console.warn(`⚠️ [MessagingService] Error in chat subscription for ${collectionName}:`, error);
-        });
-        
-        unsubscribers.push(unsubscribe);
-      } catch (error) {
-        console.warn(`⚠️ [MessagingService] Could not subscribe to ${collectionName}:`, error);
-      }
+    console.log('🔍 [MessagingService] ConcernID for subscription:', this.concernID);
+
+    // Query chats with concernID filter and participant membership
+    const q = query(
+      collection(db, COLLECTIONS.CHATS),
+      where('metadata.concernID', '==', this.concernID),
+      where('participants', 'array-contains', this.currentUser.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const chats: FirebaseChat[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Double-check concernID matches (defense in depth)
+        if (data.metadata?.concernID === this.concernID) {
+          chats.push({ chatId: doc.id, ...data } as any);
+        } else {
+          console.warn('⚠️ Filtered chat with mismatched concernID:', doc.id);
+        }
+      });
+
+      console.log(`📱 [MessagingService] Received ${chats.length} chats`);
+      callback(chats);
+    }, (error) => {
+      console.error('❌ [MessagingService] Error in chat subscription:', error);
+      callback([]);
     });
-    
-    // Cleanup-Funktion
-    return () => {
-      unsubscribers.forEach(unsub => unsub());
-    };
+
+    return unsubscribe;
   }
   
-  // Konvertiere v1-Chat-Format zu v2-Format
-  private convertV1ChatToV2(v1Data: any, chatId: string): FirebaseChat {
-    return {
-      chatId,
-      type: v1Data.type || 'direct',
-      name: v1Data.name || 'Chat',
-      participants: v1Data.participants || [v1Data.user1, v1Data.user2].filter(Boolean) || [],
-      lastMessage: v1Data.lastMessage,
-      unreadCount: v1Data.unreadCount || {},
-      metadata: {
-        createdBy: v1Data.createdBy || v1Data.user1 || '',
-        createdAt: v1Data.createdAt || serverTimestamp(),
-        updatedAt: v1Data.updatedAt || v1Data.createdAt || serverTimestamp(),
-        concernID: v1Data.concernID || this.concernID
-      },
-      groupInfo: v1Data.groupInfo,
-      controllingInfo: v1Data.controllingInfo
-    };
-  }
 
   subscribeToMessages(chatId: string, callback: (messages: FirebaseMessage[]) => void): () => void {
-    const messagesQuery = query(
+    const q = query(
       collection(db, COLLECTIONS.MESSAGES),
       where('chatId', '==', chatId),
       orderBy('timestamp', 'asc')
     );
 
-    return onSnapshot(messagesQuery, (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const messages: FirebaseMessage[] = [];
       snapshot.forEach((doc) => {
-        messages.push({ messageId: doc.id, ...doc.data() } as FirebaseMessage);
+        const data = doc.data() as any;
+      messages.push({ messageId: doc.id, ...data });
       });
       callback(messages);
+    }, (error) => {
+      console.error('❌ [MessagingService] Error subscribing to messages:', error);
+      callback([]);
     });
+
+    return unsubscribe;
   }
 
   subscribeToUserStatus(userId: string, callback: (status: string) => void): () => void {
@@ -922,17 +767,25 @@ export class MessagingService {
   // ===== DEBUG & COMPATIBILITY FUNCTIONS =====
   
   // Debug-Funktion: Überprüfe alle verfügbaren Collections und Nachrichten
-  async debugMessagingSystem(): Promise<any> {
+  async debugMessagingSystem(): Promise<{
+    portalVersion: string;
+    fallbackMode: boolean;
+    currentUser: string;
+    concernID: string;
+    accessibleCollections: any[];
+    recentMessages: any[];
+    recentChats: any[];
+  }> {
     console.log('🔍 [MessagingService] Debugging messaging system...');
     
     const debugInfo = {
-      portalVersion: this.portalVersion,
-      fallbackMode: this.fallbackMode,
+      portalVersion: 'v2',
+      fallbackMode: false,
       currentUser: this.currentUser.uid,
       concernID: this.concernID,
-      accessibleCollections: [],
-      recentMessages: [],
-      recentChats: []
+      accessibleCollections: [] as any[],
+      recentMessages: [] as any[],
+      recentChats: [] as any[]
     };
     
     // Teste alle möglichen Collections
@@ -956,10 +809,11 @@ export class MessagingService {
           }))
         });
       } catch (error) {
+        const err = error as any;
         debugInfo.accessibleCollections.push({
           name: collectionName,
           accessible: false,
-          error: error.message
+          error: err?.message || 'Unknown error'
         });
       }
     }
@@ -1006,28 +860,30 @@ export class MessagingService {
     const chats: FirebaseChat[] = [];
     
     snapshot.forEach((doc) => {
-      chats.push({ chatId: doc.id, ...doc.data() } as FirebaseChat);
+      chats.push({ chatId: doc.id, ...doc.data() } as any);
     });
     
     return chats;
   }
 
   async getMessages(chatId: string, limitCount: number = 50): Promise<FirebaseMessage[]> {
-    const messagesQuery = query(
+    const q = query(
       collection(db, COLLECTIONS.MESSAGES),
       where('chatId', '==', chatId),
       orderBy('timestamp', 'desc'),
       limit(limitCount)
     );
 
-    const snapshot = await getDocs(messagesQuery);
+    const snapshot = await getDocs(q);
     const messages: FirebaseMessage[] = [];
-    
+
     snapshot.forEach((doc) => {
-      messages.push({ messageId: doc.id, ...doc.data() } as FirebaseMessage);
+      const data = doc.data() as any;
+      messages.push({ messageId: doc.id, ...data });
     });
-    
-    return messages.reverse(); // Älteste zuerst
+
+    // Reverse to get chronological order (oldest first)
+    return messages.reverse();
   }
 
   async getUnreadCount(): Promise<number> {
@@ -1096,7 +952,8 @@ export class MessagingService {
     const messages: FirebaseMessage[] = [];
     
     snapshot.forEach((doc) => {
-      messages.push({ messageId: doc.id, ...doc.data() } as FirebaseMessage);
+      const data = doc.data() as any;
+      messages.push({ messageId: doc.id, ...data });
     });
     
     return messages;
@@ -1161,7 +1018,7 @@ export class MessagingService {
                 uploadProgress: 100,
                 status: 'success',
                 downloadUrl: downloadURL,
-                thumbnailUrl: thumbnailURL
+                thumbnailUrl: thumbnailURL || undefined
               };
 
               console.log('✅ File upload successful:', file.name);
@@ -1290,14 +1147,14 @@ export class MessagingService {
         // Bestehende Statistik aktualisieren
         await updateDoc(emojiRef, {
           count: increment(1),
-          lastUsed: serverTimestamp()
+          lastUsed: serverTimestamp() as any
         });
       } else {
         // Neue Statistik erstellen
         await setDoc(emojiRef, {
           emoji,
           count: 1,
-          lastUsed: serverTimestamp(),
+          lastUsed: serverTimestamp() as any,
           isFavorite: false,
           userId: this.currentUser.uid
         });
@@ -1357,5 +1214,5 @@ export const useMessagingService = () => {
   }
 
   const concernID = (user as any).concernID || 'default';
-  return new MessagingService(user, concernID);
+  return new MessagingService(user as any, concernID);
 };

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Save, Edit, Trash2, Search, Building, MapPin, Users, Package, User, CheckSquare, AlertCircle, Info, FileText, Eye, ArrowUpDown, ArrowUp, ArrowDown, X, Table as TableIcon, Clock, FolderOpen, BarChart3, Building2, ClipboardList, MessageSquare, RefreshCw, Archive } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Plus, Save, Edit, Trash2, Search, Building, MapPin, Users, Package, User, CheckSquare, AlertCircle, Info, FileText, Eye, ArrowUpDown, ArrowUp, ArrowDown, X, Table as TableIcon, Clock, FolderOpen, BarChart3, Building2, ClipboardList, MessageSquare, RefreshCw, Archive, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import AppHeader from './AppHeader';
@@ -36,8 +37,10 @@ import { useQuickAction } from '@/contexts/QuickActionContext';
 import { customerService } from '@/services/firestoreService';
 import { projectService } from '@/services/firestoreService';
 import { Customer } from '@/types/customer';
-import { generateInternalProjectNumber, generateExternalProjectNumber } from '@/utils/projectNumberGenerator';
+import { generateInternalProjectNumber, generateExternalProjectNumber, generateDateKey, getCurrentDateBerlin } from '@/utils/projectNumberGenerator';
 import { updateInternalProjectNumbers } from '@/utils/updateInternalProjects';
+import { httpsCallable } from 'firebase/functions';
+import { functionsEU } from '@/config/firebase';
 
 const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigate, onOpenMessaging }) => {
   const { user, hasPermission } = useAuth();
@@ -59,13 +62,30 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [projectType, setProjectType] = useState<'project' | 'smallProject'>('project');
   
+  // Auto-allocated project number state
+  const [allocatedProjectNumber, setAllocatedProjectNumber] = useState<string>('');
+  const [allocatedDateKey, setAllocatedDateKey] = useState<string>('');
+  const [isAllocatingNumber, setIsAllocatingNumber] = useState(false);
+  const [allocationError, setAllocationError] = useState<string>('');
+  
   // State for managing assigned employees in view modal
   const [assignedEmployeesInView, setAssignedEmployeesInView] = useState<string[]>([]);
   const [isSavingAssignments, setIsSavingAssignments] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  
+  // State for managing project categories
+  const [projectCategories, setProjectCategories] = useState<any[]>([]);
+  const [generalCategories, setGeneralCategories] = useState<any[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [selectedGeneralCategory, setSelectedGeneralCategory] = useState<string>('');
+  const [isAssigningCategory, setIsAssigningCategory] = useState(false);
   
   // Undo functionality
   const [deletedProject, setDeletedProject] = useState<Project | null>(null);
   const [showUndo, setShowUndo] = useState(false);
+  
+  // Ref to track if initial projects load has happened (prevents repeated syncs)
+  const hasLoadedProjectsRef = useRef(false);
   
   // Infinite scroll state
   const [displayedProjectsCount, setDisplayedProjectsCount] = useState(20);
@@ -85,7 +105,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
       setIsLoadingProjects(false);
     }
   };
-  
+
   const { isRefreshing, pullDistance, canRefresh, containerProps } = usePullToRefresh({
     onRefresh: handleRefresh,
     threshold: 80,
@@ -207,6 +227,62 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
     validateOnBlur: true,
     validateOnChange: false,
   });
+
+  // Allocate project number from backend
+  const allocateProjectNumber = async () => {
+    if (!user?.concernID) {
+      console.error('No concernID available');
+      setAllocationError('Keine Concern-ID verfügbar');
+      return null;
+    }
+
+    setIsAllocatingNumber(true);
+    setAllocationError('');
+
+    try {
+      const allocateFunction = httpsCallable(functionsEU, 'allocateProjectNumber');
+      const result = await allocateFunction({ concernId: user.concernID });
+      const data = result.data as { projectNumber: string; dateKey: string; counter: number };
+
+      console.log('✅ Project number allocated:', data.projectNumber);
+      setAllocatedProjectNumber(data.projectNumber);
+      setAllocatedDateKey(data.dateKey);
+
+      // Also set it in the form data
+      setProjectFormData(prev => ({
+        ...prev,
+        projectNumber: data.projectNumber,
+      }));
+
+      // Update validation values
+      setValidationValues(prev => ({
+        ...prev,
+        projectNumber: data.projectNumber,
+      }));
+
+      return data.projectNumber;
+    } catch (error: any) {
+      console.error('❌ Failed to allocate project number:', error);
+      const errorMessage = error.message || 'Fehler beim Zuweisen der Projektnummer';
+      setAllocationError(errorMessage);
+      toast({
+        title: '❌ Fehler',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setIsAllocatingNumber(false);
+    }
+  };
+
+  // Auto-allocate project number when form opens for new external projects
+  useEffect(() => {
+    if (showForm && !editingProject && !projectFormData.isInternal && !allocatedProjectNumber) {
+      console.log('🔢 [ProjectManagement] Form opened - allocating project number...');
+      allocateProjectNumber();
+    }
+  }, [showForm, editingProject, projectFormData.isInternal, allocatedProjectNumber]);
 
   // Sync projectFormData with validation values when editingProject changes
   useEffect(() => {
@@ -615,11 +691,12 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
       localStorage.setItem('projects', JSON.stringify(convertedProjects));
       
       // Update internal project numbers if needed (run in background, don't block UI)
+      // Note: Do NOT recursively call loadProjectsFromFirestore to avoid infinite loops
       updateInternalProjectNumbers(user.concernID, convertedProjects).then(({ updated, errors }) => {
         if (updated > 0) {
           console.log(`✅ Updated ${updated} internal project numbers`);
-          // Reload projects after update
-          loadProjectsFromFirestore();
+          // Instead of reloading, just update the local state with new project numbers
+          // The next manual refresh or page load will pick up the changes
         }
         if (errors > 0) {
           console.warn(`⚠️ ${errors} errors occurred while updating project numbers`);
@@ -628,12 +705,8 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
         console.error('Error updating internal project numbers:', error);
       });
       
-      // Show success toast
-      toast({
-        title: "Projekte geladen",
-        description: `${convertedProjects.length} Projekte aus der Datenbank geladen`,
-        variant: "default"
-      });
+      // Only log, don't show toast on every load to avoid spamming the user
+      console.log(`✅ [ProjectManagement] ${convertedProjects.length} Projekte geladen`);
       
     } catch (error) {
 
@@ -708,7 +781,10 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
     setProjects([]);
     
     if (user?.concernID) {
+      // Reset the loaded flag when force syncing
+      hasLoadedProjectsRef.current = false;
       loadProjectsFromFirestore();
+      hasLoadedProjectsRef.current = true;
     }
   }, [user?.concernID, loadProjectsFromFirestore]);
 
@@ -716,27 +792,28 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
   const reloadProjects = useCallback(() => {
     // Try to load from Firestore first, fallback to localStorage
     if (user?.concernID) {
+      // Reset the loaded flag when manually reloading
+      hasLoadedProjectsRef.current = false;
       loadProjectsFromFirestore();
+      hasLoadedProjectsRef.current = true;
     } else {
       const savedProjects = localStorage.getItem('projects');
       if (savedProjects) {
         try {
           const parsedProjects = JSON.parse(savedProjects);
           setProjects(parsedProjects);
-
         } catch (error) {
-
+          console.error('Error parsing saved projects:', error);
         }
       } else {
-
         setProjects([]);
       }
     }
   }, [user?.concernID, loadProjectsFromFirestore]);
 
-  // Load projects and tasks from localStorage
+  // Load projects and tasks - only once on mount or when concernID changes
   useEffect(() => {
-    const loadProjects = () => {
+    const loadProjectsFromLocal = () => {
       const savedProjects = localStorage.getItem('projects');
 
       if (savedProjects) {
@@ -747,16 +824,13 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
           if (parsedProjects.length > 0 && !parsedProjects[0].id?.startsWith('proj')) {
             setProjects(parsedProjects);
           } else {
-
             localStorage.removeItem('projects');
             setProjects([]);
           }
         } catch (error) {
-
           setProjects([]);
         }
       } else {
-
         setProjects([]);
       }
     };
@@ -768,47 +842,51 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
       }
     };
 
+    // Skip if already loaded for this concernID
+    if (hasLoadedProjectsRef.current) {
+      console.log('⏭️ [ProjectManagement] Projects already loaded, skipping...');
+      return;
+    }
+
     // Clear any existing demo data first
     const savedProjects = localStorage.getItem('projects');
     if (savedProjects) {
       try {
         const parsedProjects = JSON.parse(savedProjects);
         if (parsedProjects.length > 0 && parsedProjects[0].id?.startsWith('proj')) {
-
           localStorage.removeItem('projects');
         }
       } catch (error) {
-
         localStorage.removeItem('projects');
       }
     }
 
     // Try to load from Firestore first, fallback to localStorage
     if (user?.concernID) {
-
+      console.log('🔄 [ProjectManagement] Initial load from Firestore...');
+      hasLoadedProjectsRef.current = true;
       loadProjectsFromFirestore();
     } else {
-
-      loadProjects();
+      loadProjectsFromLocal();
     }
     
     loadTasks();
 
-    // Listen for storage changes
-    const handleStorageChange = () => {
-
-      if (user?.concernID) {
-        loadProjectsFromFirestore();
-      } else {
-        loadProjects();
+    // Listen for storage changes (for cross-tab sync only)
+    const handleStorageChange = (e: StorageEvent) => {
+      // Only react to actual storage events, not programmatic changes
+      if (e.key === 'projects' && e.newValue !== e.oldValue) {
+        loadProjectsFromLocal();
       }
-      loadTasks();
+      if (e.key === 'tasks') {
+        loadTasks();
+      }
     };
 
     window.addEventListener('storage', handleStorageChange);
     
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [user?.concernID, loadProjectsFromFirestore]);
+  }, [user?.concernID]); // Removed loadProjectsFromFirestore from dependencies to prevent re-runs
 
   // No demo data generation - projects are loaded only from localStorage or created by user
 
@@ -1130,8 +1208,21 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
     }
   }, [viewingProject]);
 
+  // Load categories when viewing a project
+  useEffect(() => {
+    if (viewingProject?.projectNumber) {
+      loadProjectCategories(viewingProject.projectNumber);
+    } else {
+      setProjectCategories([]);
+      setGeneralCategories([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewingProject?.projectNumber]);
+
   // Handle back navigation
   const handleBack = () => {
+    console.log('🔙 [ProjectManagement] handleBack called - navigating to dashboard');
+    console.trace('Stack trace for handleBack call');
     onBack();
   };
 
@@ -1173,6 +1264,112 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
       });
     } finally {
       setIsSavingAssignments(false);
+    }
+  };
+
+  // Load categories for the viewing project
+  const loadProjectCategories = useCallback(async (projectNumber: string) => {
+    if (!user?.concernID || !projectNumber) {
+      console.log('📦 [ProjectManagement] Skipping category load - no user or projectNumber');
+      return;
+    }
+    
+    console.log('📦 [ProjectManagement] Loading categories for project:', projectNumber);
+    setIsLoadingCategories(true);
+    
+    try {
+      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      const { db } = await import('@/config/firebase');
+      
+      // Load project-specific categories (categories with this projectNumber)
+      const projectCategoriesQuery = query(
+        collection(db, 'lookupFamilies'),
+        where('concernId', '==', user.concernID),
+        where('projectNumber', '==', projectNumber)
+      );
+      const projectCategoriesSnapshot = await getDocs(projectCategoriesQuery);
+      
+      const projectCats = projectCategoriesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        isProjectSpecific: true
+      }));
+      
+      // Load general categories (available to all projects)
+      const generalCategoriesQuery = query(
+        collection(db, 'lookupFamilies'),
+        where('concernId', '==', user.concernID),
+        where('projectNumber', '==', 'FFFFF')
+      );
+      const generalCategoriesSnapshot = await getDocs(generalCategoriesQuery);
+      
+      const generalCats = generalCategoriesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        isGeneral: true
+      }));
+      
+      setProjectCategories(projectCats);
+      setGeneralCategories(generalCats);
+      
+      console.log('📦 [ProjectManagement] Loaded categories:', {
+        projectSpecific: projectCats.length,
+        general: generalCats.length,
+        projectNumber
+      });
+    } catch (error) {
+      console.error('📦 [ProjectManagement] Error loading project categories:', error);
+      // Don't show toast on initial load failure - categories are optional
+      setProjectCategories([]);
+      setGeneralCategories([]);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  }, [user?.concernID]);
+
+  // Assign a general category to the project
+  const assignGeneralCategoryToProject = async () => {
+    if (!viewingProject?.projectNumber || !selectedGeneralCategory) {
+      console.log('📦 [ProjectManagement] Cannot assign category - missing project or category');
+      return;
+    }
+    
+    console.log('📦 [ProjectManagement] Assigning category to project:', {
+      categoryId: selectedGeneralCategory,
+      projectNumber: viewingProject.projectNumber
+    });
+    
+    setIsAssigningCategory(true);
+    try {
+      const { doc, updateDoc } = await import('firebase/firestore');
+      const { db } = await import('@/config/firebase');
+      
+      // Update the category's projectNumber from 'FFFFF' to the project's projectNumber
+      const categoryRef = doc(db, 'lookupFamilies', selectedGeneralCategory);
+      await updateDoc(categoryRef, {
+        projectNumber: viewingProject.projectNumber
+      });
+      
+      console.log('📦 [ProjectManagement] Category assigned successfully');
+      
+      // Reload categories
+      await loadProjectCategories(viewingProject.projectNumber);
+      
+      setSelectedGeneralCategory('');
+      
+      toast({
+        title: "Erfolg",
+        description: "Kategorie wurde erfolgreich dem Projekt zugewiesen.",
+      });
+    } catch (error) {
+      console.error('📦 [ProjectManagement] Error assigning category to project:', error);
+      toast({
+        title: "Fehler",
+        description: "Fehler beim Zuweisen der Kategorie.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAssigningCategory(false);
     }
   };
 
@@ -1962,79 +2159,84 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
                 entityName={viewingProject.name}
               />
               
-              {/* Project Overview */}
-              <Card className="border-2 border-gray-200 shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <span className="text-xl">📊</span>
-                    Projektübersicht
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">
-                        Projektnummer
-                      </Label>
-                      <p className="text-lg font-semibold mt-1 text-gray-900">
-                        {viewingProject.projectNumber}
-                      </p>
+              {/* Collapsible Sections */}
+              <Accordion type="multiple" defaultValue={["overview"]} className="space-y-4">
+                {/* Project Overview */}
+                <AccordionItem value="overview" className="border-2 border-blue-300 rounded-lg shadow-lg overflow-hidden">
+                  <AccordionTrigger className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-colors text-white">
+                    <div className="flex items-center gap-2 text-lg font-semibold">
+                      <span className="text-xl">📊</span>
+                      Projektübersicht
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">
-                        Status
-                      </Label>
-                      <div className="mt-1">
-                        <Badge variant={
-                          viewingProject.status === 'active' ? 'default' :
-                          viewingProject.status === 'planned' ? 'secondary' :
-                          viewingProject.status === 'completed' ? 'success' :
-                          'outline'
-                        }>
-                          {viewingProject.status === 'active' ? 'Aktiv' :
-                           viewingProject.status === 'planned' ? 'Geplant' :
-                           viewingProject.status === 'completed' ? 'Abgeschlossen' :
-                           viewingProject.status}
-                        </Badge>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="px-6 pb-6 pt-2 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">
+                            Projektnummer
+                          </Label>
+                          <p className="text-lg font-semibold mt-1 text-gray-900">
+                            {viewingProject.projectNumber}
+                          </p>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">
+                            Status
+                          </Label>
+                          <div className="mt-1">
+                            <Badge variant={
+                              viewingProject.status === 'active' ? 'default' :
+                              viewingProject.status === 'planned' ? 'secondary' :
+                              viewingProject.status === 'completed' ? 'success' :
+                              'outline'
+                            }>
+                              {viewingProject.status === 'active' ? 'Aktiv' :
+                               viewingProject.status === 'planned' ? 'Geplant' :
+                               viewingProject.status === 'completed' ? 'Abgeschlossen' :
+                               viewingProject.status}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">
+                            Projektmanager
+                          </Label>
+                          <p className="text-lg mt-1 text-gray-900">
+                            {viewingProject.assignedManager}
+                          </p>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">
+                            Erstellt am
+                          </Label>
+                          <p className="text-lg mt-1 text-gray-900">
+                            {new Date(viewingProject.createdAt).toLocaleDateString('de-DE')}
+                          </p>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">
+                          Beschreibung
+                        </Label>
+                        <p className="text-lg mt-1 text-gray-700">
+                          {viewingProject.description}
+                        </p>
                       </div>
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">
-                        Projektmanager
-                      </Label>
-                      <p className="text-lg mt-1 text-gray-900">
-                        {viewingProject.assignedManager}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">
-                        Erstellt am
-                      </Label>
-                      <p className="text-lg mt-1 text-gray-900">
-                        {new Date(viewingProject.createdAt).toLocaleDateString('de-DE')}
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-600">
-                      Beschreibung
-                    </Label>
-                    <p className="text-lg mt-1 text-gray-700">
-                      {viewingProject.description}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+                  </AccordionContent>
+                </AccordionItem>
 
-              {/* Customer Information */}
-              <Card className="border-2 border-gray-200 shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <span className="text-xl">👤</span>
-                    Kundeninformationen
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                {/* Customer Information */}
+                <AccordionItem value="customer" className="border-2 border-green-300 rounded-lg shadow-lg overflow-hidden">
+                  <AccordionTrigger className="px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 transition-colors text-white">
+                    <div className="flex items-center gap-2 text-lg font-semibold">
+                      <span className="text-xl">👤</span>
+                      Kundeninformationen
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="px-6 pb-6 pt-2 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="customerName">Kundenname *</Label>
@@ -2095,28 +2297,30 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
                         onChange={(e) => setProjectFormData(prev => ({ ...prev, city: e.target.value }))}
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="postalCode">PLZ</Label>
-                      <Input
-                        id="postalCode"
-                        name="postalCode"
-                        value={projectFormData.postalCode}
-                        onChange={(e) => setProjectFormData(prev => ({ ...prev, postalCode: e.target.value }))}
-                      />
+                      <div>
+                        <Label htmlFor="postalCode">PLZ</Label>
+                        <Input
+                          id="postalCode"
+                          name="postalCode"
+                          value={projectFormData.postalCode}
+                          onChange={(e) => setProjectFormData(prev => ({ ...prev, postalCode: e.target.value }))}
+                        />
+                      </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </AccordionContent>
+              </AccordionItem>
 
-              {/* Project Details */}
-              <Card className="border-2 border-gray-200 shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <span className="text-xl">⚙️</span>
-                    Projektdetails
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                {/* Project Details */}
+                <AccordionItem value="details" className="border-2 border-purple-300 rounded-lg shadow-lg overflow-hidden">
+                  <AccordionTrigger className="px-6 py-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 transition-colors text-white">
+                    <div className="flex items-center gap-2 text-lg font-semibold">
+                      <span className="text-xl">⚙️</span>
+                      Projektdetails
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="px-6 pb-6 pt-2 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="assignedManager">Projektmanager *</Label>
@@ -2191,28 +2395,30 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
                       rows={2}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="notes">Projektnotizen</Label>
-                    <Textarea
-                      id="notes"
-                      name="notes"
-                      defaultValue={viewingProject?.notes || ''}
-                      rows={3}
-                    />
+                    <div>
+                      <Label htmlFor="notes">Projektnotizen</Label>
+                      <Textarea
+                        id="notes"
+                        name="notes"
+                        defaultValue={viewingProject?.notes || ''}
+                        rows={3}
+                      />
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                </AccordionContent>
+              </AccordionItem>
 
-              {/* Assigned Resources */}
-              <Card className="border-2 border-gray-200 shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <span className="text-xl">👥</span>
-                    Zugewiesene Ressourcen
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Assigned Resources */}
+                <AccordionItem value="resources" className="border-2 border-orange-300 rounded-lg shadow-lg overflow-hidden">
+                  <AccordionTrigger className="px-6 py-4 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 transition-colors text-white">
+                    <div className="flex items-center gap-2 text-lg font-semibold">
+                      <span className="text-xl">👥</span>
+                      Zugewiesene Ressourcen
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="px-6 pb-6 pt-2 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Assigned Employees - Interactive */}
                     <div className="space-y-3">
                       <Label className="text-sm font-medium text-gray-600 flex items-center gap-2">
@@ -2337,9 +2543,207 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
                         )}
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Project Categories */}
+                <AccordionItem value="categories" className="border-2 border-cyan-300 rounded-lg shadow-lg overflow-hidden">
+                  <AccordionTrigger className="px-6 py-4 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 transition-colors text-white">
+                    <div className="flex items-center gap-2 text-lg font-semibold">
+                      <span className="text-xl">📦</span>
+                      Projektkategorien
+                      {projectCategories.length > 0 && (
+                        <Badge variant="secondary" className="ml-2 bg-white text-cyan-700">
+                          {projectCategories.length}
+                        </Badge>
+                      )}
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="px-6 pb-6 pt-2 space-y-4">
+                      {isLoadingCategories ? (
+                    <div className="flex items-center justify-center py-8">
+                      <RefreshCw className="h-6 w-6 animate-spin text-[#058bc0]" />
+                      <span className="ml-2 text-gray-600">Kategorien werden geladen...</span>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Project-Specific Categories */}
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                          <Package className="h-4 w-4" />
+                          Projektspezifische Kategorien
+                          <Badge variant="default" className="ml-2">
+                            {projectCategories.length}
+                          </Badge>
+                        </Label>
+                        
+                        {projectCategories.length === 0 ? (
+                          <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                            <Package className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-gray-500 text-sm">
+                              Keine projektspezifischen Kategorien vorhanden
+                            </p>
+                            <p className="text-gray-400 text-xs mt-1">
+                              Erstellen Sie Kategorien über die Kategorien-Seite oder weisen Sie allgemeine Kategorien zu
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {projectCategories.map((category) => (
+                              <Card 
+                                key={category.id} 
+                                className="border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer"
+                                onClick={() => {
+                                  // Navigate to categories page with this category selected
+                                  if (onNavigate) {
+                                    onNavigate('categories');
+                                  }
+                                }}
+                              >
+                                <CardContent className="p-4">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-semibold text-gray-900 truncate">
+                                        {category.familyName}
+                                      </h4>
+                                      <div className="flex items-center gap-2 mt-2">
+                                        <Badge variant="default" className="text-xs">
+                                          Projektspezifisch
+                                        </Badge>
+                                        {category.level0 && category.level1 && category.level2 ? (
+                                          <Badge variant="outline" className="text-xs">
+                                            Typ 2
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="outline" className="text-xs">
+                                            Typ 1
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-gray-600 mt-2">
+                                        Erstellt: {category.createdAt?.toDate?.()?.toLocaleDateString('de-DE') || 'N/A'}
+                                      </p>
+                                    </div>
+                                    <Eye className="h-4 w-4 text-gray-400 flex-shrink-0 ml-2" />
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Assign General Category */}
+                      <div className="space-y-3 pt-4 border-t-2 border-gray-200">
+                        <Label className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                          <Plus className="h-4 w-4" />
+                          Allgemeine Kategorie zuweisen
+                        </Label>
+                        
+                        <div className="flex gap-2">
+                          <Select
+                            value={selectedGeneralCategory}
+                            onValueChange={setSelectedGeneralCategory}
+                            disabled={generalCategories.length === 0 || isAssigningCategory}
+                          >
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder="Wählen Sie eine allgemeine Kategorie..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {generalCategories.map((category) => (
+                                <SelectItem key={category.id} value={category.id}>
+                                  {category.familyName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          <Button
+                            onClick={assignGeneralCategoryToProject}
+                            disabled={!selectedGeneralCategory || isAssigningCategory}
+                            className="bg-gradient-to-r from-[#058bc0] to-[#0470a0] hover:from-[#0470a0] hover:to-[#035c80] text-white"
+                          >
+                            {isAssigningCategory ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Zuweisen...
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Zuweisen
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        
+                        {generalCategories.length === 0 && (
+                          <p className="text-xs text-gray-500 italic">
+                            Keine allgemeinen Kategorien verfügbar. Erstellen Sie allgemeine Kategorien über die Kategorien-Seite.
+                          </p>
+                        )}
+                        
+                        {generalCategories.length > 0 && (
+                          <p className="text-xs text-gray-500">
+                            💡 Tipp: Allgemeine Kategorien sind für alle Projekte verfügbar. Durch die Zuweisung wird die Kategorie projektspezifisch.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Available General Categories (Read-only view) */}
+                      {generalCategories.length > 0 && (
+                        <div className="space-y-3 pt-4 border-t-2 border-gray-200">
+                          <Label className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                            <FolderOpen className="h-4 w-4" />
+                            Verfügbare allgemeine Kategorien
+                            <Badge variant="secondary" className="ml-2">
+                              {generalCategories.length}
+                            </Badge>
+                          </Label>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto">
+                            {generalCategories.map((category) => (
+                              <Card 
+                                key={category.id} 
+                                className="border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
+                              >
+                                <CardContent className="p-3">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-medium text-gray-900 text-sm truncate">
+                                        {category.familyName}
+                                      </h4>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <Badge variant="secondary" className="text-xs">
+                                          Allgemein
+                                        </Badge>
+                                        {category.level0 && category.level1 && category.level2 ? (
+                                          <Badge variant="outline" className="text-xs">
+                                            Typ 2
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="outline" className="text-xs">
+                                            Typ 1
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                    </div>
+                  </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
               {/* Action Buttons */}
               <div className="flex justify-end gap-2 pt-4">
@@ -2401,6 +2805,10 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
             setShowForm(false);
             setEditingProject(null);
             setProjectType('project');
+            setIsCreatingProject(false);
+            // Reset allocated project number
+            setAllocatedProjectNumber('');
+            setAllocatedDateKey('');
             // Reset form data when closing dialog
             setProjectFormData({
               name: '',
@@ -2462,12 +2870,23 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
             <form onSubmit={async (e) => {
             e.preventDefault();
             
+            // Prevent double submission
+            if (isCreatingProject) {
+              console.log('⚠️ [ProjectManagement] Already creating project, ignoring duplicate submit');
+              return;
+            }
+            
+            console.log('📋 [ProjectManagement] Form submitted', { editingProject: !!editingProject, projectType });
+
             // Validate critical fields first
             if (!isFormValid) {
               // Validation errors will be shown by FormErrorSummary
               return;
             }
             
+            // Start loading state
+            setIsCreatingProject(true);
+
             const formData = new FormData(e.currentTarget);
             
             // Create or update project
@@ -2499,6 +2918,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
             };
 
             if (editingProject) {
+              console.log('📝 [ProjectManagement] Updating existing project:', editingProject.name);
               // Update existing project
               const updatedProject: ExtendedProject = {
                 ...editingProject,
@@ -2545,10 +2965,14 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
                 }
                 
                 // Update in Firestore immediately
+                console.log('💾 [ProjectManagement] Saving to Firestore...');
                 await projectService.update(updatedProject.id, firestoreProject);
+                console.log('✅ [ProjectManagement] Firestore update successful');
                 
                 // Reload projects from Firestore to ensure consistency
+                console.log('🔄 [ProjectManagement] Reloading projects from Firestore...');
                 await loadProjectsFromFirestore();
+                console.log('✅ [ProjectManagement] Projects reloaded');
                 
                 toast({
                   title: "Erfolg",
@@ -2556,9 +2980,11 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
                 });
                 
                 // Only close form and reset data if project was successfully updated
+                console.log('🔒 [ProjectManagement] Closing form and resetting state');
                 setShowForm(false);
                 setEditingProject(null);
                 setProjectType('project');
+                setIsCreatingProject(false);
                 // Reset form data including internal project fields
                 setProjectFormData({
                   name: '',
@@ -2593,24 +3019,48 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
                   variant: "destructive"
                 });
                 // Don't close form on error - keep it open so user can retry
+                setIsCreatingProject(false);
               }
             } else {
               // Create new project
               // Generate project number automatically if not provided
+              // Generate or use project number
               let generatedProjectNumber = projectData.projectNumber || '';
+              
               if (!generatedProjectNumber.trim()) {
                 if (projectData.isInternal) {
-                  // Generate internal project number: concernID-ABBREVIATION
+                  // Internal project: concernID-ABBREVIATION
                   generatedProjectNumber = generateInternalProjectNumber(
                     user?.concernID || '',
                     projectData.name || 'Neues Projekt'
                   );
                 } else {
-                  // Generate external project number: PRJ-YYYYMMDD-HHMMSS
-                  generatedProjectNumber = generateExternalProjectNumber();
+                  // External project: Use allocated PN-{H1}{H2}{H3}{NN} or reallocate if date changed
+                  if (allocatedProjectNumber && allocatedDateKey) {
+                    // Check if date key is still valid
+                    const currentDateKey = generateDateKey(getCurrentDateBerlin());
+                    if (currentDateKey === allocatedDateKey) {
+                      // Same date, use allocated number
+                      generatedProjectNumber = allocatedProjectNumber;
+                    } else {
+                      // Date changed (user kept form open past midnight), reallocate
+                      console.log('📅 Date changed, reallocating project number...');
+                      toast({
+                        title: 'ℹ️ Datum geändert',
+                        description: 'Projektnummer wird neu zugewiesen...',
+                      });
+                      const newNumber = await allocateProjectNumber();
+                      generatedProjectNumber = newNumber || allocatedProjectNumber;
+                    }
+                  } else {
+                    // No allocated number (shouldn't happen), allocate now
+                    console.log('⚠️ No allocated number, allocating now...');
+                    const newNumber = await allocateProjectNumber();
+                    generatedProjectNumber = newNumber || generateExternalProjectNumber(); // Fallback to legacy
+                  }
                 }
               }
-              
+
               const newProject: ExtendedProject = {
                 id: Date.now().toString(),
                 createdAt: new Date().toISOString(),
@@ -2681,11 +3131,25 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
                 }
                 
                 // Save to Firestore
-                await projectService.create(firestoreProject as any);
-                
+                const savedProject = await projectService.create(firestoreProject as any);
+
+                // Register project number for uniqueness (non-blocking)
+                try {
+                  const registerFunction = httpsCallable(functionsEU, 'registerProjectNumber');
+                  await registerFunction({
+                    concernId: user?.concernID || '',
+                    projectNumber: generatedProjectNumber,
+                    projectId: savedProject.id || newProject.id,
+                  });
+                  console.log('✅ Project number registered:', generatedProjectNumber);
+                } catch (regError: any) {
+                  // Log but don't fail the project creation
+                  console.error('⚠️ Failed to register project number (non-critical):', regError);
+                }
+
                 // Reload projects from Firestore to ensure consistency
                 await loadProjectsFromFirestore();
-                
+
                 toast({
                   title: "Erfolg",
                   description: `Projekt "${newProject.name}" wurde erfolgreich erstellt.`,
@@ -2695,6 +3159,10 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
                 setShowForm(false);
                 setEditingProject(null);
                 setProjectType('project');
+                setIsCreatingProject(false);
+                // Reset allocated project number
+                setAllocatedProjectNumber('');
+                setAllocatedDateKey('');
                 // Reset form data including internal project fields
                 setProjectFormData({
                   name: '',
@@ -2736,6 +3204,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
                   variant: "destructive"
                 });
                 // Don't close form on error - keep it open so user can retry
+                setIsCreatingProject(false);
               }
             }
           }} className="space-y-6">
@@ -2792,26 +3261,34 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
                   <div>
                     <Label htmlFor="projectNumber" className="mb-2 block">
                       Projektnummer *
-                      {projectFormData.isInternal && !editingProject && (
-                        <span className="ml-2 text-xs text-blue-600 font-normal">
-                          (Automatisch generiert)
-                        </span>
-                      )}
-                      {!projectFormData.isInternal && (
-                        <span className="ml-2 text-xs text-gray-500 font-normal">
-                          (Auto-Vervollständigung verfügbar)
-                        </span>
-                      )}
                     </Label>
                     {projectFormData.isInternal && !editingProject ? (
-                      // Internal projects: read-only, auto-generated
+                      // Internal projects: read-only, auto-generated from concernID + name abbreviation
                       <Input
                         value={projectFormData.projectNumber || ''}
                         readOnly
                         className="bg-gray-100 cursor-not-allowed"
                       />
+                    ) : !editingProject && allocatedProjectNumber ? (
+                      // External projects (new): read-only, auto-allocated PN-{dateKey}{NN}
+                      <div className="space-y-2">
+                        <Input
+                          value={allocatedProjectNumber}
+                          readOnly
+                          className="bg-green-50 border-green-300 cursor-not-allowed font-mono text-lg font-bold text-green-700"
+                        />
+                        {isAllocatingNumber && (
+                          <div className="flex items-center text-sm text-gray-600">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#058bc0] mr-2"></div>
+                            Projektnummer wird zugewiesen...
+                          </div>
+                        )}
+                        {allocationError && (
+                          <p className="text-sm text-red-600">⚠️ {allocationError}</p>
+                        )}
+                      </div>
                     ) : (
-                      // External projects: editable with autocomplete
+                      // External projects (editing): editable with autocomplete
                       <AutoCompleteInput
                         label=""
                         placeholder="Projektnummer eingeben oder auswählen"
@@ -2836,15 +3313,6 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
                     )}
                     {getFieldProps('projectNumber').error && (
                       <p className="text-sm text-red-600 mt-1">{getFieldProps('projectNumber').error}</p>
-                    )}
-                    {projectFormData.isInternal && !editingProject ? (
-                      <p className="text-xs text-blue-600 mt-1">
-                        ℹ️ Die Projektnummer wird automatisch aus der ConcernID und einer Abkürzung des Projektnamens generiert.
-                      </p>
-                    ) : (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Eine eindeutige Projektnummer zur Identifikation. Zuletzt verwendete Nummern werden zuerst angezeigt.
-                      </p>
                     )}
                   </div>
                 </div>
@@ -3546,12 +4014,19 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
               >
                 Abbrechen
               </Button>
-              <Button 
+              <Button
                 type="submit"
-                disabled={!isFormValid}
-                className={!isFormValid ? 'opacity-50 cursor-not-allowed' : ''}
+                disabled={!isFormValid || isCreatingProject}
+                className={(!isFormValid || isCreatingProject) ? 'opacity-50 cursor-not-allowed' : ''}
               >
-                {editingProject ? 'Aktualisieren' : 'Erstellen'}
+                {isCreatingProject ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {editingProject ? 'Wird aktualisiert...' : 'Wird erstellt...'}
+                  </>
+                ) : (
+                  editingProject ? 'Aktualisieren' : 'Erstellen'
+                )}
               </Button>
             </div>
           </form>

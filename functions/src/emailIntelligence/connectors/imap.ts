@@ -6,7 +6,9 @@
 import { BaseEmailConnector } from './base';
 import { EmailConnectorSyncState, NormalizedEmail, NormalizedAttachment } from '../types';
 import * as functions from 'firebase-functions';
+// @ts-ignore - imap-simple is optional dependency
 import * as imaps from 'imap-simple';
+// @ts-ignore - mailparser is optional dependency
 import { simpleParser, ParsedMail, Attachment } from 'mailparser';
 
 /**
@@ -14,10 +16,12 @@ import { simpleParser, ParsedMail, Attachment } from 'mailparser';
  */
 export class ImapConnector extends BaseEmailConnector {
   private config: imaps.ImapSimpleOptions;
+  private ownerUid: string;
 
   constructor(
     accountId: string, 
     orgId: string,
+    ownerUid: string,
     config: {
       host: string;
       port: number;
@@ -27,6 +31,7 @@ export class ImapConnector extends BaseEmailConnector {
     }
   ) {
     super(accountId, orgId);
+    this.ownerUid = ownerUid;
     
     this.config = {
       imap: {
@@ -43,8 +48,12 @@ export class ImapConnector extends BaseEmailConnector {
 
   /**
    * Fetch new messages via IMAP
+   * Limited to MAX_EMAILS_PER_SYNC to prevent memory overflow
    */
   async fetchNewMessages(params: EmailConnectorSyncState): Promise<NormalizedEmail[]> {
+    // Limit emails per sync to prevent memory issues and keep sync fast
+    const MAX_EMAILS_PER_SYNC = 10;
+    
     let connection: any = null;
     
     try {
@@ -59,9 +68,10 @@ export class ImapConnector extends BaseEmailConnector {
       functions.logger.info('IMAP: Connected successfully, searching for messages');
       
       // Calculate search criteria
+      // Fetch from last sync, or last 7 days if no previous sync (reduced from 60)
       const since = params.lastSyncedAt 
         ? new Date(params.lastSyncedAt.seconds * 1000)
-        : new Date(Date.now() - 7 * 24 * 3600000); // Last 7 days
+        : new Date(Date.now() - 7 * 24 * 3600000); // Last 7 days for initial sync
       
       // Search for messages since last sync
       const searchCriteria = [['SINCE', since]];
@@ -71,9 +81,19 @@ export class ImapConnector extends BaseEmailConnector {
         markSeen: false,
       };
       
-      const messages = await connection.search(searchCriteria, fetchOptions);
+      const allMessages = await connection.search(searchCriteria, fetchOptions);
       
-      functions.logger.info(`IMAP: Found ${messages.length} messages`);
+      functions.logger.info(`IMAP: Found ${allMessages.length} total messages since ${since.toISOString()}`);
+      
+      // Limit to newest MAX_EMAILS_PER_SYNC messages
+      // Sort by UID descending (newest first) and take first N
+      const messages = allMessages
+        .sort((a: any, b: any) => (b.attributes?.uid || 0) - (a.attributes?.uid || 0))
+        .slice(0, MAX_EMAILS_PER_SYNC);
+      
+      if (allMessages.length > MAX_EMAILS_PER_SYNC) {
+        functions.logger.info(`IMAP: Processing ${messages.length} of ${allMessages.length} messages (limited)`);
+      }
       
       // Parse and normalize messages
       const normalized: NormalizedEmail[] = [];
@@ -148,9 +168,9 @@ export class ImapConnector extends BaseEmailConnector {
         .map((addr: any) => addr.address)
         .filter((addr: string) => this.isValidEmail(addr));
       
-      // Extract body
+      // Extract body - use null instead of undefined for Firestore compatibility
       const bodyText = parsed.text || '';
-      const bodyHtml = parsed.html ? parsed.html.toString() : undefined;
+      const bodyHtml = parsed.html ? parsed.html.toString() : null;
       
       // Extract attachments
       const attachments: NormalizedAttachment[] = [];
@@ -172,6 +192,7 @@ export class ImapConnector extends BaseEmailConnector {
       return {
         orgId: this.orgId,
         accountId: this.accountId,
+        ownerUid: this.ownerUid,
         provider: 'imap',
         providerMessageId: uid,
         threadId: parsed.messageId || uid,

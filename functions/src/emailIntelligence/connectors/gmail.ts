@@ -3,6 +3,7 @@
  * Handles Gmail API integration via OAuth2
  */
 
+// @ts-ignore - googleapis is optional dependency
 import { google } from 'googleapis';
 import { BaseEmailConnector } from './base';
 import { EmailConnectorSyncState, NormalizedEmail, NormalizedAttachment } from '../types';
@@ -56,8 +57,8 @@ export class GmailConnector extends BaseEmailConnector {
           }
         }
       } else {
-        // Initial sync - fetch recent messages (last 7 days)
-        const query = `after:${Math.floor(Date.now() / 1000) - 7 * 24 * 3600}`;
+        // Initial sync - fetch recent messages (last 60 days to catch up)
+        const query = `after:${Math.floor(Date.now() / 1000) - 60 * 24 * 3600}`;
         const response = await this.gmail.users.messages.list({
           userId: 'me',
           q: query,
@@ -116,7 +117,7 @@ export class GmailConnector extends BaseEmailConnector {
         cc: this.parseEmailList(headers.cc || ''),
         subject: headers.subject || '(No Subject)',
         bodyText: bodyText || this.stripHtml(bodyHtml),
-        bodyHtml: bodyHtml || undefined,
+        bodyHtml: bodyHtml || null, // Use null instead of undefined for Firestore
         receivedAt: new Date(parseInt(message.internalDate)),
         attachments,
       };

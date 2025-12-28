@@ -11,7 +11,6 @@ import { WuenschDirWasButton } from './WuenschDirWasButton';
 import BreadcrumbNavigation, { createBreadcrumbsFromHistory, BreadcrumbItem } from './BreadcrumbNavigation';
 import MobileNavigation from './MobileNavigation';
 import QuickLinksDropdown from './QuickLinksDropdown';
-import ThemeToggle from './ThemeToggle';
 import OfflineStatusIndicator from './OfflineStatusIndicator';
 import { useLocation } from 'react-router-dom';
 
@@ -281,11 +280,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                         <div className="flex flex-wrap items-center gap-2 flex-shrink-0 w-full lg:w-auto justify-end">
                           {/* Offline Status Indicator */}
                           <OfflineStatusIndicator className="flex-shrink-0" />
-                          
-                          {/* Theme Toggle */}
-                          {user && (
-                            <ThemeToggle className="flex-shrink-0" />
-                          )}
                           
                           {/* Notifications */}
                           <div className="hover:scale-110 transition-transform flex-shrink-0">

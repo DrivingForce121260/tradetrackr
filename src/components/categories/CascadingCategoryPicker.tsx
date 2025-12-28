@@ -214,7 +214,7 @@ export function CascadingCategoryPicker({
               </Label>
               <Select
                 value={selectedLevels[levelIndex] || ''}
-                onValueChange={(val) => handleLevelChange(levelIndex, val || null)}
+                onValueChange={(val) => handleLevelChange(levelIndex, val === '__none__' ? null : val || null)}
                 disabled={shouldDisable}
               >
                 <SelectTrigger className={shouldDisable ? 'bg-gray-100' : ''}>
@@ -222,7 +222,7 @@ export function CascadingCategoryPicker({
                 </SelectTrigger>
                 <SelectContent>
                   {levelIndex > 0 && (
-                    <SelectItem value="">
+                    <SelectItem value="__none__">
                       <span className="text-gray-400">Keine Auswahl</span>
                     </SelectItem>
                   )}

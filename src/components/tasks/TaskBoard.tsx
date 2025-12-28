@@ -18,6 +18,7 @@ import {
   verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import AppHeader from '@/components/AppHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,28 @@ import TaskModal from '@/components/tasks/TaskModal';
 import { isOverdue } from '@/services/taskUtils';
 
 const STATUSES: TaskStatus[] = ['todo','in_progress','done','blocked','archived'];
+
+// Droppable Column Component
+interface DroppableColumnProps {
+  id: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+const DroppableColumn: React.FC<DroppableColumnProps> = ({ id, children, className }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: id,
+  });
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      className={`${className} ${isOver ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50/50' : ''} transition-all duration-200`}
+    >
+      {children}
+    </div>
+  );
+};
 
 // Sortable Task Card Component
 interface SortableTaskCardProps {
@@ -269,9 +292,10 @@ export const TaskBoard: React.FC<{ onBack?: () => void; onNavigate?: (page: stri
         const projectsQuery = query(projectsRef, where('concernID', '==', concernID));
         const projectsSnapshot = await getDocs(projectsQuery);
         const projectsList = projectsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
+          ...doc.data(),
+          id: doc.id,  // MUST be after spread to avoid being overwritten by data.id
         }));
+        
         setProjects(projectsList);
         
         // Load employees
@@ -317,6 +341,7 @@ export const TaskBoard: React.FC<{ onBack?: () => void; onNavigate?: (page: stri
 
   const saveTask = async (partial: Partial<TaskItem>) => {
     if (!service) return;
+    
     if (editing) {
       await service.update(editing.id, partial as TaskItem);
     } else {
@@ -350,59 +375,59 @@ export const TaskBoard: React.FC<{ onBack?: () => void; onNavigate?: (page: stri
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const activeStatus = getTaskStatus(active.id as string);
-    const overStatus = over.id.toString().startsWith('column-') 
-      ? (over.id.toString().replace('column-', '') as TaskStatus)
-      : getTaskStatus(over.id as string);
-
-    if (activeStatus !== overStatus) {
-      // Update task status immediately for better UX
-      const task = tasks.find(t => t.id === active.id);
-      if (task && service) {
-        service.update(task.id, { status: overStatus }).then(() => {
-          load();
-        });
-      }
-    }
+    // Don't update during drag - only update on drop
+    // This prevents flickering and multiple database calls
+    return;
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     
+    setActiveId(null);
+    setDraggingId(null);
+    
     if (!over || !service) {
-      setActiveId(null);
-      setDraggingId(null);
       return;
     }
 
     const taskId = active.id as string;
     const overId = over.id.toString();
+    const task = tasks.find(t => t.id === taskId);
     
-    // Check if dropped on a column
+    if (!task) {
+      return;
+    }
+
+    let newStatus: TaskStatus | null = null;
+    
+    // Check if dropped on a column (droppable zone)
     if (overId.startsWith('column-')) {
-      const newStatus = overId.replace('column-', '') as TaskStatus;
-      const task = tasks.find(t => t.id === taskId);
-      
-      if (task && task.status !== newStatus) {
-        await service.update(taskId, { status: newStatus });
-        await load();
-      }
+      newStatus = overId.replace('column-', '') as TaskStatus;
     } else {
-      // Dropped on another task - swap positions or move within same column
+      // Dropped on another task - use that task's status
       const targetTask = tasks.find(t => t.id === overId);
-      const sourceTask = tasks.find(t => t.id === taskId);
-      
-      if (targetTask && sourceTask && targetTask.status !== sourceTask.status) {
-        await service.update(taskId, { status: targetTask.status });
+      if (targetTask) {
+        newStatus = targetTask.status;
+      }
+    }
+    
+    // Only update if status actually changed
+    if (newStatus && task.status !== newStatus) {
+      console.log(`📦 Moving task "${task.title}" from ${task.status} to ${newStatus}`);
+      try {
+        await service.update(taskId, { status: newStatus });
+        // Update local state immediately for better UX
+        setTasks(prevTasks => 
+          prevTasks.map(t => 
+            t.id === taskId ? { ...t, status: newStatus! } : t
+          )
+        );
+      } catch (error) {
+        console.error('Error updating task status:', error);
+        // Reload to get correct state
         await load();
       }
     }
-
-    setActiveId(null);
-    setDraggingId(null);
   };
 
   const getTaskStatus = (taskId: string): TaskStatus => {
@@ -549,33 +574,49 @@ export const TaskBoard: React.FC<{ onBack?: () => void; onNavigate?: (page: stri
                         </div>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <SortableContext 
-                        items={byStatus[col].map(t => t.id)} 
-                        strategy={verticalListSortingStrategy}
-                        id={`column-${col}`}
-                      >
-                        <div className={`space-y-1 min-h-[400px] p-0.5 rounded-lg ${columnConfig?.bgColor}`}>
-                          {byStatus[col].map(t => {
-                            const project = projects.find((p: any) => p.id === t.projectId);
-                            const projectNumber = project?.projectNumber || project?.projectTitle || t.projectId || '';
-                            return (
-                              <SortableTaskCard
-                                key={t.id}
-                                task={t}
-                                projectNumber={projectNumber}
-                                onClick={() => { setEditing(t); setShowModal(true); }}
-                              />
-                            );
-                          })}
-                          {byStatus[col].length === 0 && (
-                            <div className="text-center py-12 text-gray-400">
-                              <div className="text-4xl mb-2">{columnConfig?.icon}</div>
-                              <div className="text-sm">Keine Aufgaben</div>
-                            </div>
-                          )}
-                        </div>
-                      </SortableContext>
+                    <CardContent className="p-2">
+                      <DroppableColumn id={`column-${col}`} className="h-full">
+                        <SortableContext 
+                          items={byStatus[col].map(t => t.id)} 
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <div className={`space-y-1 min-h-[400px] p-1 rounded-lg ${columnConfig?.bgColor}`}>
+                            {byStatus[col].map(t => {
+                              const project = projects.find((p: any) => p.id === t.projectId);
+                              
+                              // Always use the project number from the projects collection (source of truth)
+                              let projectNumber = '';
+                              
+                              if (project && project.projectNumber) {
+                                // Project found - use its projectNumber (migrated or not)
+                                projectNumber = String(project.projectNumber);
+                              } else if (project) {
+                                // Project found but no projectNumber field (shouldn't happen)
+                                projectNumber = project.projectName || project.projectTitle || project.id;
+                              } else {
+                                // No project found - orphaned task
+                                // Show a clear indicator instead of ugly Firestore ID
+                                projectNumber = '⚠️ Project nicht gefunden';
+                              }
+                              
+                              return (
+                                <SortableTaskCard
+                                  key={t.id}
+                                  task={t}
+                                  projectNumber={projectNumber}
+                                  onClick={() => { setEditing(t); setShowModal(true); }}
+                                />
+                              );
+                            })}
+                            {byStatus[col].length === 0 && (
+                              <div className="text-center py-12 text-gray-400">
+                                <div className="text-4xl mb-2">{columnConfig?.icon}</div>
+                                <div className="text-sm">Hier ablegen</div>
+                              </div>
+                            )}
+                          </div>
+                        </SortableContext>
+                      </DroppableColumn>
                     </CardContent>
                   </Card>
                 );

@@ -1,6 +1,7 @@
 ﻿import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MessagingService, FirebaseChat, FirebaseMessage } from '@/services/messagingService';
+import offlineQueue from '@/services/offlineQueueService';
 
 // Vereinfachte Interfaces för die Komponenten
 interface Message {
@@ -11,6 +12,10 @@ interface Message {
   timestamp: Date;
   isRead: boolean;
   status: 'sending' | 'sent' | 'delivered' | 'read';
+  // Edit support
+  isEdited?: boolean;
+  editedAt?: Date;
+  originalText?: string;
   // Media support
   media?: {
     type: 'image' | 'file' | 'voice' | 'document';
@@ -53,13 +58,14 @@ interface MessagingContextType {
   chats: Chat[];
   messages: Record<string, Message[]>;
   selectedChat: string | null;
+  isLoadingMessages: boolean;
   openMessaging: () => void;
   closeMessaging: () => void;
   toggleMinimizeMessaging: () => void;
   setUnreadCount: (count: number) => void;
   sendMessage: (chatId: string, text: string, media?: any) => Promise<void>;
   markChatAsRead: (chatId: string) => Promise<void>;
-  selectChat: (chatId: string) => void;
+  selectChat: (chatId: string | null) => Promise<void>;
   createDirectChat: (otherUserId: string) => Promise<string>;
   createGroupChat: (name: string, participants: string[], description?: string) => Promise<string>;
   createControllingChat: (name: string, participants: string[], priority?: 'high' | 'medium' | 'low') => Promise<string>;
@@ -100,6 +106,7 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [messagingService, setMessagingService] = useState<MessagingService | null>(null);
 
   // MessagingService initialisieren
@@ -114,14 +121,18 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
     }
 
     try {
-      const service = new MessagingService(user, user.concernID);
+      const concernID = (user as any).concernID || 'default';
+      console.log('🔧 [MessagingContext] Creating MessagingService with concernID:', concernID);
+      console.log('🔧 [MessagingContext] Full user object:', user);
+
+      const service = new MessagingService(user as any, concernID);
       console.log('✅ [MessagingContext] MessagingService created successfully');
       setMessagingService(service);
       
       // User-Status auf online setzen
       service.updateUserStatus('online').then(() => {
         console.log('✅ [MessagingContext] User status set to online');
-      }).catch((error) => {
+      }).catch((error: any) => {
         console.error('❌ [MessagingContext] Failed to set user status online:', error);
       });
       
@@ -130,7 +141,7 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
         try {
           service.updateUserStatus('offline').then(() => {
             console.log('✅ [MessagingContext] User status set to offline');
-          }).catch((error) => {
+        }).catch((error: any) => {
             console.error('❌ [MessagingContext] Failed to set user status offline:', error);
           });
         } catch (error) {
@@ -187,7 +198,7 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
 
           const infoChat: Chat = {
             id: 'info_no_users',
-            name: 'Keine anderen Benutzer verfögbar',
+            name: 'Keine anderen Benutzer verfügbar',
             type: 'direct',
             participants: [user?.uid || ''],
             lastMessage: undefined,
@@ -198,22 +209,37 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
 
         }
 
-        // Member-Chats in den State setzen
+        // Member-Chats (Kontaktliste) in den State setzen, aber NICHT für Nutzer,
+        // zu denen bereits ein echter Firebase-Direct-Chat existiert.
         setChats(prevChats => {
           const existingMemberChats = prevChats.filter(chat => chat.id.startsWith('direct_'));
-          const newMemberChats = memberChats.filter(newChat => 
-            !existingMemberChats.some(existing => existing.id === newChat.id)
-          );
-          const updatedChats = [...prevChats, ...newMemberChats];
 
-          return updatedChats;
+          const hasFirebaseDirectChatWith = (memberUid: string) => {
+            return prevChats.some(c =>
+              c.type === 'direct' &&
+              !c.id.startsWith('direct_') &&
+              (c.participants || []).length === 2 &&
+              (c.participants || []).includes(memberUid) &&
+              (c.participants || []).includes(user?.uid || '')
+            );
+          };
+
+          const newMemberChats = memberChats.filter(newChat => {
+            const other = newChat.participants.find(uid => uid !== (user?.uid || ''));
+            if (!other) return false;
+            if (hasFirebaseDirectChatWith(other)) return false;
+            return !existingMemberChats.some(existing => existing.id === newChat.id);
+          });
+
+          return [...prevChats, ...newMemberChats];
         });
         setUnreadCount(0); // Keine unread messages für Member-Chats
       } catch (error) {
 
         
         // Bei Berechtigungsfehlern trotzdem einen Info-Chat anzeigen
-        if (error.message && error.message.includes('permissions')) {
+        const errMsg = (error as any)?.message ?? '';
+        if (typeof errMsg === 'string' && errMsg.includes('permissions')) {
 
           const fallbackChat: Chat = {
             id: 'info_permission_error',
@@ -247,35 +273,68 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
     return () => clearTimeout(timer);
   }, [messagingService, user]);
 
+  // Automatically flush offline queue when coming back online
+  useEffect(() => {
+    if (!messagingService) return;
+    const onOnline = async () => {
+      try {
+        await offlineQueue.processQueue(async (item) => {
+          switch (item.action) {
+            case 'sendMessage':
+              await messagingService.sendMessage(item.payload.chatId, item.payload.text, item.payload.media);
+              return true;
+            case 'createDirectChat':
+              await messagingService.createDirectChat(item.payload.otherUserId);
+              return true;
+            default:
+              return true;
+          }
+        });
+        console.log('✅ [MessagingContext] Offline queue flushed on online');
+      } catch (err) {
+        console.error('❌ [MessagingContext] Failed to flush offline queue:', err);
+      }
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [messagingService]);
+
   // Real-time Chats abonnieren (optional, für bestehende Chats)
   useEffect(() => {
     if (!messagingService || !user?.concernID) return;
 
-    const unsubscribe = messagingService.subscribeToChats(async (firebaseChats: FirebaseChat[]) => {
+      const unsubscribe = messagingService.subscribeToChats(async (firebaseChats: FirebaseChat[]) => {
 
       // Load all members to enrich chat names
       const members = await messagingService.getConcernMembers();
       const memberMap = new Map(members.map(m => [m.uid, m]));
       
-      const convertedChats: Chat[] = firebaseChats.map(fbChat => {
+      const convertedChats: (Chat | null)[] = firebaseChats.map(fbChat => {
+        // Filter out broken chats that should never appear in the UI (e.g. "Fallback Chat")
+        const participantCount = (fbChat.participants || []).length;
+        if (fbChat.type === 'direct' && (participantCount < 2 || fbChat.name === 'Fallback Chat')) {
+          return null;
+        }
+
         // Generiere einen Namen für den Chat
         let chatName = fbChat.name;
-        let photoURL = undefined;
+        
         
         if (!chatName || chatName.trim() === '' || chatName.startsWith('Chat mit')) {
-          if (fbChat.type === 'direct' && fbChat.participants.length === 2) {
+            if (fbChat.type === 'direct' && fbChat.participants.length === 2) {
             // Für direkte Chats: Name des anderen Teilnehmers
             const otherParticipantId = fbChat.participants.find(pid => pid !== user?.uid);
             if (otherParticipantId) {
               const member = memberMap.get(otherParticipantId);
               if (member) {
                 chatName = member.displayName || member.email || 'Unbekannter Benutzer';
-                photoURL = member.photoURL;
               } else {
-                chatName = `Benutzer ${otherParticipantId.substring(0, 8)}...`;
+                // Do not create a fallback person entry; skip this chat
+                return null;
               }
             } else {
-              chatName = 'Direkter Chat';
+              // No other participant info; skip this chat
+              return null;
             }
           } else if (fbChat.type === 'group') {
             chatName = fbChat.name || 'Gruppenchat';
@@ -286,12 +345,13 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
           }
         }
 
+        let chatPhotoURL: string | undefined = undefined;
         return {
           id: fbChat.chatId,
           name: chatName,
           type: fbChat.type,
           participants: fbChat.participants,
-          photoURL: photoURL,
+          photoURL: undefined,
           lastMessage: fbChat.lastMessage ? {
             id: fbChat.lastMessage.messageId,
             text: fbChat.lastMessage.text,
@@ -314,19 +374,27 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
         // Alle Member-Chats beibehalten
         const memberChats = prevChats.filter(chat => chat.id.startsWith('direct_'));
         
-        // Firebase-Chats hinzufügen, aber keine Duplikate
-        const firebaseChatsMap = new Map(convertedChats.map(chat => [chat.id, chat]));
-        const existingFirebaseChats = prevChats.filter(chat => !chat.id.startsWith('direct_'));
+      // Firebase-Chats hinzufügen, aber keine Duplikate
+      const sanitizedConvertedChats: Chat[] = convertedChats.filter((c): c is Chat => c !== null);
+      const firebaseChatsMap = new Map(sanitizedConvertedChats.map(chat => [chat.id, chat]));
+        // Drop broken fallback chats from existing state so they don't linger forever
+        const existingFirebaseChats = prevChats.filter(chat => {
+          if (chat.id.startsWith('direct_')) return false;
+          if (chat.type === 'direct' && ((chat.participants || []).length < 2 || chat.name === 'Fallback Chat')) {
+            return false;
+          }
+          return true;
+        });
         
         // Neue Firebase-Chats hinzufügen oder bestehende aktualisieren
         const updatedFirebaseChats = existingFirebaseChats.map(existingChat => 
           firebaseChatsMap.get(existingChat.id) || existingChat
         );
         
-        // Neue Firebase-Chats hinzufügen, die noch nicht existieren
-        const newFirebaseChats = convertedChats.filter(newChat => 
-          !existingFirebaseChats.some(existing => existing.id === newChat.id)
-        );
+      // Neue Firebase-Chats hinzufügen, die noch nicht existieren
+      const newFirebaseChats = sanitizedConvertedChats.filter(newChat => 
+        !existingFirebaseChats.some(existing => existing.id === newChat.id)
+      );
         
         const allChats = [...memberChats, ...updatedFirebaseChats, ...newFirebaseChats];
         console.log('ðŸ“± Total chats (Firebase + Members):', allChats.length, allChats);
@@ -350,27 +418,73 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
     return unsubscribe;
   }, [messagingService, user]);
 
-  // Real-time Messages für ausgewö¤hlten Chat abonnieren
+  // Real-time Messages für ausgewählten Chat abonnieren
   useEffect(() => {
     if (!messagingService || !selectedChat) return;
 
-    const unsubscribe = messagingService.subscribeToMessages(selectedChat, (firebaseMessages: FirebaseMessage[]) => {
-      const convertedMessages: Message[] = firebaseMessages.map(fbMsg => ({
-        id: fbMsg.messageId,
-        text: fbMsg.text,
-        senderId: fbMsg.senderId,
-        senderName: '', // Wird spö¤ter gefüllt
-        timestamp: fbMsg.timestamp?.toDate() || new Date(),
-        isRead: fbMsg.readBy.includes(user?.uid || ''),
-        status: fbMsg.status,
-        media: fbMsg.media,
-        isControllingMessage: fbMsg.controllingData?.requiresAction,
-        readBy: fbMsg.readBy,
-        acceptedBy: fbMsg.controllingData?.acceptedBy,
-        requiresAction: fbMsg.controllingData?.requiresAction,
-        priority: fbMsg.controllingData?.priority,
-        deadline: fbMsg.controllingData?.deadline?.toDate() || undefined
-      }));
+    const unsubscribe = messagingService.subscribeToMessages(selectedChat, async (firebaseMessages: FirebaseMessage[]) => {
+      console.log('📨 [MessagingContext] Received messages from Firestore:', firebaseMessages.length);
+      firebaseMessages.forEach((msg, idx) => {
+        console.log(`📨 [MessagingContext] Message ${idx}:`, {
+          id: msg.messageId,
+          text: msg.text.substring(0, 50),
+          hasMedia: !!msg.media,
+          media: msg.media
+        });
+      });
+      
+      const toDateSafe = (ts: any): Date => {
+        try {
+          if (!ts) return new Date();
+          if (typeof ts?.toDate === 'function') return ts.toDate();
+          if (ts instanceof Date) return ts;
+          if (typeof ts === 'number') return new Date(ts);
+          if (typeof ts === 'string') {
+            const d = new Date(ts);
+            return isNaN(d.getTime()) ? new Date() : d;
+          }
+          if (typeof ts?.seconds === 'number') return new Date(ts.seconds * 1000);
+          return new Date();
+        } catch {
+          return new Date();
+        }
+      };
+
+      // Lade alle Absender-Namen parallel für bessere Performance
+      const senderNames = await Promise.allSettled(
+        firebaseMessages.map(msg => messagingService.getUserDisplayName(msg.senderId))
+      );
+
+      const convertedMessages: Message[] = firebaseMessages.map((fbMsg, index) => {
+        // Verwende zuerst den geladenen Namen, dann Fallback aus der Nachricht, dann Standard-Fallback
+        const senderNameResult = senderNames[index];
+        let senderName = '';
+        if (senderNameResult.status === 'fulfilled') {
+          senderName = senderNameResult.value;
+        } else {
+          senderName = fbMsg.senderName || 'Unbekannter Benutzer';
+        }
+
+        return {
+          id: fbMsg.messageId,
+          text: fbMsg.text,
+          senderId: fbMsg.senderId,
+          senderName,
+          timestamp: toDateSafe((fbMsg as any).timestamp),
+          isRead: fbMsg.readBy.includes(user?.uid || ''),
+          status: fbMsg.status,
+          isEdited: (fbMsg as any).isEdited,
+          editedAt: (fbMsg as any).editedAt ? toDateSafe((fbMsg as any).editedAt) : undefined,
+          originalText: (fbMsg as any).originalText,
+          media: fbMsg.media,
+          isControllingMessage: fbMsg.controllingData?.requiresAction,
+          readBy: fbMsg.readBy,
+          acceptedBy: fbMsg.controllingData?.acceptedBy,
+          requiresAction: fbMsg.controllingData?.requiresAction,
+          priority: fbMsg.controllingData?.priority,
+          deadline: fbMsg.controllingData?.deadline ? toDateSafe((fbMsg as any).controllingData?.deadline) : undefined
+        };
+      });
 
       setMessages(prev => ({
         ...prev,
@@ -414,18 +528,35 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
       console.log('🔄 [MessagingContext] Manually refreshing chats...');
       
       // Alle Chats neu laden
-      const firebaseChats = await messagingService.getChats();
+      const firebaseChats = (await messagingService.getChats()).filter(fbChat => {
+        const participantCount = (fbChat.participants || []).length;
+        if (fbChat.type === 'direct' && (participantCount < 2 || fbChat.name === 'Fallback Chat')) {
+          return false;
+        }
+        return true;
+      });
       console.log('📱 [MessagingContext] Loaded', firebaseChats.length, 'Firebase chats');
       
       // Concern-Mitglieder laden
       const members = await messagingService.getConcernMembers();
       console.log('👥 [MessagingContext] Loaded', members.length, 'concern members');
       
-      // Member-Chats erstellen (nur wenn noch keine existieren)
+      // Member-Chats erstellen (nur wenn noch keine existieren UND kein echter Firebase-Direct-Chat existiert)
       const existingMemberChats = chats.filter(chat => chat.id.startsWith('direct_'));
+      const hasFirebaseDirectChatWith = (memberUid: string) => {
+        return chats.some(c =>
+          c.type === 'direct' &&
+          !c.id.startsWith('direct_') &&
+          (c.participants || []).length === 2 &&
+          (c.participants || []).includes(memberUid) &&
+          (c.participants || []).includes(user?.uid || '')
+        );
+      };
+
       const memberChats: Chat[] = members
         .filter(member => member.uid !== user?.uid)
         .filter(member => !existingMemberChats.some(chat => chat.participants.includes(member.uid)))
+        .filter(member => !hasFirebaseDirectChatWith(member.uid))
         .map(member => ({
           id: `direct_${member.uid}`,
           name: member.displayName || member.email || 'Unbekannter Benutzer',
@@ -462,7 +593,7 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
           name: chatName,
           type: fbChat.type,
           participants: fbChat.participants,
-          photoURL: photoURL,
+          photoURL: undefined,
           lastMessage: fbChat.lastMessage ? {
             id: fbChat.lastMessage.messageId,
             text: fbChat.lastMessage.text,
@@ -497,8 +628,9 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
       }, 0);
       setUnreadCount(totalUnread);
       
-    } catch (error) {
-      console.error('❌ [MessagingContext] Error refreshing chats:', error);
+  } catch (err: any) {
+      const msg = (err && (err as any).message) || err;
+      console.error('❌ [MessagingContext] Error refreshing chats:', msg);
     }
   };
 
@@ -522,7 +654,8 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
       }
     });
     
-    // Füge Firebase-Chats hinzu, aber nur wenn kein Member-Chat existiert
+    // Füge Firebase-Chats hinzu. Falls ein Member-Chat (Kontakt) existiert, ersetze ihn durch den echten Firebase-Chat,
+    // damit die UI die korrekte Chat-ID verwendet (sonst sind Nachrichten für andere Nutzer unsichtbar).
     firebaseChats.forEach(chat => {
       if (chat.type === 'direct') {
         // Finde den anderen Teilnehmer
@@ -533,7 +666,22 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
           cleanedChats.push(chat);
           userChatMap.set(otherParticipant, chat);
         } else if (otherParticipant && userChatMap.has(otherParticipant)) {
-
+          const memberChat = userChatMap.get(otherParticipant);
+          if (memberChat) {
+            const idx = cleanedChats.findIndex(c => c.id === memberChat.id);
+            const mergedChat: Chat = {
+              ...chat,
+              name: memberChat.name || chat.name,
+              photoURL: memberChat.photoURL || chat.photoURL,
+              isOnline: memberChat.isOnline ?? chat.isOnline,
+            };
+            if (idx >= 0) {
+              cleanedChats[idx] = mergedChat;
+            } else {
+              cleanedChats.push(mergedChat);
+            }
+            userChatMap.set(otherParticipant, mergedChat);
+          }
         }
       } else {
         // Nicht-direkte Chats (Gruppen, Controlling) immer hinzufügen
@@ -554,29 +702,60 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
   const closeMessaging = () => setIsMessagingOpen(false);
   const toggleMinimizeMessaging = () => setIsMessagingMinimized(prev => !prev);
 
-  const selectChat = async (chatId: string) => {
-    setSelectedChat(chatId);
-    
-    // Messages für den ausgewö¤hlten Chat laden
+  const selectChat = async (chatId: string | null) => {
+    if (!chatId) {
+      setSelectedChat(null);
+      return;
+    }
+
+    let actualChatId = chatId;
+    // If user clicked a contact placeholder chat (direct_<uid>), resolve to a real Firebase chat ID
+    if (chatId.startsWith('direct_') && messagingService) {
+      const otherUserId = chatId.replace('direct_', '');
+      const existingFirebaseChat = chats.find(c =>
+        c.type === 'direct' &&
+        !c.id.startsWith('direct_') &&
+        (c.participants || []).length === 2 &&
+        (c.participants || []).includes(otherUserId) &&
+        (c.participants || []).includes(user?.uid || '')
+      );
+      if (existingFirebaseChat) {
+        actualChatId = existingFirebaseChat.id;
+      } else {
+        try {
+          actualChatId = await messagingService.createDirectChat(otherUserId);
+        } catch (e) {
+          // keep placeholder if we can't resolve
+          actualChatId = chatId;
+        }
+      }
+    }
+
+    setSelectedChat(actualChatId);
+
+    // Messages für den ausgewählten Chat laden
     if (messagingService) {
       try {
+        // Set loading state
+        setIsLoadingMessages(true);
+
         // Versuche Messages zu laden, aber falle auf leeren Array zurück bei Fehlern
         let existingMessages: Message[] = [];
-        
+
         try {
-          const firebaseMessages = await messagingService.getMessages(chatId, 50);
+          const firebaseMessages = await messagingService.getMessages(actualChatId, 50);
           // Lade alle Absender-Namen parallel
           const senderNames = await Promise.all(
-            firebaseMessages.map(msg => 
+            firebaseMessages.map(msg =>
               messagingService.getUserDisplayName(msg.senderId)
             )
           );
-          
-          existingMessages = firebaseMessages.map((fbMsg, index) => ({
+
+        existingMessages = firebaseMessages.map((fbMsg, index) => ({
             id: fbMsg.messageId,
             text: fbMsg.text,
             senderId: fbMsg.senderId,
-            senderName: fbMsg.senderName || senderNames[index] || `Benutzer ${fbMsg.senderId.substring(0, 8)}...`,
+            senderName: senderNames[index] ?? fbMsg.senderName ?? 'Unbekannter Benutzer',
             timestamp: fbMsg.timestamp?.toDate() || new Date(),
             isRead: fbMsg.readBy.includes(user?.uid || ''),
             status: fbMsg.status,
@@ -588,24 +767,25 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
             priority: fbMsg.controllingData?.priority,
             deadline: fbMsg.controllingData?.deadline?.toDate()
           }));
-        } catch (error) {
-          console.error('❌ [MessagingContext] Error loading messages:', error);
+        } catch (err: any) {
+          console.error('❌ [MessagingContext] Error loading messages:', err?.message ?? err);
           existingMessages = [];
         }
 
         setMessages(prev => ({
           ...prev,
-          [chatId]: existingMessages
+          [actualChatId]: existingMessages
         }));
-        
-        // Kein markMessageAsDelivered Aufruf mehr - verursacht Fehler mit temporö¤ren IDs
-      } catch (error) {
 
+      } catch (error) {
+        console.error('❌ [MessagingContext] Error in selectChat:', error);
         // Bei Fehlern trotzdem leeren Chat anzeigen
         setMessages(prev => ({
           ...prev,
-          [chatId]: []
+          [actualChatId]: []
         }));
+      } finally {
+        setIsLoadingMessages(false);
       }
     }
   };
@@ -625,6 +805,20 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
     
     // Validiere media Parameter
     const hasValidMedia = media && typeof media === 'object' && Object.keys(media).length > 0;
+    // If offline, enqueue the write for later
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    if (!isOnline) {
+      const queuedItem = {
+        id: `offline_${Date.now()}`,
+        action: 'sendMessage',
+        payload: { chatId, text, media },
+        timestamp: Date.now(),
+        status: 'queued'
+      };
+      offlineQueue.enqueue(queuedItem as any);
+      console.log('🗄️ [MessagingContext] Offline - queued message for chat', chatId);
+      return;
+    }
     
     try {
       let actualChatId = chatId;
@@ -636,10 +830,13 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
         console.log('🔍 [MessagingContext] Other user ID:', otherUserId);
         
         // Prüfe ob bereits ein Firebase-Chat mit diesem Benutzer existiert
+        // Only reuse REAL Firebase chats here (never the `direct_<uid>` placeholder contact entries)
         const existingChat = chats.find(chat => 
-          chat.type === 'direct' && 
+          chat.type === 'direct' &&
+          !chat.id.startsWith('direct_') &&
+          chat.participants.length === 2 &&
           chat.participants.includes(otherUserId) &&
-          !chat.id.startsWith('direct_') // Nur Firebase-Chats, nicht Member-Chats
+          chat.participants.includes(user?.uid || '')
         );
         
         if (existingChat) {
@@ -649,8 +846,19 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
         } else {
           // Erstelle einen neuen Firebase-Chat nur wenn keiner existiert
           console.log('🔧 [MessagingContext] Creating new Firebase chat for user:', otherUserId);
-          actualChatId = await messagingService.createDirectChat(otherUserId);
-          console.log('✅ [MessagingContext] Created new Firebase chat:', actualChatId);
+          try {
+            actualChatId = await messagingService.createDirectChat(otherUserId);
+            console.log('✅ [MessagingContext] Created new Firebase chat:', actualChatId);
+          } catch (chatError: any) {
+            console.error('❌ [MessagingContext] Failed to create chat:', chatError);
+            console.error('❌ [MessagingContext] Chat creation error details:', {
+              message: chatError?.message,
+              code: chatError?.code,
+              stack: chatError?.stack
+            });
+            // Don't send the message if chat creation fails
+            throw new Error(`Chat creation failed: ${chatError?.message || 'Unknown error'}`);
+          }
         }
         
         // Chat-ID aktualisieren
@@ -693,13 +901,7 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
       
       console.log('✅ [MessagingContext] Message sent successfully with ID:', messageId);
       
-      // Temporöre Nachricht entfernen (wird durch Firestore-Listener ersetzt)
-      setTimeout(() => {
-        setMessages(prev => ({
-          ...prev,
-          [actualChatId]: (prev[actualChatId] || []).filter(msg => msg.id !== tempMessage.id)
-        }));
-      }, 1000);
+      // Do not aggressively remove the optimistic message here; wait for server confirmation via Firestore listener
       
     } catch (error) {
       console.error('❌ [MessagingContext] Failed to send message:', error);
@@ -882,9 +1084,24 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
       console.error('❌ [MessagingContext] No messaging service available for debug');
       return null;
     }
-    
+
     try {
       console.log('🔍 [MessagingContext] Debugging messaging system...');
+
+      // Test chat creation directly
+      console.log('🧪 [MessagingContext] Testing direct chat creation...');
+      try {
+        const testChatId = await messagingService.createDirectChat('test_user_123');
+        console.log('✅ [MessagingContext] Test chat creation succeeded:', testChatId);
+      } catch (testError: any) {
+        console.error('❌ [MessagingContext] Test chat creation failed:', testError);
+        console.error('❌ [MessagingContext] Test error details:', {
+          message: testError?.message,
+          code: testError?.code,
+          stack: testError?.stack
+        });
+      }
+
       const debugInfo = await messagingService.debugMessagingSystem();
       console.log('✅ [MessagingContext] Debug completed:', debugInfo);
       return debugInfo;
@@ -919,6 +1136,7 @@ const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }) => {
     chats,
     messages,
     selectedChat,
+    isLoadingMessages,
     openMessaging,
     closeMessaging,
     toggleMinimizeMessaging,

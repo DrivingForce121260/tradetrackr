@@ -7,6 +7,9 @@ import React, { useEffect, useState } from 'react';
 import { useEmailDetails, useEmailActions, useAttachmentDownload } from '@/hooks/useEmailIntelligence';
 import { useAuth } from '@/contexts/AuthContext';
 import { EmailSummaryStatus } from '@/types/email';
+import { httpsCallable } from 'firebase/functions';
+import { functionsEU } from '@/config/firebase';
+import EmailReplyComposer from '@/components/EmailReplyComposer';
 import { 
   getCategoryColor, 
   getCategoryLabel,
@@ -23,6 +26,8 @@ import {
   AlertCircle,
   Loader2,
   Package,
+  Reply,
+  Sparkles,
 } from 'lucide-react';
 
 interface EmailDetailDrawerProps {
@@ -37,6 +42,11 @@ const EmailDetailDrawer: React.FC<EmailDetailDrawerProps> = ({ emailId, onClose 
   const { updateStatus, assignToUser } = useEmailActions();
   const { downloadAttachment, downloadAll, downloading } = useAttachmentDownload();
   const [selectedStatus, setSelectedStatus] = useState<EmailSummaryStatus>('open');
+  const [generatingReply, setGeneratingReply] = useState(false);
+  const [replyComposerOpen, setReplyComposerOpen] = useState(false);
+  const [currentReplyId, setCurrentReplyId] = useState<string | null>(null);
+  
+  const concernId = user?.concernID || user?.ConcernID || '';
 
   useEffect(() => {
     // Close drawer on Escape key
@@ -105,6 +115,40 @@ const EmailDetailDrawer: React.FC<EmailDetailDrawerProps> = ({ emailId, onClose 
         description: 'Bitte versuchen Sie es später erneut',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleGenerateReply = async () => {
+    setGeneratingReply(true);
+    try {
+      const generateReplyFunction = httpsCallable(functionsEU, 'generateEmailReplyDraft');
+      const result = await generateReplyFunction({ 
+        concernId,
+        emailId,
+        tone: 'neutral',
+        language: 'de',
+      });
+      
+      const data = result.data as any;
+      
+      toast({
+        title: '✅ Antwort generiert',
+        description: 'KI-Antwort wurde erstellt',
+      });
+
+      // Open reply composer
+      setCurrentReplyId(data.replyId);
+      setReplyComposerOpen(true);
+    } catch (error: any) {
+      console.error('Generate reply error:', error);
+      
+      toast({
+        title: '❌ Generierung fehlgeschlagen',
+        description: error.message || 'Bitte versuchen Sie es später erneut',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingReply(false);
     }
   };
 
@@ -317,13 +361,51 @@ const EmailDetailDrawer: React.FC<EmailDetailDrawerProps> = ({ emailId, onClose 
             {/* Assign to Me */}
             <button
               onClick={handleAssignToMe}
-              className="w-full px-4 py-2 bg-[#058bc0] text-white rounded-lg hover:bg-[#046a8f] font-medium transition-colors"
+              className="w-full px-4 py-2 bg-[#058bc0] text-white rounded-lg hover:bg-[#046a8f] font-medium transition-colors mb-2"
             >
               Mir zuweisen
+            </button>
+
+            {/* AI Reply Button */}
+            <button
+              onClick={handleGenerateReply}
+              disabled={generatingReply}
+              className="w-full px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {generatingReply ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generiere Antwort...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  <Reply className="w-4 h-4 mr-2" />
+                  AI Antwort erstellen
+                </>
+              )}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Reply Composer */}
+      {replyComposerOpen && currentReplyId && (
+        <EmailReplyComposer
+          replyId={currentReplyId}
+          onClose={() => {
+            setReplyComposerOpen(false);
+            setCurrentReplyId(null);
+          }}
+          onSent={() => {
+            toast({
+              title: '✅ E-Mail gesendet',
+              description: 'Ihre Antwort wurde erfolgreich versendet',
+            });
+            onClose(); // Close detail drawer after sending
+          }}
+        />
+      )}
     </>
   );
 };

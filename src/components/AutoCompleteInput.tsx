@@ -69,16 +69,22 @@ const AutoCompleteInput: React.FC<AutoCompleteInputProps> = ({
   // Filter and sort suggestions
   const getFilteredSuggestions = useCallback((): AutocompleteOption[] => {
     if (!searchTerm.trim()) {
-      // Show recent items when no search term
+      // When no search term, show all options (prioritizing recent if available)
       if (showRecentFirst) {
-        return options
-          .filter(opt => opt.lastUsed)
-          .sort((a, b) => {
-            const aDate = a.lastUsed ? new Date(a.lastUsed).getTime() : 0;
-            const bDate = b.lastUsed ? new Date(b.lastUsed).getTime() : 0;
+        // Sort by lastUsed but include ALL options, not just those with lastUsed
+        const sorted = [...options].sort((a, b) => {
+          // Items with lastUsed come first
+          if (a.lastUsed && !b.lastUsed) return -1;
+          if (!a.lastUsed && b.lastUsed) return 1;
+          // If both have lastUsed, sort by date
+          if (a.lastUsed && b.lastUsed) {
+            const aDate = new Date(a.lastUsed).getTime();
+            const bDate = new Date(b.lastUsed).getTime();
             return bDate - aDate;
-          })
-          .slice(0, maxSuggestions);
+          }
+          return 0;
+        });
+        return sorted.slice(0, maxSuggestions);
       }
       return options.slice(0, maxSuggestions);
     }
@@ -291,7 +297,7 @@ const AutoCompleteInput: React.FC<AutoCompleteInputProps> = ({
       {isOpen && suggestions.length > 0 && (
         <Card
           ref={dropdownRef}
-          className="absolute z-50 w-full mt-2 shadow-xl border-2 border-[#058bc0]/20 max-h-64 overflow-y-auto"
+          className="absolute z-[9999] w-full mt-2 shadow-xl border-2 border-[#058bc0]/20 max-h-64 overflow-y-auto bg-white"
         >
           <CardContent className="p-3">
             <div className="space-y-1.5">
@@ -347,7 +353,7 @@ const AutoCompleteInput: React.FC<AutoCompleteInputProps> = ({
 
       {/* Empty state */}
       {isOpen && suggestions.length === 0 && searchTerm.trim() && (
-        <Card className="absolute z-50 w-full mt-1 shadow-lg border-2 border-gray-200">
+        <Card className="absolute z-[9999] w-full mt-1 shadow-lg border-2 border-gray-200 bg-white">
           <CardContent className="p-4 text-center text-gray-500 text-sm">
             {emptyMessage}
           </CardContent>

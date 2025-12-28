@@ -138,6 +138,7 @@ export interface EmailSummary {
 	createdAt: Date;
 	// Email metadata for list display (loaded from emails collection)
 	emailFrom?: string;
+	emailTo?: string; // Recipient email address
 	emailSubject?: string;
 	// Archive/Hide functionality
 	archived?: boolean;
@@ -146,6 +147,9 @@ export interface EmailSummary {
 	// New email indicator
 	isNew?: boolean;
 	readAt?: Date;
+	// Reply tracking
+	replyId?: string | null;
+	replyStatus?: 'none' | 'draft' | 'sent' | 'failed';
 }
 
 export interface NormalizedEmail {
@@ -190,7 +194,52 @@ export interface LLMAnalysisResult {
 	priority: EmailPriority;
 }
 
+export type EmailReplyStatus = 
+	| 'draft' 
+	| 'generated' 
+	| 'edited' 
+	| 'sending' 
+	| 'sent' 
+	| 'send_failed';
 
-
+export interface EmailReply {
+	id: string;
+	concernId: string;
+	emailId: string;
+	accountId: string;
+	provider: EmailProvider;
+	
+	threadId?: string;
+	providerMessageId?: string;
+	providerDraftId?: string;
+	providerSentId?: string;
+	
+	to: string[];
+	cc: string[];
+	bcc: string[];
+	subject: string;
+	bodyText: string;
+	bodyHtml?: string;
+	
+	status: EmailReplyStatus;
+	lastError?: string | null;
+	
+	generatedBy: {
+		model: string;
+		temperature: number;
+	} | null;
+	
+	createdBy: string;
+	updatedBy: string;
+	createdAt: Date;
+	updatedAt: Date;
+	
+	history: Array<{
+		at: Date;
+		by: string;
+		action: 'generated' | 'edited' | 'sent' | 'failed';
+		note?: string;
+	}>;
+}
 
 

@@ -8,7 +8,10 @@ import {
 	updateDoc, 
 	query, 
 	where, 
-	getDocs 
+	getDocs,
+	limit,
+	orderBy,
+	runTransaction
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { getNextDocumentNumber } from '@/services/invoicingNumbering';
@@ -18,18 +21,22 @@ import {
 	DocumentType,
 	Invoice,
 	InvoiceState,
+	InvoicePayment,
 	LineItem,
 	Offer,
 	OfferState,
 	Order,
 	OrderState,
 	Payment,
+	PaymentMethod,
+	PaymentStatus,
 	TaxKey,
 	Totals,
 } from '@/types/invoicing';
+import { serverTimestamp } from 'firebase/firestore';
 
 const COLLECTIONS = {
-	clients: 'clients',
+	customers: 'customers', // Changed from 'clients' to use unified customers collection
 	offers: 'offers',
 	orders: 'orders',
 	invoices: 'invoices',
@@ -37,19 +44,72 @@ const COLLECTIONS = {
 	payments: 'payments',
 } as const;
 
+/**
+ * Recursively removes undefined values from an object to prevent Firestore errors.
+ * Firestore rejects writes with undefined values.
+ */
+function stripUndefined<T extends Record<string, any>>(obj: T): T {
+	const result: Record<string, any> = {};
+	for (const [key, value] of Object.entries(obj)) {
+		if (value === undefined) continue;
+		if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+			result[key] = stripUndefined(value);
+		} else if (Array.isArray(value)) {
+			result[key] = value.map(item => 
+				item !== null && typeof item === 'object' && !(item instanceof Date) 
+					? stripUndefined(item) 
+					: item
+			);
+		} else {
+			result[key] = value;
+		}
+	}
+	return result as T;
+}
+
 export class InvoicingService {
 	constructor(private concernID: string, private currentUserUid: string) {}
 
-	// -------------- Clients --------------
-	async createClient(client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+	// -------------- Customers (formerly Clients) --------------
+	async createCustomer(customerData: {
+		name: string;
+		company?: string;
+		email?: string;
+		phone?: string;
+		address?: string;
+		city?: string;
+		postalCode?: string;
+		contactPerson?: string;
+		notes?: string;
+		vatId?: string;
+		status?: string;
+	}): Promise<string> {
 		const now = new Date().toISOString();
-		const docRef = await addDoc(collection(db, COLLECTIONS.clients), {
-			...client,
+		const docRef = await addDoc(collection(db, COLLECTIONS.customers), {
+			...customerData,
 			concernID: this.concernID,
+			status: customerData.status || 'active',
 			createdAt: now,
 			updatedAt: now,
 		});
 		return docRef.id;
+	}
+
+	// Legacy alias for backward compatibility
+	async createClient(client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+		// Convert Client format to Customer format
+		return this.createCustomer({
+			name: client.name,
+			company: client.billingAddress?.company || client.name,
+			email: client.billingAddress?.email || '',
+			phone: client.billingAddress?.phone || '',
+			address: client.billingAddress?.street || '',
+			city: client.billingAddress?.city || '',
+			postalCode: client.billingAddress?.postalCode || '',
+			contactPerson: `${client.billingAddress?.firstName || ''} ${client.billingAddress?.lastName || ''}`.trim(),
+			vatId: client.vatId || '',
+			status: 'active',
+		});
 	}
 
 	// -------------- Offers --------------
@@ -91,34 +151,79 @@ export class InvoicingService {
 	}
 
 	// -------------- Orders --------------
+	/**
+	 * Convert an offer to an order.
+	 * 
+	 * This method:
+	 * 1. Validates the offer exists and has required data
+	 * 2. Strips undefined values to prevent Firestore errors
+	 * 3. Creates the order with relatedOfferId for duplicate prevention
+	 * 
+	 * @returns The new order ID
+	 * @throws Error if offer not found or missing required data
+	 */
 	async convertOfferToOrder(offerId: string): Promise<string> {
+		console.log('[convertOfferToOrder] Starting conversion for offerId:', offerId);
+		
 		const offerSnap = await getDoc(doc(db, COLLECTIONS.offers, offerId));
-		if (!offerSnap.exists()) throw new Error('Offer not found');
+		if (!offerSnap.exists()) {
+			console.error('[convertOfferToOrder] Offer not found:', offerId);
+			throw new Error('OFFER_NOT_FOUND');
+		}
+		
 		const offer = offerSnap.data() as Offer;
+		console.log('[convertOfferToOrder] Offer loaded:', {
+			offerId,
+			concernID: offer.concernID,
+			clientId: offer.clientId,
+			hasClientSnapshot: !!offer.clientSnapshot,
+			hasLineItems: !!offer.lineItems?.length,
+			state: offer.state,
+		});
+		
+		// Validate required fields
+		if (!offer.concernID) {
+			console.error('[convertOfferToOrder] Missing concernID in offer');
+			throw new Error('MISSING_CONCERN_ID');
+		}
+		if (!offer.clientId && !offer.clientSnapshot) {
+			console.error('[convertOfferToOrder] Missing client data in offer');
+			throw new Error('MISSING_CLIENT_DATA');
+		}
+		
 		const number = await getNextDocumentNumber('order');
 		const now = new Date().toISOString();
+		
+		// Build order data with safe defaults for optional fields
 		const order: Omit<Order, 'id'> = {
 			documentType: 'order',
 			number,
 			concernID: offer.concernID,
-			clientId: offer.clientId,
+			clientId: offer.clientId || '',
 			clientSnapshot: offer.clientSnapshot,
-			locale: offer.locale,
-			currency: offer.currency,
-			issueDate: offer.issueDate,
-			noteInternal: offer.noteInternal,
-			noteCustomer: offer.noteCustomer,
-			lineItems: offer.lineItems,
-			additionalDiscountAbs: offer.additionalDiscountAbs,
-			taxKeys: offer.taxKeys,
-			totals: offer.totals,
+			locale: offer.locale || 'de-DE',
+			currency: offer.currency || 'EUR',
+			issueDate: offer.issueDate || now.split('T')[0],
+			noteInternal: offer.noteInternal || '',
+			noteCustomer: offer.noteCustomer || '',
+			lineItems: offer.lineItems || [],
+			additionalDiscountAbs: offer.additionalDiscountAbs || 0,
+			taxKeys: offer.taxKeys || [{ key: '19%', rate: 19, label: '19% MwSt.' }],
+			totals: offer.totals || { netSubtotal: 0, taxBreakdown: [], grandTotalGross: 0 },
 			createdBy: this.currentUserUid,
 			createdAt: now,
 			updatedAt: now,
 			state: 'open',
 			relatedOfferId: offerId,
 		};
-		const ref = await addDoc(collection(db, COLLECTIONS.orders), order);
+		
+		// Strip any remaining undefined values recursively
+		const sanitizedOrder = stripUndefined(order);
+		
+		console.log('[convertOfferToOrder] Creating order with sanitized data');
+		const ref = await addDoc(collection(db, COLLECTIONS.orders), sanitizedOrder);
+		console.log('[convertOfferToOrder] Order created successfully:', ref.id);
+		
 		return ref.id;
 	}
 
@@ -140,38 +245,192 @@ export class InvoicingService {
   }
 
 	// -------------- Invoices --------------
-	async convertOrderToInvoice(orderId: string, dueDateISO?: string): Promise<string> {
-		const orderSnap = await getDoc(doc(db, COLLECTIONS.orders, orderId));
-		if (!orderSnap.exists()) throw new Error('Order not found');
-		const order = orderSnap.data() as Order;
+	/**
+	 * Convert an order to an invoice with GUARANTEED uniqueness via deterministic invoice ID.
+	 * 
+	 * Strategy: Use deterministic invoice doc ID = `inv_${orderId}` which guarantees
+	 * that only one invoice can ever exist per order (Firestore doc IDs are unique).
+	 * 
+	 * This method:
+	 * 1. Uses tx.get() on the deterministic invoice ref (fully transaction-consistent)
+	 * 2. Returns the existing invoice if found (prevents duplicates across tabs/users)
+	 * 3. Creates a new invoice with the deterministic ID only if none exists
+	 * 
+	 * Fallback: Also checks for legacy invoices created with random IDs before this change.
+	 * 
+	 * @returns { invoiceId: string, existed: boolean } - invoiceId and whether it already existed
+	 */
+	async convertOrderToInvoice(orderId: string, dueDateISO?: string): Promise<{ invoiceId: string; existed: boolean }> {
+		const orderRef = doc(db, COLLECTIONS.orders, orderId);
+		
+		// Deterministic invoice ID guarantees uniqueness
+		const deterministicInvoiceId = `inv_${orderId}`;
+		const invRef = doc(db, COLLECTIONS.invoices, deterministicInvoiceId);
+
+		// Pre-generate invoice number outside transaction (number generation may have its own transaction)
+		// This is acceptable as we only use it if we actually create the invoice
 		const number = await getNextDocumentNumber('invoice');
-		const now = new Date().toISOString();
-		const invoice: Omit<Invoice, 'id'> = {
-			documentType: 'invoice',
-			number,
-			concernID: order.concernID,
-			clientId: order.clientId,
-			clientSnapshot: order.clientSnapshot,
-			locale: order.locale,
-			currency: order.currency,
-			issueDate: order.issueDate,
-			dueDate: dueDateISO,
-			noteInternal: order.noteInternal,
-			noteCustomer: order.noteCustomer,
-			lineItems: order.lineItems,
-			additionalDiscountAbs: order.additionalDiscountAbs,
-			taxKeys: order.taxKeys,
-			totals: order.totals,
-			createdBy: this.currentUserUid,
-			createdAt: now,
-			updatedAt: now,
-			state: 'draft',
-			relatedOrderId: orderId,
-			paymentsTotal: 0,
-			openAmount: order.totals.grandTotalGross,
-		};
-		const ref = await addDoc(collection(db, COLLECTIONS.invoices), invoice);
-		return ref.id;
+
+		return await runTransaction(db, async (tx) => {
+			// 1) Check if invoice with deterministic ID already exists (fully transaction-consistent)
+			const invSnap = await tx.get(invRef);
+			if (invSnap.exists()) {
+				return { invoiceId: invRef.id, existed: true };
+			}
+
+			// 2) Fallback: Check for legacy invoices created before deterministic IDs
+			// This handles invoices created with random IDs in the old implementation
+			const legacyQ = query(
+				collection(db, COLLECTIONS.invoices),
+				where('concernID', '==', this.concernID),
+				where('relatedOrderId', '==', orderId),
+				limit(1)
+			);
+			const legacySnap = await getDocs(legacyQ);
+			if (!legacySnap.empty) {
+				return { invoiceId: legacySnap.docs[0].id, existed: true };
+			}
+
+			// 3) Load order inside transaction
+			const orderSnap = await tx.get(orderRef);
+			if (!orderSnap.exists()) throw new Error('ORDER_NOT_FOUND');
+			const order = orderSnap.data() as Order;
+
+			// 4) Build invoice data from order
+			const now = new Date().toISOString();
+			const issueDate = order.issueDate || now.slice(0, 10);
+			
+			// Calculate dueDate with fallback logic
+			let calculatedDueDate: string | undefined;
+			if (dueDateISO) {
+				calculatedDueDate = dueDateISO;
+			} else if (order.dueDate) {
+				calculatedDueDate = order.dueDate;
+			} else if ((order as any).paymentTermsDays != null) {
+				const days = Number((order as any).paymentTermsDays);
+				if (!isNaN(days) && days > 0) {
+					const d = new Date(issueDate);
+					d.setDate(d.getDate() + days);
+					calculatedDueDate = d.toISOString().slice(0, 10);
+				}
+			}
+			
+			const invoiceData: Record<string, any> = {
+				documentType: 'invoice',
+				number,
+				concernID: order.concernID,
+				clientId: order.clientId,
+				clientSnapshot: order.clientSnapshot,
+				locale: order.locale,
+				currency: order.currency,
+				issueDate,
+				noteInternal: order.noteInternal || '',
+				noteCustomer: order.noteCustomer || '',
+				lineItems: order.lineItems,
+				additionalDiscountAbs: order.additionalDiscountAbs || 0,
+				taxKeys: order.taxKeys,
+				totals: order.totals,
+				createdBy: this.currentUserUid,
+				createdAt: now,
+				updatedAt: now,
+				state: 'draft',
+				relatedOrderId: orderId, // Link to order for duplicate detection
+				relatedOrderNumber: order.number || '', // Human-readable order number for PDF display
+				paymentsTotal: 0,
+				openAmount: order.totals.grandTotalGross,
+			};
+			
+			// Only include dueDate if it has a value
+			if (calculatedDueDate) {
+				invoiceData.dueDate = calculatedDueDate;
+			}
+			
+			// Sanitize: remove any undefined values before writing to Firestore
+			const sanitizedInvoice = this.stripUndefined(invoiceData);
+			
+			// 5) Create new invoice doc with DETERMINISTIC ID (guarantees uniqueness)
+			tx.set(invRef, sanitizedInvoice);
+
+			return { invoiceId: invRef.id, existed: false };
+		});
+	}
+	
+	/**
+	 * Recursively removes undefined values from an object.
+	 * Firestore rejects documents with undefined field values.
+	 */
+	private stripUndefined<T extends Record<string, any>>(obj: T): T {
+		const result: Record<string, any> = {};
+		for (const [key, value] of Object.entries(obj)) {
+			if (value === undefined) continue;
+			if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+				result[key] = this.stripUndefined(value);
+			} else {
+				result[key] = value;
+			}
+		}
+		return result as T;
+	}
+
+	/**
+	 * Find an existing invoice for a given order ID.
+	 * Used to prevent duplicate invoices when clicking "Zu Rechnung".
+	 * 
+	 * Strategy:
+	 * 1. First try direct get with deterministic ID (inv_${orderId}) - O(1) lookup
+	 * 2. Fallback to query for legacy invoices created before deterministic IDs
+	 * 
+	 * @returns Invoice with id if found, null otherwise
+	 */
+	async findInvoiceByOrderId(orderId: string): Promise<(Invoice & { id: string }) | null> {
+		// 1) Try deterministic ID first (fast O(1) lookup)
+		const deterministicId = `inv_${orderId}`;
+		const deterministicRef = doc(db, COLLECTIONS.invoices, deterministicId);
+		const deterministicSnap = await getDoc(deterministicRef);
+		
+		if (deterministicSnap.exists()) {
+			const data = deterministicSnap.data() as Invoice;
+			// Verify concernID matches (security check)
+			if (data.concernID === this.concernID) {
+				return { id: deterministicSnap.id, ...data };
+			}
+		}
+		
+		// 2) Fallback: Query for legacy invoices created with random IDs
+		// Uses limit(1) for efficiency and orderBy(createdAt, desc) for deterministic results
+		const q = query(
+			collection(db, COLLECTIONS.invoices),
+			where('concernID', '==', this.concernID),
+			where('relatedOrderId', '==', orderId),
+			orderBy('createdAt', 'desc'),
+			limit(1)
+		);
+		const snap = await getDocs(q);
+		if (snap.empty) return null;
+		const d = snap.docs[0];
+		return { id: d.id, ...(d.data() as Invoice) };
+	}
+
+	/**
+	 * Find an existing order for a given offer ID.
+	 * Used to prevent duplicate orders when clicking "Zu Auftrag".
+	 * 
+	 * @returns Order with id if found, null otherwise
+	 */
+	async findOrderByOfferId(offerId: string): Promise<(Order & { id: string }) | null> {
+		// Note: We intentionally omit orderBy to avoid requiring a composite index.
+		// Since we expect at most one order per offer (relatedOfferId is unique per offer),
+		// the order doesn't matter. limit(1) ensures we get only one result.
+		const q = query(
+			collection(db, COLLECTIONS.orders),
+			where('concernID', '==', this.concernID),
+			where('relatedOfferId', '==', offerId),
+			limit(1)
+		);
+		const snap = await getDocs(q);
+		if (snap.empty) return null;
+		const d = snap.docs[0];
+		return { id: d.id, ...(d.data() as Order) };
 	}
 
 	async sendInvoice(id: string): Promise<void> {
@@ -287,6 +546,315 @@ export class InvoicingService {
 		};
 	}
 
+	// -------------- Invoice Payments --------------
+	
+	/**
+	 * Record a payment for an invoice (transaction-safe).
+	 * Updates invoice payment status and aggregate fields.
+	 * 
+	 * @param invoiceId - The invoice to record payment for
+	 * @param payment - Payment details (amount in EUR, method, date, etc.)
+	 * @param userName - Display name of the user recording the payment
+	 * @returns The created payment document ID
+	 */
+	async recordPayment(
+		invoiceId: string,
+		payment: {
+			amountEur: number; // Amount in EUR (will be converted to cents)
+			method: PaymentMethod;
+			paidAt: Date;
+			reference?: string;
+			note?: string;
+		},
+		userName: string
+	): Promise<string> {
+		const invoiceRef = doc(db, COLLECTIONS.invoices, invoiceId);
+		const paymentsCol = collection(invoiceRef, 'payments');
+		
+		// Convert EUR to cents (integer) to avoid float issues
+		const amountCents = Math.round(payment.amountEur * 100);
+		
+		if (amountCents <= 0) {
+			throw new Error('INVALID_AMOUNT');
+		}
+		
+		return await runTransaction(db, async (tx) => {
+			// 1) Read invoice
+			const invoiceSnap = await tx.get(invoiceRef);
+			if (!invoiceSnap.exists()) {
+				throw new Error('INVOICE_NOT_FOUND');
+			}
+			
+			const invoice = invoiceSnap.data() as Invoice;
+			
+			// Verify concernID matches
+			if (invoice.concernID !== this.concernID) {
+				throw new Error('CONCERN_MISMATCH');
+			}
+			
+			// 2) Calculate invoice total in cents
+			const invoiceTotalCents = Math.round((invoice.totals?.grandTotalGross || 0) * 100);
+			
+			// 3) Get current paid amount (default 0 for legacy invoices)
+			const currentPaidCents = invoice.paidAmountCents || 0;
+			const newPaidCents = currentPaidCents + amountCents;
+			
+			// 4) Calculate new open amount
+			const newOpenCents = Math.max(invoiceTotalCents - newPaidCents, 0);
+			
+			// 5) Determine payment status
+			let paymentStatus: PaymentStatus;
+			if (newPaidCents === 0) {
+				paymentStatus = 'open';
+			} else if (newPaidCents < invoiceTotalCents) {
+				paymentStatus = 'partial';
+			} else if (newPaidCents === invoiceTotalCents) {
+				paymentStatus = 'paid';
+			} else {
+				paymentStatus = 'overpaid';
+			}
+			
+			// 6) Create payment document
+			const paymentDoc: Omit<InvoicePayment, 'id'> = {
+				invoiceId,
+				concernID: this.concernID,
+				amountCents,
+				currency: 'EUR',
+				paidAt: Timestamp.fromDate(payment.paidAt),
+				method: payment.method,
+				recordedByUserId: this.currentUserUid,
+				recordedByUserName: userName,
+				createdAt: serverTimestamp(),
+			};
+			
+			// Only add optional fields if they have values
+			if (payment.reference?.trim()) {
+				(paymentDoc as any).reference = payment.reference.trim();
+			}
+			if (payment.note?.trim()) {
+				(paymentDoc as any).note = payment.note.trim();
+			}
+			
+			const paymentRef = doc(paymentsCol);
+			tx.set(paymentRef, stripUndefined(paymentDoc));
+			
+			// 7) Update invoice with new payment aggregates
+			const invoiceUpdate: Partial<Invoice> & { updatedAt: string } = {
+				paymentStatus,
+				paidAmountCents: newPaidCents,
+				openAmountCents: newOpenCents,
+				lastPaymentAt: Timestamp.fromDate(payment.paidAt),
+				updatedAt: new Date().toISOString(),
+				// Also update legacy fields for backward compatibility
+				paymentsTotal: newPaidCents / 100,
+				openAmount: newOpenCents / 100,
+			};
+			
+			// Set paidAt timestamp when fully paid
+			if (paymentStatus === 'paid' && !invoice.paidAt) {
+				invoiceUpdate.paidAt = Timestamp.fromDate(payment.paidAt);
+				// Also update state to 'paid'
+				invoiceUpdate.state = 'paid';
+			}
+			
+			tx.update(invoiceRef, stripUndefined(invoiceUpdate));
+			
+			return paymentRef.id;
+		});
+	}
+	
+	/**
+	 * Get all payments for an invoice, sorted by paidAt descending (newest first).
+	 */
+	async getPaymentsForInvoice(invoiceId: string): Promise<InvoicePayment[]> {
+		const invoiceRef = doc(db, COLLECTIONS.invoices, invoiceId);
+		const paymentsCol = collection(invoiceRef, 'payments');
+		
+		const q = query(paymentsCol, orderBy('paidAt', 'desc'));
+		const snap = await getDocs(q);
+		
+		return snap.docs.map(d => ({
+			id: d.id,
+			...(d.data() as Omit<InvoicePayment, 'id'>),
+		}));
+	}
+	
+	/**
+	 * Recalculate and update invoice payment status from all payments.
+	 * Useful for fixing inconsistent data or after payment deletion.
+	 */
+	async recalculatePaymentStatus(invoiceId: string): Promise<void> {
+		const invoiceRef = doc(db, COLLECTIONS.invoices, invoiceId);
+		const paymentsCol = collection(invoiceRef, 'payments');
+		
+		await runTransaction(db, async (tx) => {
+			const invoiceSnap = await tx.get(invoiceRef);
+			if (!invoiceSnap.exists()) {
+				throw new Error('INVOICE_NOT_FOUND');
+			}
+			
+			const invoice = invoiceSnap.data() as Invoice;
+			if (invoice.concernID !== this.concernID) {
+				throw new Error('CONCERN_MISMATCH');
+			}
+			
+			// Get all payments
+			const paymentsSnap = await getDocs(paymentsCol);
+			
+			let totalPaidCents = 0;
+			let lastPaymentAt: any = null;
+			
+			paymentsSnap.forEach(d => {
+				const p = d.data() as InvoicePayment;
+				totalPaidCents += p.amountCents || 0;
+				if (!lastPaymentAt || (p.paidAt && p.paidAt.toMillis() > lastPaymentAt.toMillis())) {
+					lastPaymentAt = p.paidAt;
+				}
+			});
+			
+			const invoiceTotalCents = Math.round((invoice.totals?.grandTotalGross || 0) * 100);
+			const openCents = Math.max(invoiceTotalCents - totalPaidCents, 0);
+			
+			let paymentStatus: PaymentStatus;
+			if (totalPaidCents === 0) {
+				paymentStatus = 'open';
+			} else if (totalPaidCents < invoiceTotalCents) {
+				paymentStatus = 'partial';
+			} else if (totalPaidCents === invoiceTotalCents) {
+				paymentStatus = 'paid';
+			} else {
+				paymentStatus = 'overpaid';
+			}
+			
+			const update: any = {
+				paymentStatus,
+				paidAmountCents: totalPaidCents,
+				openAmountCents: openCents,
+				paymentsTotal: totalPaidCents / 100,
+				openAmount: openCents / 100,
+				updatedAt: new Date().toISOString(),
+			};
+			
+			if (lastPaymentAt) {
+				update.lastPaymentAt = lastPaymentAt;
+			}
+			
+			if (paymentStatus === 'paid' && !invoice.paidAt && lastPaymentAt) {
+				update.paidAt = lastPaymentAt;
+				update.state = 'paid';
+			}
+			
+			tx.update(invoiceRef, update);
+		});
+	}
+
+	// -------------- PDF Helpers --------------
+	
+	/**
+	 * Resolve the order number for an invoice for PDF display.
+	 * 
+	 * For new invoices, `relatedOrderNumber` is already stored.
+	 * For legacy invoices, we fetch the order document to get the number.
+	 * 
+	 * This should be called before PDF generation to ensure the order number
+	 * is available (without showing Firestore IDs in the PDF).
+	 * 
+	 * @param invoice - The invoice to resolve order number for
+	 * @returns Invoice with resolved `relatedOrderNumber`, or undefined if none
+	 */
+	async resolveInvoiceOrderNumber(invoice: Invoice): Promise<Invoice> {
+		// If already has order number, return as-is
+		if (invoice.relatedOrderNumber) {
+			return invoice;
+		}
+		
+		// If no related order, nothing to resolve
+		if (!invoice.relatedOrderId) {
+			return invoice;
+		}
+		
+		// Fetch order to get the canonical order number
+		try {
+			const orderRef = doc(db, COLLECTIONS.orders, invoice.relatedOrderId);
+			const orderSnap = await getDoc(orderRef);
+			
+			if (orderSnap.exists()) {
+				const order = orderSnap.data() as Order;
+				
+				// Verify concernID matches for security
+				if (order.concernID === this.concernID) {
+					return {
+						...invoice,
+						relatedOrderNumber: order.number || '',
+					};
+				} else {
+					console.warn(`Order ${invoice.relatedOrderId} belongs to different concern`);
+				}
+			} else {
+				console.warn(`Order ${invoice.relatedOrderId} not found for invoice ${invoice.id}`);
+			}
+		} catch (error) {
+			console.error('Error resolving order number for invoice:', error);
+		}
+		
+		// Fallback: return invoice without order number (PDF will show "unbekannt")
+		return {
+			...invoice,
+			relatedOrderNumber: '', // Empty string signals "could not resolve"
+		};
+	}
+	
+	/**
+	 * Backfill relatedOrderNumber for invoices that don't have it.
+	 * This is a one-time migration helper for existing invoices.
+	 * 
+	 * @returns Number of invoices updated
+	 */
+	async backfillInvoiceOrderNumbers(): Promise<number> {
+		const q = query(
+			collection(db, COLLECTIONS.invoices),
+			where('concernID', '==', this.concernID)
+		);
+		const snap = await getDocs(q);
+		
+		let updated = 0;
+		const updates: Promise<void>[] = [];
+		
+		for (const invDoc of snap.docs) {
+			const inv = invDoc.data() as Invoice;
+			
+			// Skip if already has order number or no related order
+			if (inv.relatedOrderNumber || !inv.relatedOrderId) {
+				continue;
+			}
+			
+			// Fetch order
+			try {
+				const orderRef = doc(db, COLLECTIONS.orders, inv.relatedOrderId);
+				const orderSnap = await getDoc(orderRef);
+				
+				if (orderSnap.exists()) {
+					const order = orderSnap.data() as Order;
+					
+					if (order.concernID === this.concernID && order.number) {
+						updates.push(
+							updateDoc(doc(db, COLLECTIONS.invoices, invDoc.id), {
+								relatedOrderNumber: order.number,
+								updatedAt: new Date().toISOString(),
+							})
+						);
+						updated++;
+					}
+				}
+			} catch (error) {
+				console.error(`Error backfilling order number for invoice ${invDoc.id}:`, error);
+			}
+		}
+		
+		await Promise.all(updates);
+		return updated;
+	}
+	
 	// -------------- DATEV Export (basic Buchungsstapel) --------------
 	async exportInvoicesToDATEVCSV(invoiceIds: string[], options?: DatevExportOptions): Promise<string> {
 		// Vereinfachter Buchungsstapel-Export (an Ihr SKR/Mapping anpassbar)

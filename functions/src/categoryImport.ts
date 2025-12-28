@@ -8,10 +8,12 @@ import * as functions from 'firebase-functions';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as ExcelJS from 'exceljs';
 import * as Papa from 'papaparse';
-import pdf from 'pdf-parse';
+// @ts-ignore - pdf-parse doesn't have type definitions
+const pdf = require('pdf-parse');
 import { z } from 'zod';
 import { getStorage } from 'firebase-admin/storage';
 import { Timestamp } from 'firebase-admin/firestore';
+import { analyzeType2Structure, Type2AnalysisResult } from './categoryImport/type2Analyzer';
 
 // Initialize Firebase Admin Storage
 const storage = getStorage();
@@ -29,7 +31,7 @@ const AICategory2PayloadSchema = z.object({
       key: z.string().min(1),
       label: z.string().min(1),
       order: z.number().optional(),
-      attributes: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+      attributes: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
     })
   ).min(1),
   warnings: z.array(z.string()).optional(),
@@ -294,6 +296,7 @@ function validatePayload(payload: AICategory2Payload): { valid: boolean; errors:
 
 /**
  * aiCategory2Import - Analyzes uploaded file and returns preview
+ * PRIORITY: Deterministic analysis first, AI only as last resort
  */
 export const aiCategory2Import = functions.https.onCall(async (data, context) => {
   // Auth check
@@ -328,9 +331,70 @@ export const aiCategory2Import = functions.https.onCall(async (data, context) =>
 
     const buffer = await file.download();
     const fileBuffer = Buffer.concat(buffer);
-
-    // Detect and parse file
     const fileName = filePath.split('/').pop() || '';
+
+    // ============================================
+    // STEP 1: TRY DETERMINISTIC TYPE-2 ANALYSIS
+    // ============================================
+    console.log('[aiCategory2Import] Attempting deterministic Type-2 analysis...');
+    const type2Analysis = await analyzeType2Structure(fileName, fileBuffer);
+
+    if (type2Analysis.isValid) {
+      // SUCCESS: Valid Type-2 structure detected
+      console.log('[aiCategory2Import] Type-2 structure detected, proceeding WITHOUT AI');
+      
+      const payload = convertType2ToPayload(type2Analysis, fileName);
+      const jobId = admin.firestore().collection('imports').doc().id;
+      
+      const stats = {
+        familiesCount: 1,
+        optionsCount: type2Analysis.rows.length,
+        warningsCount: type2Analysis.autoCorrections.length,
+      };
+
+      // Store job in Firestore (remove undefined values)
+      const expiresAt = Timestamp.fromDate(new Date(Date.now() + JOB_EXPIRY_HOURS * 60 * 60 * 1000));
+      await admin.firestore().collection('imports').doc(jobId).set(removeUndefined({
+        jobId,
+        preview: payload,
+        stats,
+        sourceFile: filePath,
+        ownerId: userId,
+        projectId: projectId || null,
+        createdAt: Timestamp.now(),
+        expiresAt,
+        analysisMethod: 'deterministic',
+        messageKey: type2Analysis.messageKey,
+        autoCorrections: type2Analysis.autoCorrections,
+      }));
+
+      return {
+        jobId,
+        preview: payload,
+        stats,
+        analysisMethod: 'deterministic',
+        messageKey: type2Analysis.messageKey,
+        autoCorrections: type2Analysis.autoCorrections,
+      };
+    }
+
+    // ============================================
+    // STEP 2: CHECK IF AI ESCALATION IS NEEDED
+    // ============================================
+    if (!type2Analysis.shouldEscalateToAI) {
+      // Structure is invalid and cannot be fixed
+      console.log('[aiCategory2Import] Invalid structure, not suitable for AI escalation');
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        `Die Datei entspricht nicht dem erwarteten Typ-2-Format (3 Spalten: Artikel / Bezeichnung / Menge).\n\n${type2Analysis.issues.join('\n')}`
+      );
+    }
+
+    // ============================================
+    // STEP 3: ESCALATE TO AI (LAST RESORT)
+    // ============================================
+    console.log('[aiCategory2Import] Escalating to AI analysis...');
+    
     const fileType = detectFileType(fileName, fileBuffer);
     const content = await parseFileContent(fileName, fileBuffer, fileType);
 
@@ -354,9 +418,9 @@ export const aiCategory2Import = functions.https.onCall(async (data, context) =>
       warningsCount: payload.warnings?.length || 0,
     };
 
-    // Store job in Firestore
+    // Store job in Firestore (remove undefined values)
     const expiresAt = Timestamp.fromDate(new Date(Date.now() + JOB_EXPIRY_HOURS * 60 * 60 * 1000));
-    await admin.firestore().collection('imports').doc(jobId).set({
+    await admin.firestore().collection('imports').doc(jobId).set(removeUndefined({
       jobId,
       preview: payload,
       stats,
@@ -365,12 +429,16 @@ export const aiCategory2Import = functions.https.onCall(async (data, context) =>
       projectId: projectId || null,
       createdAt: Timestamp.now(),
       expiresAt,
-    });
+      analysisMethod: 'ai',
+      messageKey: 'ESCALATE_AI',
+    }));
 
     return {
       jobId,
       preview: payload,
       stats,
+      analysisMethod: 'ai',
+      messageKey: 'ESCALATE_AI',
     };
   } catch (error: any) {
     console.error('AI Import error:', error);
@@ -382,6 +450,73 @@ export const aiCategory2Import = functions.https.onCall(async (data, context) =>
 });
 
 /**
+ * Remove undefined values from an object recursively
+ * Firestore doesn't accept undefined values
+ */
+function removeUndefined<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => removeUndefined(item)) as any;
+  }
+  
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = removeUndefined(value);
+      }
+    }
+    return cleaned;
+  }
+  
+  return obj;
+}
+
+/**
+ * Convert Type-2 analysis result to AICategory2Payload format
+ */
+function convertType2ToPayload(analysis: Type2AnalysisResult, fileName: string): AICategory2Payload {
+  const categoryTitle = fileName.replace(/\.[^/.]+$/, ''); // Remove extension
+  
+  const options = analysis.rows.map((row, index) => ({
+    familyID: categoryTitle,
+    key: `item-${index + 1}`,
+    label: row.name,
+    order: index + 1,
+    attributes: {
+      article: row.article,
+      quantity: row.quantity,
+      rawQuantity: row.rawQuantity,
+    },
+  }));
+
+  const warnings: string[] = [];
+  if (analysis.autoCorrections.length > 0) {
+    warnings.push('Automatische Korrekturen wurden durchgeführt:');
+    warnings.push(...analysis.autoCorrections);
+  }
+
+  const payload: AICategory2Payload = {
+    category: {
+      title: categoryTitle,
+      slug: categoryTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      notes: `Importiert aus ${fileName} (Deterministische Analyse)`,
+    },
+    options,
+  };
+
+  // Only add warnings if there are any (avoid undefined in Firestore)
+  if (warnings.length > 0) {
+    payload.warnings = warnings;
+  }
+
+  return payload;
+}
+
+/**
  * aiCategory2Commit - Commits the analyzed preview to Firestore
  */
 export const aiCategory2Commit = functions.https.onCall(async (data, context) => {
@@ -390,7 +525,7 @@ export const aiCategory2Commit = functions.https.onCall(async (data, context) =>
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
   }
 
-  const { jobId, applyMode, concernID, categoryName } = data;
+  const { jobId, applyMode, concernID, categoryName, projectNumber } = data;
 
   if (!jobId || !applyMode || !categoryName) {
     throw new functions.https.HttpsError('invalid-argument', 'jobId, applyMode, and categoryName are required');
@@ -417,7 +552,11 @@ export const aiCategory2Commit = functions.https.onCall(async (data, context) =>
 
     // Check expiry
     const now = Timestamp.now();
-    if (jobData.expiresAt.toMillis() < now.toMillis()) {
+    const expiresAt = jobData.expiresAt instanceof Timestamp 
+      ? jobData.expiresAt 
+      : Timestamp.fromDate(new Date(jobData.expiresAt._seconds * 1000));
+    
+    if (expiresAt.toMillis() < now.toMillis()) {
       throw new functions.https.HttpsError('deadline-exceeded', 'Import job has expired');
     }
 
@@ -462,6 +601,7 @@ export const aiCategory2Commit = functions.https.onCall(async (data, context) =>
       concernId,
       familyId,
       familyName: categoryName,
+      projectNumber: projectNumber || 'FFFFF', // Store projectNumber or 'FFFFF' if not project-specific
       level0,
       level1,
       level2,

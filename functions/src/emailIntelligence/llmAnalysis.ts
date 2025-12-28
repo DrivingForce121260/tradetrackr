@@ -28,17 +28,17 @@ export async function runLLMAnalysis(
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 500,
+        maxOutputTokens: 2048,
       },
     });
 
     // Build prompt
     const prompt = buildAnalysisPrompt(subject, bodyText, attachments);
     
-    functions.logger.info(`📤 Sending request to Gemini API (model: gemini-2.0-flash-exp)`);
+    functions.logger.info(`📤 Sending request to Gemini API (model: gemini-2.5-flash)`);
 
     // Call Gemini API
     const result = await model.generateContent(prompt);

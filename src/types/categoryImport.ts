@@ -47,6 +47,9 @@ export interface ImportAnalysisResponse {
     optionsCount: number;
     warningsCount: number;
   };
+  analysisMethod?: 'deterministic' | 'ai';
+  messageKey?: 'VALID' | 'AUTO_CORRECTED' | 'INVALID' | 'ESCALATE_AI';
+  autoCorrections?: string[];
 }
 
 export interface CommitRequest {

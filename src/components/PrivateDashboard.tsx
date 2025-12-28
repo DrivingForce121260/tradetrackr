@@ -23,7 +23,8 @@ import {
   Clock,
   Activity,
   Zap,
-  Mail
+  Mail,
+  Truck
 } from 'lucide-react';
 
 const PrivateDashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenMessaging }) => {
@@ -247,7 +248,7 @@ const PrivateDashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenMessagin
     },
     {
       id: 'documents',
-      title: 'Dokumentenverwaltung',
+      title: 'Dokumente',
       description: hasPermission('create_document') ? 'Dokumente hochladen und verwalten' : hasPermission('view_document') ? 'Dokumente einsehen (READ-ONLY)' : 'Kein Zugriff',
       icon: Archive,
       color: 'bg-amber-500',
@@ -282,6 +283,26 @@ const PrivateDashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenMessagin
       icon: FileText,
       color: 'bg-red-500',
       hoverColor: 'hover:bg-red-600',
+      visible: true,
+      quickAction: null
+    },
+    {
+      id: 'procurement',
+      title: 'Beschaffung',
+      description: 'Anfragen, Bestellungen, Lieferscheine und Eingangsrechnungen verwalten',
+      icon: Truck,
+      color: 'bg-orange-500',
+      hoverColor: 'hover:bg-orange-600',
+      visible: true,
+      quickAction: null
+    },
+    {
+      id: 'suppliers',
+      title: 'Lieferanten',
+      description: 'Lieferanten verwalten und Kontakte pflegen',
+      icon: Truck,
+      color: 'bg-amber-600',
+      hoverColor: 'hover:bg-amber-700',
       visible: true,
       quickAction: null
     },
@@ -365,37 +386,61 @@ const PrivateDashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenMessagin
       visible: hasPermission('admin'), // Nur für Administratoren
       quickAction: null
     },
+    {
+      id: 'vacations',
+      title: 'Urlaubskalender',
+      description: 'Urlaub planen und Abwesenheiten verwalten',
+      icon: Calendar,
+      color: 'bg-green-600',
+      hoverColor: 'hover:bg-green-700',
+      visible: true,
+      quickAction: null
+    },
+    {
+      id: 'templates',
+      title: 'Vorlagen',
+      description: 'Dokument- und E-Mail-Vorlagen verwalten',
+      icon: FileText,
+      color: 'bg-violet-500',
+      hoverColor: 'hover:bg-violet-600',
+      visible: hasPermission('admin') || hasPermission('office'),
+      quickAction: null
+    },
 
   ].filter(func => func.visible);
+
+  // Helper: Sort items alphabetically by German title (case-insensitive)
+  const sortAlphabetically = (items: typeof mainFunctions) => 
+    [...items].sort((a, b) => a.title.localeCompare(b.title, 'de', { sensitivity: 'base' }));
 
   // Group functions into categories, keep consistency across roles by hiding empty groups
   const categorized: Array<{ title: string; items: typeof mainFunctions }> = [
     {
-      title: 'Operation',
-      items: mainFunctions.filter(f => ['tasks', 'scheduling', 'personnel', 'time-ops-live'].includes(f.id))
+      title: 'Operations',
+      items: sortAlphabetically(mainFunctions.filter(f => ['tasks', 'scheduling', 'personnel', 'time-ops-live', 'vacations'].includes(f.id)))
     },
     {
       title: 'Projekte',
-      items: mainFunctions.filter(f => ['projects', 'project-info', 'documents'].includes(f.id))
+      items: sortAlphabetically(mainFunctions.filter(f => ['projects', 'project-info', 'documents', 'reports'].includes(f.id)))
     },
     {
-      title: 'Vertrieb & CRM',
-      items: mainFunctions.filter(f => ['crm', 'invoicing', 'reports', 'smart-inbox'].includes(f.id))
+      title: 'CRM & Vertrieb',
+      items: sortAlphabetically(mainFunctions.filter(f => ['crm', 'invoicing', 'smart-inbox', 'customers'].includes(f.id)))
     },
     {
       title: 'Ressourcen',
-      items: mainFunctions.filter(f => ['materials', 'categories', 'customers'].includes(f.id))
+      items: sortAlphabetically(mainFunctions.filter(f => ['materials', 'categories', 'procurement', 'suppliers'].includes(f.id)))
     },
     {
       title: 'Administration',
-      items: mainFunctions.filter(f => ['users', 'automation', 'settings', 'system-logs', 'concern-management', 'time-admin'].includes(f.id))
+      items: sortAlphabetically(mainFunctions.filter(f => ['users', 'automation', 'settings', 'system-logs', 'concern-management', 'time-admin', 'templates'].includes(f.id)))
     }
   ].filter(group => group.items.length > 0);
 
   // Optional reduction: for field/foreman roles, show fewer categories by collapsing Administration heavy items
   const isLightweightRole = ['field', 'foreman'].includes((user as any)?.role);
   const displayGroups = isLightweightRole
-    ? categorized.filter(g => ['Operation', 'Projekte', 'Vertrieb & CRM'].includes(g.title))
+    ? categorized.filter(g => ['Operations', 'Projekte', 'CRM & Vertrieb'].includes(g.title))
     : categorized;
 
   return (
