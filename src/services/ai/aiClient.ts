@@ -9,7 +9,12 @@
  * - Direct imports of provider SDKs (openai, @google/generative-ai) are forbidden.
  * - In IONOS_ONLY mode, only IONOS gateway is allowed.
  * 
+ * Phase 2: Gateway Integration
+ * - If AI_GATEWAY_URL is set, calls are routed to the AI Gateway.
+ * - If SOVEREIGNTY_MODE=IONOS_ONLY, AI_GATEWAY_URL is REQUIRED.
+ * 
  * @see /docs/sovereignty/definition.md
+ * @see /docs/sovereignty/phase-2-ai-gateway.md
  */
 
 import { getProviderPolicy } from '../../config/providerPolicy';
@@ -27,6 +32,37 @@ import type {
 } from './types';
 
 // ============================================================================
+// Environment Configuration
+// ============================================================================
+
+/**
+ * Get AI Gateway configuration from environment.
+ */
+function getGatewayConfig(): { url: string | null; token: string | null } {
+  // Browser environment
+  if (typeof window !== 'undefined') {
+    return {
+      url: (import.meta as any).env?.VITE_AI_GATEWAY_URL || null,
+      token: (import.meta as any).env?.VITE_AI_GATEWAY_TOKEN || null,
+    };
+  }
+  
+  // Node environment
+  return {
+    url: process.env.AI_GATEWAY_URL || null,
+    token: process.env.AI_GATEWAY_TOKEN || null,
+  };
+}
+
+/**
+ * Check if gateway is configured.
+ */
+function isGatewayConfigured(): boolean {
+  const { url, token } = getGatewayConfig();
+  return !!(url && token);
+}
+
+// ============================================================================
 // Error Messages (German)
 // ============================================================================
 
@@ -34,6 +70,9 @@ const ERROR_MESSAGES = {
   SOVEREIGNTY_BLOCKED: 'Souveränitätsmodus aktiv: KI-Anbieter nicht erlaubt.',
   NOT_CONFIGURED: 'KI-Client nicht konfiguriert. Bitte API-Schlüssel prüfen.',
   GATEWAY_NOT_READY: 'IONOS KI-Gateway noch nicht implementiert. Wird in Phase 2 aktiviert.',
+  GATEWAY_NOT_CONFIGURED: 'Souveränitätsmodus aktiv: AI-Gateway ist nicht konfiguriert.',
+  GATEWAY_AUTH_FAILED: 'AI-Gateway Authentifizierung fehlgeschlagen.',
+  GATEWAY_ERROR: 'AI-Gateway Fehler. Bitte später erneut versuchen.',
   REQUEST_FAILED: 'KI-Anfrage fehlgeschlagen. Bitte später erneut versuchen.',
 } as const;
 
@@ -55,12 +94,18 @@ const ERROR_MESSAGES = {
  */
 export function createAIClient(config?: Partial<AIClientConfig>): AIClient {
   const policy = getProviderPolicy();
+  const gatewayConfigured = isGatewayConfigured();
   
   // Determine provider
   let provider: AIProvider = config?.provider || 'GEMINI';
   
-  // In IONOS_ONLY mode, force IONOS provider
+  // In IONOS_ONLY mode, force IONOS provider and require gateway
   if (policy.sovereigntyMode === 'IONOS_ONLY') {
+    // Gateway MUST be configured in IONOS_ONLY mode
+    if (!gatewayConfigured) {
+      throw new Error(ERROR_MESSAGES.GATEWAY_NOT_CONFIGURED);
+    }
+    
     if (provider !== 'IONOS') {
       safeInfo('AI client: Switching to IONOS provider due to sovereignty mode', {
         requestedProvider: provider,
@@ -70,12 +115,15 @@ export function createAIClient(config?: Partial<AIClientConfig>): AIClient {
     provider = 'IONOS';
   }
   
-  // Check if provider is allowed
-  if (!policy.allowedAIProviders.includes(provider)) {
+  // If gateway is configured, use it regardless of provider setting
+  const useGateway = gatewayConfigured;
+  
+  // Check if provider is allowed (skip if using gateway)
+  if (!useGateway && !policy.allowedAIProviders.includes(provider)) {
     throw new Error(ERROR_MESSAGES.SOVEREIGNTY_BLOCKED);
   }
   
-  return new AIClientImpl(provider, config);
+  return new AIClientImpl(provider, config, useGateway);
 }
 
 /**
@@ -84,10 +132,12 @@ export function createAIClient(config?: Partial<AIClientConfig>): AIClient {
 class AIClientImpl implements AIClient {
   readonly provider: AIProvider;
   private readonly config?: Partial<AIClientConfig>;
+  private readonly useGateway: boolean;
   
-  constructor(provider: AIProvider, config?: Partial<AIClientConfig>) {
+  constructor(provider: AIProvider, config?: Partial<AIClientConfig>, useGateway: boolean = false) {
     this.provider = provider;
     this.config = config;
+    this.useGateway = useGateway;
   }
   
   /**
@@ -224,17 +274,21 @@ class AIClientImpl implements AIClient {
    * Route summarizeEmail to the appropriate provider.
    */
   private async routeSummarizeEmail(input: SummarizeEmailInput): Promise<SummarizeEmailOutput> {
+    // If gateway is configured, use it
+    if (this.useGateway) {
+      return this.callGateway('/ai/summarizeEmail', input);
+    }
+    
     switch (this.provider) {
       case 'IONOS':
-        // Phase 2: Implement IONOS gateway call
-        throw new Error(ERROR_MESSAGES.GATEWAY_NOT_READY);
+        // Phase 2: Requires gateway
+        throw new Error(ERROR_MESSAGES.GATEWAY_NOT_CONFIGURED);
         
       case 'GEMINI':
       case 'OPENAI':
       case 'ANTHROPIC':
         // NOTE: Direct provider calls should go through backend Cloud Functions,
         // not from frontend. This is a placeholder for the routing logic.
-        // The actual implementation calls the backend endpoint.
         return this.callBackendAI('summarizeEmail', input);
         
       default:
@@ -246,9 +300,14 @@ class AIClientImpl implements AIClient {
    * Route draftReply to the appropriate provider.
    */
   private async routeDraftReply(input: DraftReplyInput): Promise<DraftReplyOutput> {
+    // If gateway is configured, use it
+    if (this.useGateway) {
+      return this.callGateway('/ai/draftReply', input);
+    }
+    
     switch (this.provider) {
       case 'IONOS':
-        throw new Error(ERROR_MESSAGES.GATEWAY_NOT_READY);
+        throw new Error(ERROR_MESSAGES.GATEWAY_NOT_CONFIGURED);
         
       case 'GEMINI':
       case 'OPENAI':
@@ -264,9 +323,14 @@ class AIClientImpl implements AIClient {
    * Route classifyDocument to the appropriate provider.
    */
   private async routeClassifyDocument(input: ClassifyDocumentInput): Promise<ClassifyDocumentOutput> {
+    // If gateway is configured, use it
+    if (this.useGateway) {
+      return this.callGateway('/ai/classifyDocument', input);
+    }
+    
     switch (this.provider) {
       case 'IONOS':
-        throw new Error(ERROR_MESSAGES.GATEWAY_NOT_READY);
+        throw new Error(ERROR_MESSAGES.GATEWAY_NOT_CONFIGURED);
         
       case 'GEMINI':
       case 'OPENAI':
@@ -279,7 +343,62 @@ class AIClientImpl implements AIClient {
   }
   
   /**
-   * Call backend AI endpoint.
+   * Call AI Gateway endpoint.
+   * 
+   * @param endpoint - Gateway endpoint path (e.g., /ai/summarizeEmail)
+   * @param input - Request payload
+   * @returns Response from gateway
+   */
+  private async callGateway<T>(endpoint: string, input: any): Promise<T> {
+    const { url, token } = getGatewayConfig();
+    
+    if (!url || !token) {
+      throw new Error(ERROR_MESSAGES.GATEWAY_NOT_CONFIGURED);
+    }
+    
+    safeInfo('AI client: Calling gateway', { 
+      endpoint, 
+      provider: this.provider,
+      gatewayUrl: url.replace(/\/\/.*@/, '//***@'), // Hide credentials if in URL
+    });
+    
+    try {
+      const response = await fetch(`${url}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(input),
+      });
+      
+      if (response.status === 401) {
+        throw new Error(ERROR_MESSAGES.GATEWAY_AUTH_FAILED);
+      }
+      
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        const errorMessage = (errorBody as any).error || ERROR_MESSAGES.GATEWAY_ERROR;
+        throw new Error(errorMessage);
+      }
+      
+      const data = await response.json();
+      return data as T;
+      
+    } catch (error: any) {
+      // Re-throw our own errors
+      if (error.message.includes('Gateway') || error.message.includes('Souveränität')) {
+        throw error;
+      }
+      
+      // Network or other errors
+      safeError('AI client: Gateway call failed', error, { endpoint });
+      throw new Error(ERROR_MESSAGES.GATEWAY_ERROR);
+    }
+  }
+  
+  /**
+   * Call backend AI endpoint (fallback when gateway not configured).
    * 
    * In the current architecture, AI operations are performed by Cloud Functions.
    * This method provides a unified interface for frontend code.

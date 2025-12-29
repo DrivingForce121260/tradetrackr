@@ -87,6 +87,7 @@ const DIRECT_AI_IMPORTS = [
   { pattern: '@google/generative-ai', provider: 'Gemini' },
   { pattern: 'openai', provider: 'OpenAI' },
   { pattern: 'anthropic', provider: 'Anthropic' },
+  { pattern: 'openai.inference.de-txl.ionos.com', provider: 'IONOS (hardcoded)' },
   { pattern: '@anthropic-ai/sdk', provider: 'Anthropic' },
   { pattern: '@azure/openai', provider: 'Azure OpenAI' },
 ];
