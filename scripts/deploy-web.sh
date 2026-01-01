@@ -8,7 +8,6 @@
 #   ./scripts/deploy-web.sh --dry-run # preview only (no activation)
 #
 set -euo pipefail
-IFS=$'\n\t'
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Error handling: print failing command and line number
@@ -22,22 +21,11 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || { SCRIPT_DIR="$(cd "$(
 cd "$REPO_ROOT"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Preflight: verify SSH connectivity
-# ─────────────────────────────────────────────────────────────────────────────
-echo "🔗 Checking SSH connectivity..."
-if ! ssh -o BatchMode=yes -o ConnectTimeout=5 myvps@85.214.6.74 "echo ok" >/dev/null 2>&1; then
-  echo "❌ SSH connectivity check failed. Ensure key-based auth is configured."
-  exit 1
-fi
-echo "✅ SSH connectivity OK"
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 PROD_HOST="myvps@85.214.6.74"
 STAGING_DIR="/home/myvps/dist_new/"
 ACTIVATE_SCRIPT="/usr/local/bin/tradetrackr-activate-web.sh"
-SSH_OPTS="-o BatchMode=yes -o StrictHostKeyChecking=accept-new"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Parse arguments
@@ -47,6 +35,16 @@ if [[ "${1:-}" == "--dry-run" ]]; then
   DRY_RUN=true
   echo "🔍 DRY-RUN mode: no changes will be made on prod"
 fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preflight: verify SSH connectivity
+# ─────────────────────────────────────────────────────────────────────────────
+echo "🔗 Checking SSH connectivity..."
+if ! ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "${PROD_HOST}" "echo ok" >/dev/null 2>&1; then
+  echo "❌ SSH connectivity check failed. Ensure key-based auth is configured."
+  exit 1
+fi
+echo "✅ SSH connectivity OK"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 1: Build
@@ -72,9 +70,9 @@ echo "✅ Build complete (commit: ${COMMIT})"
 # ─────────────────────────────────────────────────────────────────────────────
 echo "📤 Uploading to staging (${PROD_HOST}:${STAGING_DIR})..."
 if [[ "$DRY_RUN" == true ]]; then
-  rsync -az --delete --dry-run -e "ssh ${SSH_OPTS}" ./dist/ "${PROD_HOST}:${STAGING_DIR}"
+  rsync -az --delete --dry-run -e "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new" ./dist/ "${PROD_HOST}:${STAGING_DIR}"
 else
-  rsync -az --delete -e "ssh ${SSH_OPTS}" ./dist/ "${PROD_HOST}:${STAGING_DIR}"
+  rsync -az --delete -e "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new" ./dist/ "${PROD_HOST}:${STAGING_DIR}"
 fi
 echo "✅ Upload complete"
 
@@ -88,7 +86,7 @@ if [[ "$DRY_RUN" == true ]]; then
 fi
 
 echo "🚀 Activating on production..."
-ssh ${SSH_OPTS} "${PROD_HOST}" "sudo -n ${ACTIVATE_SCRIPT}"
+ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "${PROD_HOST}" "sudo -n ${ACTIVATE_SCRIPT}"
 echo "✅ Deployment complete"
 
 # ─────────────────────────────────────────────────────────────────────────────
