@@ -78,8 +78,6 @@ const EmailAccountManager: React.FC = () => {
         // Validate required fields
         if (!data.provider || (!data.email && !data.emailAddress)) {
           // Skip invalid accounts silently - no PII logged
-            hasEmail: !!(data.email || data.emailAddress),
-          });
           continue;
         }
         
