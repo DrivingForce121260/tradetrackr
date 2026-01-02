@@ -671,13 +671,21 @@ export const userService = {
     return users.length > 0 ? users[0] : null;
   },
 
-  // Neue Funktionen für Verifizierungscodes
+  /**
+   * Complete user registration with verification code.
+   * 
+   * Phase 03 Sovereignty Migration: This now prepares the Firestore user record
+   * for Keycloak authentication. The actual user creation happens in Keycloak.
+   * 
+   * @deprecated Use Keycloak user import script instead. This method now only
+   * prepares the Firestore record for Keycloak linking.
+   */
   async createWithVerificationCode(
     userData: Omit<User, 'uid'>, 
     verificationCode: string
   ): Promise<string> {
     try {
-      // Finde den Benutzer mit diesem Verifizierungscode in der users Collection
+      // Find the user with this verification code
       const existingUser = await this.findUserByVerificationCode(verificationCode);
       
       if (!existingUser) {
@@ -691,144 +699,28 @@ export const userService = {
         email: existingUser.email 
       });
       
-      // WICHTIG: Überprüfe, ob bereits ein Firebase Auth Account mit dieser E-Mail existiert
-      // Verwende eine bessere Methode als Dummy-Passwort-Anmeldung
-      try {
-        const { getAuth, fetchSignInMethodsForEmail } = await import('firebase/auth');
-        const { auth } = await import('@/config/firebase');
-        
-        console.log('🔍 Überprüfe, ob Firebase Auth Account bereits existiert...');
-        
-        // Überprüfe, ob bereits Anmeldemethoden für diese E-Mail existieren
-        const signInMethods = await fetchSignInMethodsForEmail(auth, existingUser.email);
-        
-        if (signInMethods.length > 0) {
-          // Benutzer existiert bereits in Firebase Auth
-          console.log('⚠️ Benutzer existiert bereits in Firebase Auth mit Methoden:', signInMethods);
-          
-          // Versuche, den Benutzer zu finden, indem wir uns mit dem neuen Passwort anmelden
-          try {
-            const password = (userData as any).password;
-            if (!password) {
-              throw new Error('Passwort ist erforderlich');
-            }
-            
-            console.log('🔐 Versuche Anmeldung mit neuem Passwort...');
-            const { signInWithEmailAndPassword } = await import('firebase/auth');
-            const userCredential = await signInWithEmailAndPassword(auth, existingUser.email, password);
-            
-            console.log('✅ Anmeldung mit neuem Passwort erfolgreich');
-            
-            // Aktualisiere den bestehenden Firestore-Benutzer
-            await this.update(existingUser.uid!, {
-              verificationCode: null,
-              verificationCodeDate: null,
-              verificationCodeSent: false,
-              // Aktualisiere auch andere Felder, falls sie sich geändert haben
-              vorname: userData.vorname || existingUser.vorname,
-              nachname: userData.nachname || existingUser.nachname,
-              tel: userData.tel || existingUser.tel,
-              role: userData.role || existingUser.role,
-              rechte: userData.rechte || existingUser.rechte
-            });
-            
-            console.log('✅ Firestore-Benutzer aktualisiert');
-            return userCredential.user.uid;
-            
-          } catch (signInError: any) {
-            console.log('🔍 Anmeldung mit neuem Passwort fehlgeschlagen:', signInError.code, signInError.message);
-            
-            if (signInError.code === 'auth/wrong-password') {
-              throw new Error('Ein Benutzer mit dieser E-Mail existiert bereits, aber das Passwort ist falsch. Bitte verwenden Sie das ursprüngliche Passwort oder setzen Sie es zurück.');
-            } else if (signInError.code === 'auth/user-disabled') {
-              throw new Error('Dieser Benutzer-Account wurde deaktiviert. Bitte kontaktieren Sie den Administrator.');
-            } else if (signInError.code === 'auth/too-many-requests') {
-              throw new Error('Zu viele fehlgeschlagene Anmeldeversuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.');
-            } else {
-              throw new Error(`Anmeldung fehlgeschlagen: ${signInError.message} (Code: ${signInError.code})`);
-            }
-          }
-          
-        } else {
-          // Benutzer existiert NICHT in Firebase Auth - erstelle neuen Account
-          console.log('ℹ️ Benutzer existiert nicht in Firebase Auth - erstelle neuen Account');
-          
-          const password = (userData as any).password;
-          if (!password) {
-            throw new Error('Passwort ist erforderlich');
-          }
-          
-          console.log('🔐 Erstelle Firebase Auth Benutzer für E-Mail:', existingUser.email);
-          
-          const { createUserWithEmailAndPassword } = await import('firebase/auth');
-          const firebaseUserCredential = await createUserWithEmailAndPassword(
-            auth,
-            existingUser.email,
-            password
-          );
-          
-          console.log('✅ Neuer Firebase Auth Benutzer erstellt:', firebaseUserCredential.user.uid);
-          
-          // Aktualisiere den bestehenden Firestore-Benutzer mit der neuen Firebase UID
-          await this.update(existingUser.uid!, {
-            uid: firebaseUserCredential.user.uid,
-            verificationCode: null,
-            verificationCodeDate: null,
-            verificationCodeSent: false,
-            // Aktualisiere auch andere Felder, falls sie sich geändert haben
-            vorname: userData.vorname || existingUser.vorname,
-            nachname: userData.nachname || existingUser.nachname,
-            tel: userData.tel || existingUser.tel,
-            role: userData.role || existingUser.role,
-            rechte: userData.rechte || existingUser.rechte
-          });
-          
-          console.log('✅ Firestore-Benutzer mit neuer Firebase UID aktualisiert');
-          
-          // WICHTIG: Stelle sicher, dass der Benutzer die korrekte ConcernID behält
-          // und nicht versehentlich überschrieben wird
-          console.log('🔒 Benutzer behält ursprüngliche ConcernID:', existingUser.concernID);
-          
-          // WICHTIG: Aktualisiere den bestehenden Firestore-Benutzer mit der neuen Firebase UID
-          // Das stellt sicher, dass der Benutzer beim nächsten Login gefunden wird
-          console.log('🔒 Aktualisiere bestehenden Firestore-Benutzer mit Firebase UID...');
-          
-          await this.update(existingUser.uid!, {
-            uid: firebaseUserCredential.user.uid,
-            verificationCode: null,
-            verificationCodeDate: null,
-            verificationCodeSent: false,
-            // Aktualisiere auch andere Felder
-            vorname: userData.vorname || existingUser.vorname,
-            nachname: userData.nachname || existingUser.nachname,
-            tel: userData.tel || existingUser.tel,
-            role: userData.role || existingUser.role,
-            rechte: userData.rechte || existingUser.rechte
-          });
-          
-          console.log('✅ Firestore-Benutzer erfolgreich mit Firebase UID aktualisiert');
-          
-          return firebaseUserCredential.user.uid;
-        }
-        
-      } catch (createUserError: any) {
-        console.log('🔍 Firebase Auth Fehler analysiert:', createUserError.code, createUserError.message);
-        
-        // Detaillierte Fehleranalyse
-        if (createUserError.code === 'auth/email-already-in-use') {
-          throw new Error('Diese E-Mail-Adresse wird bereits verwendet. Bitte melden Sie sich an oder verwenden Sie eine andere E-Mail.');
-        } else if (createUserError.code === 'auth/invalid-email') {
-          throw new Error('Ungültige E-Mail-Adresse. Bitte überprüfen Sie das Format.');
-        } else if (createUserError.code === 'auth/weak-password') {
-          throw new Error('Das Passwort ist zu schwach. Es muss mindestens 6 Zeichen lang sein.');
-        } else if (createUserError.code === 'auth/operation-not-allowed') {
-          throw new Error('E-Mail/Passwort-Registrierung ist nicht aktiviert. Bitte kontaktieren Sie den Administrator.');
-        } else if (createUserError.code === 'auth/network-request-failed') {
-          throw new Error('Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.');
-        } else {
-          throw new Error(`Firebase Auth Fehler: ${createUserError.message} (Code: ${createUserError.code})`);
-        }
-      }
+      // Update the Firestore user record (without Firebase Auth)
+      // The user will be created in Keycloak via the import script
+      // and linked on first login via keycloakSub field
+      await this.update(existingUser.uid!, {
+        verificationCode: null,
+        verificationCodeDate: null,
+        verificationCodeSent: false,
+        // Update profile fields
+        vorname: userData.vorname || existingUser.vorname,
+        nachname: userData.nachname || existingUser.nachname,
+        tel: userData.tel || existingUser.tel,
+        role: userData.role || existingUser.role,
+        rechte: userData.rechte || existingUser.rechte,
+        // Mark as ready for Keycloak linking
+        keycloakReady: true,
+      });
+      
+      console.log('✅ Firestore-Benutzer für Keycloak vorbereitet');
+      console.log('ℹ️ Benutzer muss sich nun über Keycloak anmelden');
+      
+      // Return the existing uid (will be linked to Keycloak sub on first login)
+      return existingUser.uid!;
       
     } catch (error) {
       console.error('❌ Fehler beim Verarbeiten des Verifizierungscodes:', error);

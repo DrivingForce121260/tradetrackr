@@ -1,0 +1,37 @@
+[
+  {
+    "email": "david@3d-systems.com",
+    "tenant_id": "DE689E0F2D",
+    "roles": ["admin"],
+    "firstName": "David",
+    "lastName": "Admin"
+  },
+  {
+    "email": "anacond@3d-systems.com",
+    "tenant_id": "DE689E0F2D",
+    "roles": ["staff"],
+    "firstName": "Ana",
+    "lastName": "Cond"
+  },
+  {
+    "email": "michelle@3d-systems.com",
+    "tenant_id": "DE689E0F2D",
+    "roles": ["staff"],
+    "firstName": "Michelle",
+    "lastName": "User"
+  },
+  {
+    "email": "marionstauber@googlemail.com",
+    "tenant_id": "DE689E0F2D",
+    "roles": ["staff"],
+    "firstName": "Marion",
+    "lastName": "Stauber"
+  },
+  {
+    "email": "mathias_vaupel@web.de",
+    "tenant_id": "DE689E0F2D",
+    "roles": ["staff"],
+    "firstName": "Mathias",
+    "lastName": "Vaupel"
+  }
+]

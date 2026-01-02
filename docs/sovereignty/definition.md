@@ -150,12 +150,18 @@ Direct calls to OpenAI, Anthropic, or Google AI endpoints are forbidden.
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| **Phase 0** | Definition, CI gate, runtime assertion (this document) | 🔄 In Progress |
-| **Phase 1** | PostgreSQL migration (Firestore → Postgres on IONOS) | ⏳ Planned |
-| **Phase 2** | Object storage migration (Firebase Storage → IONOS S3) | ⏳ Planned |
-| **Phase 3** | AI Gateway implementation | ⏳ Planned |
-| **Phase 4** | Authentication migration | ⏳ Planned |
-| **Phase 5** | Full IONOS_ONLY validation & go-live | ⏳ Planned |
+| **Phase 0** | Definition, CI gate, runtime assertion | ✅ Complete |
+| **Phase 1** | Safe logging, AIClient abstraction, fixtures | ✅ Complete |
+| **Phase 2** | AI Gateway (MOCK), frontend secret removal, egress control | ✅ Complete |
+| **Phase 2b** | AI Gateway IONOS integration (waiting for token) | ⏳ Pending Token |
+| **Phase 3** | Firebase Auth → Keycloak (OIDC) migration | 🔄 In Progress |
+| **Phase 4** | PostgreSQL migration (Firestore → Postgres on IONOS) | ⏳ Planned |
+| **Phase 5** | Object storage migration (Firebase Storage → IONOS S3) | ⏳ Planned |
+| **Phase 6** | Full IONOS_ONLY validation & go-live | ⏳ Planned |
+
+### Evidence Report
+
+See [EVIDENCE.md](./EVIDENCE.md) for Phase 02 completion details.
 
 ---
 

@@ -37,17 +37,24 @@ import type {
 
 /**
  * Get AI Gateway configuration from environment.
+ * 
+ * SECURITY NOTE: Frontend code MUST NOT contain gateway tokens.
+ * AI gateway calls should go through Firebase callable functions
+ * which hold the token server-side.
+ * 
+ * Frontend can only specify the gateway URL (public knowledge).
+ * Token must be null in browser - all AI calls route through backend.
  */
 function getGatewayConfig(): { url: string | null; token: string | null } {
-  // Browser environment
+  // Browser environment - NO TOKEN (security: frontend must not have shared secrets)
   if (typeof window !== 'undefined') {
     return {
       url: (import.meta as any).env?.VITE_AI_GATEWAY_URL || null,
-      token: (import.meta as any).env?.VITE_AI_GATEWAY_TOKEN || null,
+      token: null, // NEVER expose gateway token to frontend
     };
   }
   
-  // Node environment
+  // Node environment (backend/functions) - token allowed
   return {
     url: process.env.AI_GATEWAY_URL || null,
     token: process.env.AI_GATEWAY_TOKEN || null,

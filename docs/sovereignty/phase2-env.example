@@ -1,0 +1,70 @@
+# ============================================================================
+# TradeTrackr Phase 2 Environment Variables Example
+# ============================================================================
+#
+# This file documents the environment variables required for Phase 2
+# sovereignty (AI Gateway live with IONOS upstream).
+#
+# IMPORTANT:
+# - Frontend variables start with VITE_ and are public (no secrets)
+# - Server variables are secret and must NOT be committed to git
+# - See /docs/sovereignty/definition.md for full documentation
+#
+# ============================================================================
+# FRONTEND (.env.production) - SAFE TO COMMIT
+# ============================================================================
+
+# AI Gateway public URL (no token - token is server-side only)
+VITE_AI_GATEWAY_URL=https://ai.tradetrackr.de
+
+# NOTE: VITE_AI_GATEWAY_TOKEN does NOT exist and must NEVER be added
+# Frontend calls are unauthenticated to gateway; gateway checks origin
+
+# ============================================================================
+# AI GATEWAY SERVER (/etc/ai-gateway/ai-gateway.env) - SECRET
+# ============================================================================
+
+# Port for the AI Gateway service
+AI_GATEWAY_PORT=8787
+
+# Bearer token for authenticating web portal requests to gateway
+# Generate with: openssl rand -hex 32
+AI_GATEWAY_TOKEN=<redacted - generate with openssl rand -hex 32>
+
+# Upstream mode: MOCK (no real AI) or IONOS (live IONOS AI)
+AI_UPSTREAM_MODE=IONOS
+
+# IONOS AI Model Hub base URL
+# Only permitted values:
+# - https://openai.inference.de-txl.ionos.com/v1 (Berlin)
+# - https://openai.inference.de-fra.ionos.com/v1 (Frankfurt)
+IONOS_AI_BASE_URL=https://openai.inference.de-txl.ionos.com/v1
+
+# IONOS AI Model Hub API token (from IONOS DCD)
+# NEVER commit this value
+IONOS_AI_TOKEN=<redacted - obtain from IONOS DCD>
+
+# Optional: Log level
+LOG_LEVEL=info
+
+# ============================================================================
+# FIREBASE FUNCTIONS - for reference only (Phase 3 migration pending)
+# ============================================================================
+
+# Note: Functions still use Gemini in some paths (Phase 3 will migrate)
+# GEMINI_API_KEY=<redacted>
+
+# ============================================================================
+# SUMMARY OF VARIABLE LOCATIONS
+# ============================================================================
+#
+# | Variable              | Location                        | Secret? |
+# |-----------------------|---------------------------------|---------|
+# | VITE_AI_GATEWAY_URL   | .env.production (committed)     | No      |
+# | AI_GATEWAY_TOKEN      | /etc/ai-gateway/ai-gateway.env  | Yes     |
+# | AI_UPSTREAM_MODE      | /etc/ai-gateway/ai-gateway.env  | No      |
+# | IONOS_AI_BASE_URL     | /etc/ai-gateway/ai-gateway.env  | No      |
+# | IONOS_AI_TOKEN        | /etc/ai-gateway/ai-gateway.env  | Yes     |
+#
+# ============================================================================
+

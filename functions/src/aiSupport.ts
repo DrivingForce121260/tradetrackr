@@ -9,10 +9,13 @@
  * 
  * CRITICAL: This endpoint MUST be deployed server-side.
  * Never expose LLM API keys in the client app.
+ * 
+ * Phase 03 Sovereignty Migration: Uses Keycloak JWT for authentication.
  */
 
 import * as admin from 'firebase-admin';
 import { Request, Response } from 'express';
+import { verifyKeycloakJWT, extractBearerToken, VerifiedUser } from './lib/auth/keycloak-jwt';
 
 // ====================================
 // TYPES (should match client types)
@@ -59,24 +62,24 @@ const TradeTrackrSchema = {
 };
 
 // ====================================
-// AUTHENTICATION
+// AUTHENTICATION (Keycloak JWT)
 // ====================================
 
 /**
- * Verify Firebase ID token and extract claims
+ * Verify Keycloak JWT and extract claims
+ * 
+ * Phase 03 Sovereignty Migration: Replaced Firebase Auth verifyIdToken.
  */
-async function verifyAuth(req: Request): Promise<admin.auth.DecodedIdToken> {
-  const authHeader = req.headers.authorization;
+async function verifyAuth(req: Request): Promise<VerifiedUser> {
+  const token = extractBearerToken(req.headers.authorization);
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!token) {
     throw new Error('Keine Authentifizierung gefunden');
   }
 
-  const token = authHeader.split('Bearer ')[1];
-
   try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    return decodedToken;
+    const user = await verifyKeycloakJWT(token);
+    return user;
   } catch (error) {
     console.error('Token verification failed:', error);
     throw new Error('Ungültiges Authentifizierungs-Token');

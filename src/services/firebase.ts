@@ -1,16 +1,23 @@
 /**
  * Firebase Configuration & Initialization
  * 
- * Uses Web SDK - configuration from google-services.json for Android
+ * IMPORTANT: Sovereignty Phase 03 Migration
+ * 
+ * Authentication is now handled via Keycloak OIDC.
+ * Firebase Auth is NO LONGER USED for user authentication.
+ * 
+ * This file now only provides:
+ * - Firestore (db) - for data storage (until Phase 04 PostgreSQL migration)
+ * - Storage (storage) - for file storage (until Phase 05 IONOS S3 migration)
+ * 
+ * @see /docs/sovereignty/PHASE3_PLAN.md
  */
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 // Firebase configuration from google-services.json
-// Using hardcoded values for React Native to avoid env variable issues
 const firebaseConfig = {
   apiKey: "AIzaSyBgpmu_B5D--n7L8AQpn2GzHP47zMPbeqw",
   authDomain: "reportingapp817.firebaseapp.com",
@@ -23,18 +30,19 @@ const firebaseConfig = {
 // Initialize Firebase (only once)
 const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firebase services
-export const auth: Auth = getAuth(app);
+// Initialize Firebase services (Firestore + Storage only)
 export const db: Firestore = getFirestore(app);
 export const storage: FirebaseStorage = getStorage(app);
 
+// NOTE: Firebase Auth is DEPRECATED - Use Keycloak OIDC instead
+// See src/lib/auth/oidc-client.ts for authentication
+
 // Log initialization in development
-if (__DEV__) {
-  console.log('✅ Firebase initialized');
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  console.log('✅ Firebase initialized (Firestore + Storage only)');
   console.log('📦 Project:', firebaseConfig.projectId);
 }
 
 export const initError: string | null = null;
 
 export default app;
-

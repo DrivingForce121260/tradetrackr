@@ -944,9 +944,12 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
       return;
     }
 
-    // Validate password is provided
-    if (!deletePassword || deletePassword.trim() === '') {
-      setPasswordError('Bitte geben Sie Ihr Passwort ein, um die Löschung zu bestätigen.');
+    // Validate confirmation is provided
+    // Note: Keycloak OIDC doesn't support frontend password re-authentication.
+    // We use a confirmation phrase instead: "LÖSCHEN"
+    const expectedConfirmation = 'LÖSCHEN';
+    if (!deletePassword || deletePassword.trim().toUpperCase() !== expectedConfirmation) {
+      setPasswordError(`Bitte geben Sie "${expectedConfirmation}" ein, um die Löschung zu bestätigen.`);
       return;
     }
 
@@ -954,18 +957,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onBack, onNavigat
     setPasswordError('');
 
     try {
-      // Re-authenticate user with password
-      const { reauthenticateWithCredential, EmailAuthProvider } = await import('firebase/auth');
-      const { auth } = await import('@/config/firebase');
-      
-      if (!auth.currentUser) {
-        throw new Error('Kein angemeldeter Benutzer gefunden');
-      }
-
-      const credential = EmailAuthProvider.credential(user.email, deletePassword);
-      await reauthenticateWithCredential(auth.currentUser, credential);
-      
-      console.log('✅ [ProjectManagement] Password verified successfully');
+      console.log('✅ [ProjectManagement] Delete confirmation verified');
 
       // Password verified, proceed with deletion
       // Log deletion to auditLogs

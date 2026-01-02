@@ -1,6 +1,6 @@
 {
-  "generated": "2025-12-28T22:45:03.861Z",
-  "count": 1022,
+  "generated": "2026-01-01T19:57:46.963Z",
+  "count": 980,
   "findings": [
     {
       "file": ".aikido.yml",
@@ -224,12 +224,12 @@
     },
     {
       "file": "functions/lib/aiSupport.js",
-      "line": 49,
+      "line": 51,
       "match": "firebase"
     },
     {
       "file": "functions/lib/aiSupport.js",
-      "line": 161,
+      "line": 165,
       "match": "firebase"
     },
     {
@@ -244,13 +244,18 @@
     },
     {
       "file": "functions/lib/api/index.js",
-      "line": 40,
+      "line": 56,
       "match": "firebase"
     },
     {
       "file": "functions/lib/api/index.js",
-      "line": 41,
+      "line": 57,
       "match": "firebase"
+    },
+    {
+      "file": "functions/lib/api/index.js",
+      "line": 135,
+      "match": "cloudfunctions.net"
     },
     {
       "file": "functions/lib/audit/onWrite.js",
@@ -599,7 +604,12 @@
     },
     {
       "file": "functions/lib/emailIntelligence/generateReply.js",
-      "line": 42,
+      "line": 45,
+      "match": "sovereignty:allow"
+    },
+    {
+      "file": "functions/lib/emailIntelligence/generateReply.js",
+      "line": 46,
       "match": "firebase"
     },
     {
@@ -624,12 +634,12 @@
     },
     {
       "file": "functions/lib/emailIntelligence/llmAnalysis.js",
-      "line": 42,
-      "match": "firebase"
+      "line": 45,
+      "match": "sovereignty:allow"
     },
     {
       "file": "functions/lib/emailIntelligence/llmAnalysis.js",
-      "line": 52,
+      "line": 46,
       "match": "firebase"
     },
     {
@@ -1113,6 +1123,11 @@
       "match": "firebase"
     },
     {
+      "file": "functions/lib/utils/safeLogger.js",
+      "line": 54,
+      "match": "firebase"
+    },
+    {
       "file": "functions/lib/utils/sanitizeForFirestore.js",
       "line": 16,
       "match": "firebase"
@@ -1204,17 +1219,17 @@
     },
     {
       "file": "functions/package.json",
-      "line": 46,
+      "line": 47,
       "match": "firebase"
     },
     {
       "file": "functions/src/aiSupport.ts",
-      "line": 14,
+      "line": 16,
       "match": "firebase"
     },
     {
       "file": "functions/src/aiSupport.ts",
-      "line": 206,
+      "line": 209,
       "match": "firebase"
     },
     {
@@ -1229,13 +1244,23 @@
     },
     {
       "file": "functions/src/api/index.ts",
-      "line": 1,
+      "line": 18,
       "match": "firebase"
     },
     {
       "file": "functions/src/api/index.ts",
-      "line": 2,
+      "line": 19,
       "match": "firebase"
+    },
+    {
+      "file": "functions/src/api/index.ts",
+      "line": 56,
+      "match": "firebase"
+    },
+    {
+      "file": "functions/src/api/index.ts",
+      "line": 113,
+      "match": "cloudfunctions.net"
     },
     {
       "file": "functions/src/audit/onWrite.ts",
@@ -1989,27 +2014,27 @@
     },
     {
       "file": "package.json",
-      "line": 28,
+      "line": 31,
       "match": "firebase"
     },
     {
       "file": "package.json",
-      "line": 29,
+      "line": 32,
       "match": "firebase"
     },
     {
       "file": "package.json",
-      "line": 30,
+      "line": 33,
       "match": "firebase"
     },
     {
       "file": "package.json",
-      "line": 85,
+      "line": 90,
       "match": "firebase"
     },
     {
       "file": "package.json",
-      "line": 111,
+      "line": 118,
       "match": "firebase"
     },
     {
@@ -2413,6 +2438,101 @@
       "match": "firebase"
     },
     {
+      "file": "services/ai-gateway/src/config.test.ts",
+      "line": 60,
+      "match": "api.openai.com"
+    },
+    {
+      "file": "services/ai-gateway/src/config.test.ts",
+      "line": 65,
+      "match": "api.anthropic.com"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 15,
+      "match": "googleapis.com"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 16,
+      "match": "firestore.googleapis.com"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 17,
+      "match": "generativelanguage.googleapis.com"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 20,
+      "match": "firebaseio.com"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 21,
+      "match": "firebaseio.com"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 24,
+      "match": "firebase"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 25,
+      "match": "firebase"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 28,
+      "match": "api.openai.com"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 29,
+      "match": "api.openai.com"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 32,
+      "match": "api.anthropic.com"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 33,
+      "match": "api.anthropic.com"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 88,
+      "match": "api.openai.com"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.test.ts",
+      "line": 89,
+      "match": "firestore.googleapis.com"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.ts",
+      "line": 44,
+      "match": "firebase"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.ts",
+      "line": 45,
+      "match": "firebase"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.ts",
+      "line": 46,
+      "match": "firebase"
+    },
+    {
+      "file": "services/ai-gateway/src/utils/safeFetch.ts",
+      "line": 145,
+      "match": "api.openai.com"
+    },
+    {
       "file": "src/components/admin/SystemLogs.tsx",
       "line": 9,
       "match": "firebase"
@@ -2450,11 +2570,6 @@
     {
       "file": "src/components/auth/SessionTimeout.tsx",
       "line": 9,
-      "match": "firebase"
-    },
-    {
-      "file": "src/components/auth/SessionTimeout.tsx",
-      "line": 10,
       "match": "firebase"
     },
     {
@@ -3094,42 +3209,32 @@
     },
     {
       "file": "src/components/ProjectManagement.tsx",
-      "line": 958,
+      "line": 965,
       "match": "firebase"
     },
     {
       "file": "src/components/ProjectManagement.tsx",
-      "line": 959,
+      "line": 966,
       "match": "firebase"
     },
     {
       "file": "src/components/ProjectManagement.tsx",
-      "line": 973,
+      "line": 1273,
       "match": "firebase"
     },
     {
       "file": "src/components/ProjectManagement.tsx",
-      "line": 974,
+      "line": 1274,
       "match": "firebase"
     },
     {
       "file": "src/components/ProjectManagement.tsx",
-      "line": 1281,
+      "line": 1336,
       "match": "firebase"
     },
     {
       "file": "src/components/ProjectManagement.tsx",
-      "line": 1282,
-      "match": "firebase"
-    },
-    {
-      "file": "src/components/ProjectManagement.tsx",
-      "line": 1344,
-      "match": "firebase"
-    },
-    {
-      "file": "src/components/ProjectManagement.tsx",
-      "line": 1345,
+      "line": 1337,
       "match": "firebase"
     },
     {
@@ -3439,47 +3544,42 @@
     },
     {
       "file": "src/config/firebase.ts",
-      "line": 1,
-      "match": "firebase"
-    },
-    {
-      "file": "src/config/firebase.ts",
-      "line": 2,
-      "match": "firebase"
-    },
-    {
-      "file": "src/config/firebase.ts",
-      "line": 7,
-      "match": "firebase"
-    },
-    {
-      "file": "src/config/firebase.ts",
-      "line": 8,
-      "match": "firebase"
-    },
-    {
-      "file": "src/config/firebase.ts",
-      "line": 9,
-      "match": "firebase"
-    },
-    {
-      "file": "src/config/firebase.ts",
-      "line": 12,
-      "match": "firebase"
-    },
-    {
-      "file": "src/config/firebase.ts",
-      "line": 14,
-      "match": "firebaseapp.com"
-    },
-    {
-      "file": "src/config/firebase.ts",
-      "line": 16,
+      "line": 17,
       "match": "firebase"
     },
     {
       "file": "src/config/firebase.ts",
       "line": 22,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 23,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 24,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 27,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 29,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 31,
+      "match": "firebase"
+    },
+    {
+      "file": "src/config/firebase.ts",
+      "line": 37,
       "match": "firebase"
     },
     {
@@ -3594,247 +3694,52 @@
     },
     {
       "file": "src/contexts/AuthContext.tsx",
-      "line": 6,
+      "line": 14,
       "match": "firebase"
     },
     {
       "file": "src/contexts/AuthContext.tsx",
-      "line": 9,
+      "line": 15,
       "match": "firebase"
     },
     {
       "file": "src/contexts/AuthContext.tsx",
-      "line": 10,
+      "line": 60,
       "match": "firebase"
     },
     {
       "file": "src/contexts/AuthContext.tsx",
-      "line": 11,
+      "line": 72,
       "match": "firebase"
     },
     {
       "file": "src/contexts/AuthContext.tsx",
-      "line": 46,
+      "line": 124,
       "match": "firebase"
     },
     {
       "file": "src/contexts/AuthContext.tsx",
-      "line": 94,
+      "line": 202,
       "match": "firebase"
     },
     {
       "file": "src/contexts/AuthContext.tsx",
-      "line": 110,
+      "line": 222,
       "match": "firebase"
     },
     {
       "file": "src/contexts/AuthContext.tsx",
-      "line": 111,
+      "line": 440,
       "match": "firebase"
     },
     {
       "file": "src/contexts/AuthContext.tsx",
-      "line": 113,
+      "line": 744,
       "match": "firebase"
     },
     {
       "file": "src/contexts/AuthContext.tsx",
-      "line": 116,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 121,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 122,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 125,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 145,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 156,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 162,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 169,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 232,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 238,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 247,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 260,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 284,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 306,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 333,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 338,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 347,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 372,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 373,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 395,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 397,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 420,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 421,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 442,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 447,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 456,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 463,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 483,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 486,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 487,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 488,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 491,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 494,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 506,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 537,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 540,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 544,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 617,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 630,
-      "match": "firebase"
-    },
-    {
-      "file": "src/contexts/AuthContext.tsx",
-      "line": 1206,
+      "line": 860,
       "match": "firebase"
     },
     {
@@ -4364,33 +4269,13 @@
     },
     {
       "file": "src/services/firebase.ts",
-      "line": 7,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firebase.ts",
-      "line": 8,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firebase.ts",
-      "line": 9,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firebase.ts",
-      "line": 10,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firebase.ts",
-      "line": 14,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firebase.ts",
       "line": 16,
-      "match": "firebaseapp.com"
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 17,
+      "match": "firebase"
     },
     {
       "file": "src/services/firebase.ts",
@@ -4399,22 +4284,37 @@
     },
     {
       "file": "src/services/firebase.ts",
-      "line": 24,
+      "line": 21,
       "match": "firebase"
     },
     {
       "file": "src/services/firebase.ts",
-      "line": 29,
+      "line": 23,
+      "match": "firebaseapp.com"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 25,
       "match": "firebase"
     },
     {
       "file": "src/services/firebase.ts",
-      "line": 33,
+      "line": 31,
       "match": "firebase"
     },
     {
       "file": "src/services/firebase.ts",
-      "line": 34,
+      "line": 35,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 42,
+      "match": "firebase"
+    },
+    {
+      "file": "src/services/firebase.ts",
+      "line": 43,
       "match": "firebase"
     },
     {
@@ -4439,97 +4339,7 @@
     },
     {
       "file": "src/services/firestoreService.ts",
-      "line": 697,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 698,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 700,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 707,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 717,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 754,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 761,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 763,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 764,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 770,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 774,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 786,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 794,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 797,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 809,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 811,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 815,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 829,
-      "match": "firebase"
-    },
-    {
-      "file": "src/services/firestoreService.ts",
-      "line": 913,
+      "line": 805,
       "match": "firebase"
     },
     {
@@ -4930,26 +4740,6 @@
     {
       "file": "src/services/workOrderService.ts",
       "line": 20,
-      "match": "firebase"
-    },
-    {
-      "file": "src/store/authStore.ts",
-      "line": 10,
-      "match": "firebase"
-    },
-    {
-      "file": "src/store/authStore.ts",
-      "line": 11,
-      "match": "firebase"
-    },
-    {
-      "file": "src/store/authStore.ts",
-      "line": 56,
-      "match": "firebase"
-    },
-    {
-      "file": "src/store/authStore.ts",
-      "line": 88,
       "match": "firebase"
     },
     {

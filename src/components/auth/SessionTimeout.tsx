@@ -5,8 +5,7 @@
 // Resets timer on user activity events
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { signOut } from 'firebase/auth';
-import { auth, db } from '@/config/firebase';
+import { db } from '@/config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
@@ -96,10 +95,7 @@ export default function SessionTimeout({
       if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
 
-      // Sign out from Firebase
-      await signOut(auth);
-      
-      // Also call logout from AuthContext if available
+      // Logout via AuthContext (handles OIDC logout)
       if (logout) {
         await logout();
       }

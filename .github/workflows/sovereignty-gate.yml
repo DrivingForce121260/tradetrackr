@@ -43,28 +43,84 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       
       # Note: We don't need to install dependencies for the scanner
       # It only uses Node.js built-in modules (fs, path)
       
-      - name: Run Sovereignty Scanner
-        id: scan
+      - name: Run Sovereignty Scanner (JS)
+        id: scan-js
         env:
           # TODO: Flip to 'error' when Phase 3/4 complete (PostgreSQL + AI Gateway migration)
           # Currently in WARN mode - violations are logged but don't fail the build
           SOVEREIGNTY_SCAN_MODE: warn
           SOVEREIGNTY_SCAN_BASELINE: on
         run: |
-          echo "::group::Sovereignty Scan Output"
+          echo "::group::Sovereignty Scan Output (JS)"
           node scripts/sovereignty/check-banned-strings.js
           echo "::endgroup::"
+      
+      - name: Run Banned Strings CI Gate (Bash)
+        id: scan-bash
+        env:
+          SOVEREIGNTY_SCAN_MODE: warn
+        run: |
+          echo "::group::Banned Strings CI Gate"
+          chmod +x scripts/ci/check-banned-strings.sh
+          ./scripts/ci/check-banned-strings.sh
+          echo "::endgroup::"
+
+  secrets-scan:
+    name: Check No Secrets in Build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Check for secrets in dist/
+        run: |
+          chmod +x scripts/check-no-secrets-in-dist.sh
+          ./scripts/check-no-secrets-in-dist.sh
       
       - name: Summary
         if: always()
         run: |
+          echo "## 🔐 Secrets Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Scanned dist/ for:" >> $GITHUB_STEP_SUMMARY
+          echo "- VITE_AI_GATEWAY_TOKEN" >> $GITHUB_STEP_SUMMARY
+          echo "- AI_GATEWAY_TOKEN" >> $GITHUB_STEP_SUMMARY
+          echo "- Hardcoded Bearer tokens" >> $GITHUB_STEP_SUMMARY
+          echo "- JWT tokens" >> $GITHUB_STEP_SUMMARY
+
+  summary:
+    name: Gate Summary
+    needs: [sovereignty-scan, secrets-scan]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Summary
+        run: |
           echo "## 🛡️ Sovereignty Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Banned Providers** | ${{ needs.sovereignty-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Secrets in Build** | ${{ needs.secrets-scan.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY

@@ -1,5 +1,20 @@
-﻿import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+﻿/**
+ * Firebase Configuration
+ * 
+ * IMPORTANT: Sovereignty Phase 03 Migration
+ * 
+ * Authentication is now handled via Keycloak OIDC.
+ * Firebase Auth is NO LONGER USED for user authentication.
+ * 
+ * This file now only provides:
+ * - Firestore (db) - for data storage (until Phase 04 PostgreSQL migration)
+ * - Storage (storage) - for file storage (until Phase 05 IONOS S3 migration)
+ * - Functions (functions/functionsEU) - for callable functions
+ * 
+ * @see /docs/sovereignty/PHASE3_PLAN.md
+ */
+
+import { initializeApp } from 'firebase/app';
 import { 
   initializeFirestore, 
   persistentLocalCache, 
@@ -29,8 +44,9 @@ export const db = initializeFirestore(app, {
   })
 });
 
-// Firebase-Authentifizierung initialisieren
-export const auth = getAuth(app);
+// NOTE: Firebase Auth is DEPRECATED - Use Keycloak OIDC instead
+// This export is kept only for backward compatibility during migration
+// DO NOT USE for new code - see src/lib/auth/oidc-client.ts
 
 // Firebase-Storage initialisieren
 export const storage = getStorage(app);

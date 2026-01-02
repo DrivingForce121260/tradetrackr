@@ -1,14 +1,18 @@
-﻿import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
-import { 
-  signInWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged, 
-  User as FirebaseUser,
-  createUserWithEmailAndPassword,
-  updateProfile
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
+﻿/**
+ * AuthContext - Keycloak OIDC Authentication
+ * 
+ * Phase 03 Sovereignty Migration: Firebase Auth → Keycloak OIDC
+ * 
+ * This module provides authentication using Keycloak with Authorization Code + PKCE.
+ * Firebase Auth has been completely removed.
+ * 
+ * @see /docs/sovereignty/PHASE3_PLAN.md
+ * @see /docs/sovereignty/auth.md
+ */
+
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/config/firebase';
 import { 
   User, 
   userService, 
@@ -33,17 +37,39 @@ import {
   setSessionInvalidatedCallback,
 } from '@/services/sessionService';
 
-// Funktion zur Generierung der Concern-ID
-const generateConcernId = (): string => {
-  const now = new Date();
-  const millenniumTime = Math.floor(now.getTime() / 1000); // Unix Timestamp in Sekunden
-  const hexTime = millenniumTime.toString(16).toUpperCase(); // Hex-String
-  return `DE${hexTime}`; // Deutschland-Code + Hex-Timestamp
-};
+// OIDC Client imports (Keycloak)
+import {
+  initAuth,
+  login as oidcLogin,
+  logout as oidcLogout,
+  handleCallback,
+  getUser as getOIDCUser,
+  getReturnUrl,
+  onUserChange,
+  type TradeTrackrUser as OIDCUser,
+} from '@/lib/auth/oidc-client';
+
+// ============================================================================
+// Compatibility Type (replaces FirebaseUser)
+// ============================================================================
+
+/**
+ * Compatibility shim for code that expects FirebaseUser.
+ * Maps from Keycloak user to the expected shape.
+ */
+type FirebaseUserCompat = {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+} | null;
+
+// ============================================================================
+// Context Types
+// ============================================================================
 
 export interface AuthContextType {
   user: User | null;
-  firebaseUser: FirebaseUser | null;
+  firebaseUser: FirebaseUserCompat;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, userData: Partial<User>) => Promise<void>;
@@ -75,7 +101,7 @@ export interface AuthContextType {
   canCreateReport: () => boolean;
   canUseMessaging: () => boolean;
   
-  // Neue Synchronisationsfunktionen
+  // Synchronisation
   startAutoSync: () => void;
   stopAutoSync: () => void;
   isAutoSyncActive: () => boolean;
@@ -89,570 +115,313 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// ============================================================================
+// AuthProvider Implementation
+// ============================================================================
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUserCompat>(null);
   const [loading, setLoading] = useState(true);
+  
+  // OIDC state
+  const [oidcUser, setOidcUser] = useState<OIDCUser | null>(null);
   
   // Session state
   const [sessionBlocked, setSessionBlocked] = useState(false);
   const [sessionBlockMessage, setSessionBlockMessage] = useState('');
   const tabCloseCleanup = useRef<(() => void) | null>(null);
   
-  // Neue Synchronisations-States
+  // Sync states
   const [autoSyncActive, setAutoSyncActive] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
   const [syncUnsubscribers, setSyncUnsubscribers] = useState<Array<() => void>>([]);
 
+  // ============================================================================
+  // OIDC Initialization
+  // ============================================================================
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setFirebaseUser(firebaseUser);
-      
-      if (firebaseUser) {
-        try {
-          // Benutzer aus Firestore abrufen - suche nach UID-Feld, nicht nach Dokument-ID
-          let userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          
-          // Falls der Benutzer nicht direkt gefunden wurde, suche nach der UID im uid-Feld
-          if (!userDoc.exists()) {
-            console.log('🔍 User not found by document ID, searching by UID field...');
-            const { collection, query, where, getDocs } = await import('firebase/firestore');
-            const { db } = await import('@/config/firebase');
+    const initializeAuth = async () => {
+      try {
+        // Check if this is a callback from Keycloak
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasCode = urlParams.has('code') && urlParams.has('state');
+        
+        if (hasCode) {
+          console.log('🔑 [Auth] Handling OIDC callback...');
+          try {
+            const oidcResult = await handleCallback();
+            setOidcUser(oidcResult);
             
-            const usersRef = collection(db, 'users');
-            const q = query(usersRef, where('uid', '==', firebaseUser.uid));
-            const querySnapshot = await getDocs(q);
+            // Load user from Firestore and setup session
+            await loadFirestoreUser(oidcResult);
             
-            if (!querySnapshot.empty) {
-              // Verwende das erste gefundene Dokument
-              const foundUserDoc = querySnapshot.docs[0];
-              userDoc = { 
-                exists: () => true, 
-                data: () => foundUserDoc.data(),
-                id: foundUserDoc.id 
-              } as any;
-              console.log('✅ User found by UID field search');
-            }
+            // Clean up URL and redirect to return URL
+            const returnUrl = getReturnUrl();
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            const defaultDashboard = getDefaultDashboard();
+            window.location.href = `#${defaultDashboard}`;
+          } catch (error: any) {
+            console.error('🚫 [Auth] OIDC callback error:', error);
+            setLoading(false);
           }
-          
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as User;
-            
-            // Check if user is marked as deleted
-            console.log('🔍 Checking user deletion status:', { 
-              uid: firebaseUser.uid, 
-              isDeleted: userData.isDeleted, 
-              deletedAt: userData.deletedAt,
-              isActive: userData.isActive 
-            });
-            
-            if (userData.isDeleted) {
-              console.log('🚫 User is marked as deleted, signing out');
-              // Sign out the deleted user
-              await signOut(auth);
-              setUser(null);
-              setFirebaseUser(null);
-              return;
-            }
-            
-            const userWithUid = {
-              ...userData,
-              uid: firebaseUser.uid
-            };
-            
-            // Entferne den Verifizierungscode, wenn der Benutzer sich anmeldet
-            if (userData.verificationCode) {
-              try {
-
-                await userService.update(firebaseUser.uid, {
-                  verificationCode: null,
-                  verificationCodeDate: null,
-                  verificationCodeSent: false
-                });
-
-                
-                // Aktualisiere den lokalen Benutzer-Status
-                userWithUid.verificationCode = null;
-                userWithUid.verificationCodeDate = null;
-                userWithUid.verificationCodeSent = false;
-              } catch (error) {
-
-              }
-            }
-            
-
-            setUser(userWithUid);
-
-          }
-        } catch (error) {
-
+          return;
         }
-      } else {
-        setUser(null);
-
+        
+        // Check for existing session
+        console.log('🔍 [Auth] Checking for existing OIDC session...');
+        const existingUser = await initAuth();
+        
+        if (existingUser) {
+          console.log('✅ [Auth] Found existing OIDC session');
+          setOidcUser(existingUser);
+          await loadFirestoreUser(existingUser);
+        } else {
+          console.log('ℹ️ [Auth] No existing session');
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('❌ [Auth] Initialization error:', error);
+        setLoading(false);
       }
-      
-      setLoading(false);
+    };
+
+    initializeAuth();
+
+    // Subscribe to OIDC user changes
+    const unsubscribe = onUserChange((newUser) => {
+      if (newUser) {
+        setOidcUser(newUser);
+        loadFirestoreUser(newUser);
+      } else {
+        setOidcUser(null);
+        setUser(null);
+        setFirebaseUser(null);
+      }
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Neuer useEffect für automatische Synchronisation
+  // ============================================================================
+  // Load Firestore User from OIDC Claims
+  // ============================================================================
+
+  const loadFirestoreUser = async (oidcUser: OIDCUser) => {
+    try {
+      const authSub = oidcUser.userId;
+      const email = oidcUser.email;
+      const tenantId = oidcUser.tenantId;
+      
+      console.log('🔍 [Auth] Loading Firestore user...', { authSub, email, tenantId });
+      
+      // Set compatibility firebaseUser
+      setFirebaseUser({
+        uid: authSub,
+        email: email,
+        displayName: oidcUser.displayName,
+      });
+      
+      // Strategy 1: Look up by Keycloak subject (keycloakSub field)
+      let firestoreUser: User | null = null;
+      
+      try {
+        const usersRef = collection(db, 'users');
+        const subQuery = query(usersRef, where('keycloakSub', '==', authSub));
+        const subSnapshot = await getDocs(subQuery);
+        
+        if (!subSnapshot.empty) {
+          const doc = subSnapshot.docs[0];
+          firestoreUser = { ...doc.data(), uid: doc.id } as User;
+          console.log('✅ [Auth] Found user by keycloakSub');
+        }
+      } catch (e) {
+        console.log('⚠️ [Auth] keycloakSub query failed, trying other strategies');
+      }
+      
+      // Strategy 2: Look up by email (and link keycloakSub)
+      if (!firestoreUser && email) {
+        try {
+          const usersRef = collection(db, 'users');
+          const emailQuery = query(usersRef, where('email', '==', email));
+          const emailSnapshot = await getDocs(emailQuery);
+          
+          if (!emailSnapshot.empty) {
+            // Find active user without verification code
+            const activeUserDoc = emailSnapshot.docs.find(d => {
+              const data = d.data();
+              return !data.isDeleted && data.isActive !== false && !data.verificationCode;
+            });
+            
+            if (activeUserDoc) {
+              firestoreUser = { ...activeUserDoc.data(), uid: activeUserDoc.id } as User;
+              console.log('✅ [Auth] Found user by email, linking keycloakSub');
+              
+              // Link keycloakSub for future lookups
+              try {
+                await updateDoc(doc(db, 'users', activeUserDoc.id), {
+                  keycloakSub: authSub,
+                  lastLogin: new Date(),
+                });
+              } catch (e) {
+                console.warn('⚠️ [Auth] Failed to link keycloakSub:', e);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('❌ [Auth] Email query failed:', e);
+        }
+      }
+      
+      // Strategy 3: Look up by old uid field (Firebase UID)
+      if (!firestoreUser) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', authSub));
+          if (userDoc.exists()) {
+            firestoreUser = { ...userDoc.data(), uid: authSub } as User;
+            console.log('✅ [Auth] Found user by document ID');
+          }
+        } catch (e) {
+          console.log('⚠️ [Auth] Document ID lookup failed');
+        }
+      }
+      
+      if (!firestoreUser) {
+        console.error('❌ [Auth] No Firestore user found for:', email);
+        throw new Error('Benutzer nicht in der Datenbank gefunden. Bitte Admin kontaktieren.');
+      }
+      
+      // Check if user is deleted
+      if (firestoreUser.isDeleted) {
+        console.log('🚫 [Auth] User is marked as deleted');
+        await oidcLogout();
+        throw new Error('Dieser Benutzer-Account wurde gelöscht.');
+      }
+      
+      // Clean up demo data for real users
+      if (firestoreUser.email !== 'demo@tradetrackr.com') {
+        cleanupDemoData();
+      }
+      
+      // Override concernID with tenant_id from token if available
+      if (tenantId && tenantId !== firestoreUser.concernID) {
+        console.log('ℹ️ [Auth] Using tenant_id from token:', tenantId);
+        firestoreUser.concernID = tenantId;
+      }
+      
+      // Session claim
+      if (firestoreUser.concernID && !firestoreUser.isDemoUser) {
+        const sessionId = createSessionId();
+        const sessionResult = await claimSession(
+          firestoreUser.concernID,
+          authSub,
+          sessionId
+        );
+
+        if (!sessionResult.success) {
+          console.log('🚫 [Auth] Session claim denied');
+          setSessionBlocked(true);
+          setSessionBlockMessage(
+            sessionResult.message || 
+            'Dieses Konto ist bereits angemeldet. Bitte melden Sie sich zuerst auf dem anderen Gerät ab.'
+          );
+          await oidcLogout();
+          throw new Error(sessionResult.message || 'SESSION_BLOCKED');
+        }
+
+        // Setup session invalidation callback
+        setSessionInvalidatedCallback(async () => {
+          console.log('🚫 [Auth] Session invalidated by another device');
+          setSessionBlocked(true);
+          setSessionBlockMessage(
+            'Ihre Sitzung wurde von einem anderen Gerät übernommen. Sie werden abgemeldet.'
+          );
+          await oidcLogout();
+          setUser(null);
+        });
+
+        // Start heartbeat
+        startHeartbeat(firestoreUser.concernID, authSub);
+
+        // Setup tab close handler
+        tabCloseCleanup.current = setupTabCloseHandler(
+          firestoreUser.concernID,
+          authSub
+        );
+      }
+      
+      // Update last login
+      try {
+        await updateDoc(doc(db, 'users', firestoreUser.uid), {
+          lastLogin: new Date()
+        });
+      } catch (e) {
+        console.warn('⚠️ [Auth] Failed to update lastLogin');
+      }
+      
+      setUser(firestoreUser);
+      setLoading(false);
+      
+    } catch (error) {
+      console.error('❌ [Auth] loadFirestoreUser failed:', error);
+      setLoading(false);
+      throw error;
+    }
+  };
+
+  // ============================================================================
+  // Auto-Sync Effect
+  // ============================================================================
+
   useEffect(() => {
     if (user && user.concernID && !user.isDemoUser) {
-
-      
-      // Kurze Verzögerung, um sicherzustellen, dass der Benutzer vollständig geladen ist
       const timer = setTimeout(() => {
         startAutoSync();
       }, 1000);
       
       return () => {
         clearTimeout(timer);
-        // Stoppe Auto-Sync beim Abmelden
         if (autoSyncActive) {
           stopAutoSync();
         }
       };
-    } else if (user && user.isDemoUser) {
-
-    } else {
-
     }
   }, [user, user?.concernID, user?.isDemoUser]);
 
-  const signIn = async (email: string, password: string) => {
-    try {
+  // ============================================================================
+  // Sign In (Redirects to Keycloak)
+  // ============================================================================
 
-
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
-      
-
-      
-      // Benutzer aus Firestore abrufen
-
-      let userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-      console.log('ðŸ” Firestore response received, exists:', userDoc.exists());
-      
-      if (userDoc.exists()) {
-
-        const userData = userDoc.data() as User;
-
-        // Check if user is marked as deleted
-        console.log('🔍 SignIn - Checking user deletion status:', { 
-          uid: firebaseUser.uid, 
-          isDeleted: userData.isDeleted, 
-          deletedAt: userData.deletedAt,
-          isActive: userData.isActive 
-        });
-        
-        if (userData.isDeleted) {
-          console.log('🚫 SignIn - User is marked as deleted, throwing error');
-          throw new Error('Dieser Benutzer-Account wurde gelöscht. Bitte kontaktieren Sie den Administrator.');
-        }
-        
-        const userWithUid = {
-          ...userData,
-          uid: firebaseUser.uid
-        };
-
-        
-        // Demo-Daten bereinigen, wenn es sich um einen echten Benutzer handelt
-        if (userWithUid.email !== 'demo@tradetrackr.com') {
-
-          cleanupDemoData();
-
-        }
-        
-        // WICHTIG: öberprüfe, ob es doppelte Benutzer-Eintrö¤ge mit derselben E-Mail gibt
-        // Wenn ja, verwende den mit der korrekten ConcernID (der, der den Verifizierungscode hatte)
-        if (userWithUid.concernID && userWithUid.concernID !== 'DE0000000000') {
-
-          
-          try {
-            // Suche nach allen Benutzern mit derselben E-Mail
-            const duplicateUsers = await userService.getByEmail(email, userWithUid.concernID);
-            
-            if (duplicateUsers && Array.isArray(duplicateUsers) && duplicateUsers.length > 1) {
-
-              
-              // Finde den Benutzer mit der ursprünglichen ConcernID (der, der den Verifizierungscode hatte)
-              const originalUser = duplicateUsers.find((u: any) => u.verificationCode === null && u.uid === firebaseUser.uid);
-              
-              if (originalUser) {
-
-                userWithUid.concernID = originalUser.concernID;
-              } else {
-
-              }
-            }
-          } catch (error) {
-
-          }
-        }
-        
-
-        // ====================================
-        // SESSION CLAIM (Single active session)
-        // ====================================
-        if (userWithUid.concernID && !userWithUid.isDemoUser) {
-          const sessionId = createSessionId();
-          const sessionResult = await claimSession(
-            userWithUid.concernID,
-            firebaseUser.uid,
-            sessionId
-          );
-
-          if (!sessionResult.success) {
-            console.log('🚫 [Auth] Session claim denied, signing out');
-            await signOut(auth);
-            setSessionBlocked(true);
-            setSessionBlockMessage(
-              sessionResult.message || 
-              'Dieses Konto ist bereits angemeldet. Bitte melden Sie sich zuerst auf dem anderen Gerät ab.'
-            );
-            throw new Error(sessionResult.message || 'SESSION_BLOCKED');
-          }
-
-          // Setup callback for when session is invalidated by another device
-          setSessionInvalidatedCallback(async () => {
-            console.log('🚫 [Auth] Session invalidated by another device, signing out');
-            setSessionBlocked(true);
-            setSessionBlockMessage(
-              'Ihre Sitzung wurde von einem anderen Gerät übernommen. Sie werden abgemeldet.'
-            );
-            await signOut(auth);
-            setUser(null);
-          });
-
-          // Start heartbeat to keep session alive
-          startHeartbeat(userWithUid.concernID, firebaseUser.uid);
-
-          // Setup tab close handler
-          tabCloseCleanup.current = setupTabCloseHandler(
-            userWithUid.concernID,
-            firebaseUser.uid
-          );
-        }
-        // ====================================
-
-        setUser(userWithUid);
-
-        // lastLogin Feld aktualisieren
-        try {
-          await updateDoc(doc(db, 'users', firebaseUser.uid), {
-            lastLogin: new Date()
-          });
-          console.log('✅ lastLogin erfolgreich aktualisiert');
-        } catch (error) {
-          console.error('❌ Fehler beim Aktualisieren des lastLogin:', error);
-        }
-        
-        // Direkte Navigation nach erfolgreichem Login
-
-        const defaultDashboard = getDefaultDashboard();
-
-        
-        // Navigation über window.location.href (direkt und zuverlö¤ssig)
-        window.location.href = `#${defaultDashboard}`;
-
-      } else {
-
-        
-        // WICHTIG: Bei Verifizierungscode-Registrierung NICHT automatisch Fallback-Benutzer erstellen
-        // Der Benutzer sollte sich manuell anmelden, nachdem die Registrierung abgeschlossen ist
-
-        
-        // Prüfe, ob es sich um eine Verifizierungscode-Registrierung handelt
-        try {
-          const { collection, query, where, getDocs } = await import('firebase/firestore');
-          const { db } = await import('@/config/firebase');
-          
-          // Suche nach Benutzern mit dieser E-Mail, die möglicherweise noch einen Verifizierungscode haben
-          const usersRef = collection(db, 'users');
-          const q = query(usersRef, where('email', '==', email));
-          const querySnapshot = await getDocs(q);
-          
-          if (!querySnapshot.empty) {
-            const existingUsers = querySnapshot.docs.map(doc => ({
-              ...doc.data(),
-              uid: doc.id
-            }));
-            
-            // Prüfe, ob es einen Benutzer mit Verifizierungscode gibt
-            const userWithVerificationCode = existingUsers.find((u: any) => u.verificationCode);
-            
-            if (userWithVerificationCode) {
-
-              throw new Error('Ihre Registrierung ist noch nicht vollständig abgeschlossen. Bitte warten Sie einen Moment und versuchen Sie es erneut, oder kontaktieren Sie den Administrator.');
-            }
-            
-            // Prüfe, ob es einen Benutzer ohne Firebase UID gibt (nur Firestore-Dokument-ID)
-            const userWithoutFirebaseUID = existingUsers.find((u: any) => !u.uid || u.uid === u.concernID);
-            
-            if (userWithoutFirebaseUID) {
-
-              throw new Error('Ihre Registrierung konnte nicht vollständig abgeschlossen werden. Bitte kontaktieren Sie den Administrator oder versuchen Sie die Registrierung erneut.');
-            }
-          }
-        } catch (verificationCheckError) {
-
-          
-          // Wenn es ein Verifizierungscode-Fehler ist, re-throw den Fehler
-          if (verificationCheckError instanceof Error && 
-              (verificationCheckError.message.includes('Registrierung') || 
-               verificationCheckError.message.includes('Administrator'))) {
-            throw verificationCheckError;
-          }
-        }
-        
-        // Nur wenn es sich definitiv NICHT um eine Verifizierungscode-Registrierung handelt,
-        // erstelle einen Fallback-Benutzer
-
-        
-        // WICHTIG: Bevor wir einen Fallback-Benutzer erstellen, prüfen wir nochmals nach bestehenden Benutzern
-        // Suche nach Benutzern mit derselben E-Mail (erweiterte Suche)
-        try {
-          const { collection, query, where, getDocs } = await import('firebase/firestore');
-          const { db } = await import('@/config/firebase');
-          
-          const usersRef = collection(db, 'users');
-          const emailQuery = query(usersRef, where('email', '==', email));
-          const emailSnapshot = await getDocs(emailQuery);
-          
-          if (!emailSnapshot.empty) {
-            const existingUsers = emailSnapshot.docs.map(doc => ({
-              ...doc.data(),
-              docId: doc.id
-            }));
-            
-            console.log('🔍 Found existing users with email before fallback:', existingUsers.length);
-            
-            // Suche nach einem aktiven Benutzer, der aktualisiert werden kann
-            const updateableUser = existingUsers.find((u: any) => 
-              !u.isDeleted && 
-              u.isActive !== false
-            );
-            
-            if (updateableUser) {
-              console.log('✅ Found updateable user, updating with Firebase UID instead of creating new');
-              
-              // Aktualisiere den bestehenden Benutzer mit der korrekten Firebase UID
-              const updatedUserData = {
-                ...updateableUser,
-                uid: firebaseUser.uid,
-                lastSync: new Date(),
-                verificationCode: null,
-                verificationCodeDate: null,
-                verificationCodeSent: false
-              };
-              
-              // Aktualisiere in Firestore
-              await userService.update(updateableUser.docId, {
-                uid: firebaseUser.uid,
-                lastSync: new Date(),
-                verificationCode: null,
-                verificationCodeDate: null,
-                verificationCodeSent: false
-              });
-              
-              console.log('✅ Existing user updated successfully with Firebase UID');
-              
-              // User-State setzen
-              setUser(updatedUserData);
-              
-              // Navigation
-              const defaultDashboard = getDefaultDashboard();
-              window.location.href = `#${defaultDashboard}`;
-              
-              return; // Exit - kein Fallback-Benutzer nötig
-            }
-          }
-        } catch (emailSearchError) {
-          console.error('Error searching for existing users by email:', emailSearchError);
-        }
-        
-        // Fallback: Benutzer in Firestore erstellen (nur wenn definitiv kein Benutzer existiert)
-        console.log('📝 No existing user found, creating new user (should be very rare)');
-        try {
-          const fallbackUser: User = {
-            uid: firebaseUser.uid,
-            concernID: generateConcernId(),
-            dateCreated: new Date(),
-            email: firebaseUser.email || email,
-            displayName: firebaseUser.displayName || '',
-            photoUrl: firebaseUser.photoURL || '',
-            tel: '',
-            passpin: 0,
-            vorname: firebaseUser.displayName?.split(' ')[0] || '',
-            mitarbeiterID: Math.floor(Math.random() * 10000) + 1000,
-            lastSync: new Date(),
-            nachname: firebaseUser.displayName?.split(' ')[1] || '',
-            generatedProjects: 0,
-            rechte: 5,
-            startDate: new Date(),
-            role: 'admin', // Standardrolle
-            isActive: true,
-            isDemoUser: false,
-                    // Unternehmensfelder werden nicht mehr in User gespeichert (aus Concern Collection)
-          };
-          
-          // User in Firestore speichern (mit Firebase UID)
-          const { uid, ...userWithoutUid } = fallbackUser;
-          await userService.createWithId(firebaseUser.uid, userWithoutUid);
-
-          
-          // User-State setzen und navigieren
-
-          setUser(fallbackUser);
-
-          
-          // Direkte Navigation
-
-          const defaultDashboard = getDefaultDashboard();
-
-          
-          window.location.href = `#${defaultDashboard}`;
-
-          
-        } catch (fallbackError) {
-
-          throw new Error('Benutzer konnte nicht in der Datenbank erstellt werden');
-        }
-      }
-    } catch (error) {
-
-      throw error;
-    }
+  const signIn = async (_email: string, _password: string) => {
+    // Parameters are ignored - Keycloak handles login
+    console.log('🔑 [Auth] Redirecting to Keycloak login...');
+    await oidcLogin();
   };
 
-  const signUp = async (email: string, password: string, userData: Partial<User>) => {
-    try {
-      const concernId = generateConcernId();
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
-      
-      if (userData.displayName) {
-        await updateProfile(firebaseUser, { displayName: userData.displayName });
-      }
+  // ============================================================================
+  // Sign Up (Redirects to Keycloak Registration)
+  // ============================================================================
 
-      const newUser: User = {
-        uid: firebaseUser.uid,
-        concernID: concernId,
-        dateCreated: new Date(),
-        email: email,
-        displayName: userData.displayName || '',
-        photoUrl: userData.photoUrl || '',
-        tel: userData.tel || '',
-        passpin: userData.passpin || 0,
-        vorname: userData.vorname || '',
-        mitarbeiterID: userData.mitarbeiterID || Math.floor(Math.random() * 10000) + 1000,
-        lastSync: new Date(),
-        nachname: userData.nachname || '',
-        generatedProjects: 0,
-        rechte: 5,
-        startDate: userData.startDate || new Date(),
-        dateOfBirth: userData.dateOfBirth,
-        role: 'admin',
-        isActive: true,
-        isDemoUser: false,
-        // Unternehmensfelder werden nicht mehr in User gespeichert (aus Concern Collection)
-      };
-
-      // Concern direkt in Firestore erstellen (mit benutzerdefinierter ID)
-      const companyName = `${userData.vorname} ${userData.nachname} GmbH`;
-      const concernData = {
-        dateCreated: new Date(),
-        concernName: companyName,
-        concernAddress: 'Adresse wird spö¤ter hinzugefügt',
-        concernTel: userData.tel || '',
-        concernEmail: email,
-        updateTime: new Date(),
-        members: 1
-      };
-      
-
-      
-      try {
-
-
-
-        
-        const result = await concernService.createWithId(concernId, concernData);
-
-      } catch (concernError) {
-
-
-        
-        // Detaillierte Fehleranalyse
-        if (concernError instanceof Error) {
-
-
-        }
-        
-        // Zusö¤tzliche Debug-Informationen
-
-        console.error('âŒ Concern service methods:', Object.keys(concernService));
-
-        
-        // Fallback: Concern lokal speichern für spö¤tere Synchronisation
-        const concernWithUid = { ...concernData, uid: concernId };
-        localStorage.setItem(`concern_${concernId}`, JSON.stringify(concernWithUid));
-
-      }
-
-      // Kurze Verzögerung zwischen Concern- und User-Erstellung
-
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // User direkt in Firestore erstellen (mit Firebase UID)
-
-      
-      try {
-        const { uid, ...userWithoutUid } = newUser;
-        const result = await userService.createWithId(firebaseUser.uid, userWithoutUid);
-
-      } catch (userError) {
-
-
-        
-        // Detaillierte Fehleranalyse
-        if (userError instanceof Error) {
-
-
-        }
-        
-        // Fallback: User lokal speichern für spö¤tere Synchronisation
-        localStorage.setItem(`user_${firebaseUser.uid}`, JSON.stringify(newUser));
-
-      }
-
-      setUser(newUser);
-      
-      // Direkte Navigation nach erfolgreicher Registrierung
-
-      const defaultDashboard = getDefaultDashboard();
-
-      
-      // Navigation über window.location.href (direkt und zuverlö¤ssig)
-      window.location.href = `#${defaultDashboard}`;
-
-    } catch (error) {
-
-      throw error;
-    }
+  const signUp = async (_email: string, _password: string, _userData: Partial<User>) => {
+    // Keycloak handles registration
+    console.log('📝 [Auth] Redirecting to Keycloak registration...');
+    // Use login redirect - Keycloak can be configured with registration hint
+    await oidcLogin();
   };
+
+  // ============================================================================
+  // Logout
+  // ============================================================================
 
   const logout = async () => {
     try {
-      // Release session before signing out
+      // Release session
       if (user?.concernID && !user?.isDemoUser && getCurrentSessionId()) {
         stopHeartbeat();
-        await releaseSession(user.concernID, user.uid || '');
+        await releaseSession(user.concernID, oidcUser?.userId || user.uid || '');
       }
 
       // Cleanup tab close handler
@@ -661,25 +430,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         tabCloseCleanup.current = null;
       }
 
-      await signOut(auth);
+      // Stop sync
+      if (autoSyncActive) {
+        stopAutoSync();
+      }
+
+      // Clear state
       setUser(null);
+      setFirebaseUser(null);
+      setOidcUser(null);
       setSessionBlocked(false);
       setSessionBlockMessage('');
+
+      // OIDC logout (redirects to Keycloak)
+      await oidcLogout();
     } catch (error) {
-      console.error('❌ Logout error:', error);
+      console.error('❌ [Auth] Logout error:', error);
       throw error;
     }
   };
 
-  // Funktion zum Synchronisieren der lokalen Daten mit Firestore
+  // ============================================================================
+  // Sync Functions
+  // ============================================================================
+
   const syncLocalDataToFirestore = async () => {
     if (!user) return;
     
     try {
-
       let hasLocalData = false;
       
-              const concernKey = `concern_${user.concernID}`;
+      const concernKey = `concern_${user.concernID}`;
       const concernData = localStorage.getItem(concernKey);
       if (concernData) {
         hasLocalData = true;
@@ -689,9 +470,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const { uid, ...concernWithoutUid } = concern;
           await concernService.createWithId(concernId, concernWithoutUid);
           localStorage.removeItem(concernKey);
-
         } catch (error) {
-
+          console.error('Concern sync error:', error);
         }
       }
       
@@ -705,21 +485,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const { uid, ...userWithoutUid } = userToSync;
           await userService.createWithId(userId, userWithoutUid);
           localStorage.removeItem(userKey);
-
         } catch (error) {
-
+          console.error('User sync error:', error);
         }
       }
-      
-      if (!hasLocalData) {
-
-      }
     } catch (error) {
-
+      console.error('Sync error:', error);
     }
   };
 
-  // Berechtigungsprüfungen basierend auf Benutzerrolle
+  // ============================================================================
+  // Permission Checks
+  // ============================================================================
+
   const canCreateProject = (): boolean => {
     if (!user) return false;
     return user.role === 'admin' || user.role === 'manager' || user.role === 'employee' || user.role === 'office';
@@ -737,7 +515,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const canViewReports = (): boolean => {
     if (!user) return false;
-    return true; // Alle Benutzer können Berichte einsehen
+    return true;
   };
 
   const canCreateCustomer = (): boolean => {
@@ -762,17 +540,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const canViewOwnProjects = (): boolean => {
     if (!user) return false;
-    return true; // Alle Benutzer können ihre eigenen Projekte einsehen
+    return true;
   };
 
   const canViewOwnReports = (): boolean => {
     if (!user) return false;
-    return true; // Alle Benutzer können ihre eigenen Berichte einsehen
+    return true;
   };
 
   const canViewOwnProjectInfo = (): boolean => {
     if (!user) return false;
-    return true; // Alle Benutzer können ihre eigenen Projektinformationen einsehen
+    return true;
   };
 
   const canViewCustomers = (): boolean => {
@@ -798,32 +576,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const hasPermission = (permission: string): boolean => {
     if (!user) return false;
     
-    // Rollenbasierte Berechtigungen
     switch (user.role) {
       case 'admin':
-        return true; // Admin hat alle Berechtigungen
+        return true;
       case 'office':
         return [
-          // Aufgaben: Lesen (r) + Schreiben (w)
           'view_tasks', 'create_task', 'edit_task', 'delete_task',
-          // Berichte: Nur Lesen (r) - KEINE Genehmigung/Ablehnung
           'view_reports', 'view_all_reports',
-          // Benutzer: Nur Lesen (r)
           'view_users',
-          // Kunden: Lesen (r) + Schreiben (w)
           'view_customers', 'create_customer', 'edit_customer', 'delete_customer',
-          // Kategorien: Nur Lesen (r)
           'view_categories',
-          // Materialien: Lesen (r) + Schreiben (w)
           'view_materials', 'create_material', 'edit_material', 'delete_material',
-          // Projekte: Lesen (r) + Schreiben (w)
           'view_projects', 'create_project', 'edit_project', 'delete_project',
-          // Projektinfo: Lesen (r) + Schreiben (w)
           'view_project_info', 'create_project_info', 'edit_project_info',
-          // Dokumente: Lesen (r) + Schreiben (w)
           'view_documents', 'create_document', 'edit_document', 'delete_document',
-          // Kein Zugriff auf Concernverwaltung
-          // Kein Zugriff auf Berichtsgenehmigung/-ablehnung
         ].includes(permission);
       case 'manager':
         return [
@@ -873,7 +639,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const canCreateReport = (): boolean => {
     if (!user) return false;
     return user.role === 'admin' || user.role === 'manager' || user.role === 'employee' || user.role === 'service_technician';
-    // Büro (office) kann keine Berichte erstellen, nur lesen
   };
 
   const canCreateCRM = (): boolean => {
@@ -887,50 +652,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const canUseMessaging = (): boolean => {
-    // Alle authentifizierten Benutzer können das Messaging-System nutzen
     return !!user && user.isActive;
   };
 
   const isDemoUser = (): boolean => {
-    // Prüfe, ob der Benutzer ein Demo-Benutzer ist
-    // Demo-Benutzer haben eine spezifische E-Mail-Adresse
     if (!user) return false;
     return user.email === 'demo@tradetrackr.com';
   };
 
   const getDefaultDashboard = (): string => {
-    if (!user) return 'dashboard'; // Standard-Dashboard für nicht angemeldete Benutzer
-    
-    // Demo-Benutzer gehen zum Haupt-Dashboard
+    if (!user) return 'dashboard';
     if (isDemoUser()) return 'dashboard';
     
-    // Rollenbasierte Dashboard-Navigation
     switch (user.role) {
-      case 'admin':
-        return 'dashboard'; // Admin sieht alle Funktionen
-      case 'manager':
-        return 'dashboard'; // Manager sieht alle Funktionen
-      case 'office':
-        return 'dashboard'; // Büro sieht alle relevanten Funktionen
-      case 'employee':
-        return 'dashboard'; // Mitarbeiter sehen eingeschrö¤nkte Funktionen
-      case 'service_technician':
-        return 'dashboard'; // Servicetechniker sehen eingeschrö¤nkte Funktionen
       case 'auftraggeber':
-        return 'auftraggeber'; // Auftraggeber haben eigenes Dashboard
+        return 'auftraggeber';
       default:
-        return 'dashboard'; // Standard-Dashboard
+        return 'dashboard';
     }
   };
 
-  // Funktion zum Generieren von Demo-Daten für Demo-Benutzer
+  // ============================================================================
+  // Demo Mode
+  // ============================================================================
+
   const generateDemoDataForDemoUser = () => {
     if (!isDemoUser()) return;
     
     try {
-
-      
-      // Demo-Projekte generieren
       const demoProjects = [
         {
           id: 'demo-project-1',
@@ -952,7 +701,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       localStorage.setItem('projects', JSON.stringify(demoProjects));
       
-      // Demo-Berichte generieren
       const demoReports = Array.from({ length: 15 }, (_, index) => ({
         id: `REP-${String(index + 1).padStart(3, '0')}`,
         employee: ['Max Mustermann', 'Anna Schmidt', 'Tom Weber'][index % 3],
@@ -965,19 +713,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }));
       
       localStorage.setItem('reports', JSON.stringify(demoReports));
-      
-
     } catch (error) {
-
+      console.error('Demo data generation error:', error);
     }
   };
-
-
 
   const enterDemoMode = (role: string) => {
     const demoUser: User = {
       uid: 'demo-user',
-              concernID: 'DE0000000000',
+      concernID: 'DE0000000000',
       dateCreated: new Date(),
       email: 'demo@tradetrackr.com',
       displayName: `Demo ${role}`,
@@ -985,7 +729,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       tel: '+49 123 456789',
       passpin: 1234,
       vorname: 'Demo',
-              mitarbeiterID: 9999,
+      mitarbeiterID: 9999,
       lastSync: new Date(),
       nachname: role.charAt(0).toUpperCase() + role.slice(1),
       generatedProjects: 0,
@@ -994,212 +738,122 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       role: role,
       isActive: true,
       isDemoUser: true,
-              // Unternehmensfelder werden nicht mehr in User gespeichert (aus Concern Collection)
     };
     
     setUser(demoUser);
-    
-
+    setFirebaseUser({ uid: 'demo-user', email: 'demo@tradetrackr.com', displayName: `Demo ${role}` });
+    setLoading(false);
   };
 
-  // Neue Synchronisationsfunktionen
+  // ============================================================================
+  // Auto-Sync Implementation
+  // ============================================================================
+
   const startAutoSync = async () => {
-    if (!user || !user.concernID) {
-
-      return;
-    }
-
-    if (autoSyncActive) {
-
-      return;
-    }
-
+    if (!user || !user.concernID) return;
+    if (autoSyncActive) return;
 
     setAutoSyncActive(true);
     setSyncStatus('syncing');
 
     try {
-      // ZUERST: Alle Daten sofort laden (nicht nur auf Änderungen warten)
+      // Load initial data
+      const [users, projects, tasks, reports, customers, materials, categories] = await Promise.all([
+        userService.getAll(user.concernID).catch(() => []),
+        projectService.getAll(user.concernID).catch(() => []),
+        taskService.getAll(user.concernID).catch(() => []),
+        reportService.getReportsByConcern(user.concernID).catch(() => []),
+        customerService.getAll(user.concernID).catch(() => []),
+        materialService.getAll(user.concernID).catch(() => []),
+        categoryService.getAll(user.concernID).catch(() => []),
+      ]);
 
-      
-      // Users Collection sofort laden
-      try {
-        const users = await userService.getAll(user.concernID);
+      localStorage.setItem('users', JSON.stringify(users));
+      localStorage.setItem('projects', JSON.stringify(projects));
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+      localStorage.setItem('reports', JSON.stringify(reports));
+      localStorage.setItem('customers', JSON.stringify(customers));
+      localStorage.setItem('materials', JSON.stringify(materials));
+      localStorage.setItem('categories', JSON.stringify(categories));
 
-        localStorage.setItem('users', JSON.stringify(users));
-        
-        // Debug: öberprüfe den Inhalt
-        console.log('ðŸ” Erste 3 Benutzer:', users.slice(0, 3).map(u => ({ 
-          uid: u.uid, 
-          email: u.email, 
-          vorname: u.vorname, 
-          nachname: u.nachname,
-          concernID: u.concernID 
-        })));
-        
-      } catch (error) {
-
-      }
-
-      // Projects Collection sofort laden
-      try {
-        const projects = await projectService.getAll(user.concernID);
-
-        localStorage.setItem('projects', JSON.stringify(projects));
-      } catch (error) {
-
-      }
-
-      // Tasks Collection sofort laden
-      try {
-        const tasks = await taskService.getAll(user.concernID);
-
-        localStorage.setItem('tasks', JSON.stringify(tasks));
-      } catch (error) {
-
-      }
-
-      // Reports Collection sofort laden
-      try {
-        const reports = await reportService.getReportsByConcern(user.concernID);
-
-        localStorage.setItem('reports', JSON.stringify(reports));
-      } catch (error) {
-
-      }
-
-      // Customers Collection sofort laden
-      try {
-        const customers = await customerService.getAll(user.concernID);
-
-        localStorage.setItem('customers', JSON.stringify(customers));
-      } catch (error) {
-
-      }
-
-      // Materials Collection sofort laden
-      try {
-        const materials = await materialService.getAll(user.concernID);
-
-        localStorage.setItem('materials', JSON.stringify(materials));
-      } catch (error) {
-
-      }
-
-      // Categories Collection sofort laden
-      try {
-        const categories = await categoryService.getAll(user.concernID);
-
-        localStorage.setItem('categories', JSON.stringify(categories));
-      } catch (error) {
-
-      }
-
-      // DANN: Firestore-Listener für Echtzeit-Updates starten
-
+      // Set up listeners
       const unsubscribers: Array<() => void> = [];
 
-      // Users Collection Listener
-      const usersUnsubscribe = FirestoreService.subscribeToCollection('users', user.concernID, (users) => {
-
-        localStorage.setItem('users', JSON.stringify(users));
+      unsubscribers.push(FirestoreService.subscribeToCollection('users', user.concernID, (data) => {
+        localStorage.setItem('users', JSON.stringify(data));
         setLastSyncTime(new Date());
         setSyncStatus('idle');
-      });
-      unsubscribers.push(usersUnsubscribe);
+      }));
 
-      // Projects Collection Listener
-      const projectsUnsubscribe = FirestoreService.subscribeToCollection('projects', user.concernID, (projects) => {
-
-        localStorage.setItem('projects', JSON.stringify(projects));
+      unsubscribers.push(FirestoreService.subscribeToCollection('projects', user.concernID, (data) => {
+        localStorage.setItem('projects', JSON.stringify(data));
         setLastSyncTime(new Date());
         setSyncStatus('idle');
-      });
-      unsubscribers.push(projectsUnsubscribe);
+      }));
 
-      // Tasks Collection Listener
-      const tasksUnsubscribe = FirestoreService.subscribeToCollection('tasks', user.concernID, (tasks) => {
-
-        localStorage.setItem('tasks', JSON.stringify(tasks));
+      unsubscribers.push(FirestoreService.subscribeToCollection('tasks', user.concernID, (data) => {
+        localStorage.setItem('tasks', JSON.stringify(data));
         setLastSyncTime(new Date());
         setSyncStatus('idle');
-      });
-      unsubscribers.push(tasksUnsubscribe);
+      }));
 
-      // Reports Collection Listener
-      const reportsUnsubscribe = FirestoreService.subscribeToCollection('ProjectReports', user.concernID, (reports) => {
-
-        localStorage.setItem('reports', JSON.stringify(reports));
+      unsubscribers.push(FirestoreService.subscribeToCollection('ProjectReports', user.concernID, (data) => {
+        localStorage.setItem('reports', JSON.stringify(data));
         setLastSyncTime(new Date());
         setSyncStatus('idle');
-      });
-      unsubscribers.push(reportsUnsubscribe);
+      }));
 
-      // Customers Collection Listener
-      const customersUnsubscribe = FirestoreService.subscribeToCollection('customers', user.concernID, (customers) => {
-
-        localStorage.setItem('customers', JSON.stringify(customers));
+      unsubscribers.push(FirestoreService.subscribeToCollection('customers', user.concernID, (data) => {
+        localStorage.setItem('customers', JSON.stringify(data));
         setLastSyncTime(new Date());
         setSyncStatus('idle');
-      });
-      unsubscribers.push(customersUnsubscribe);
+      }));
 
-      // Materials Collection Listener
-      const materialsUnsubscribe = FirestoreService.subscribeToCollection('materials', user.concernID, (materials) => {
-
-        localStorage.setItem('materials', JSON.stringify(materials));
+      unsubscribers.push(FirestoreService.subscribeToCollection('materials', user.concernID, (data) => {
+        localStorage.setItem('materials', JSON.stringify(data));
         setLastSyncTime(new Date());
         setSyncStatus('idle');
-      });
-      unsubscribers.push(materialsUnsubscribe);
+      }));
 
-      // Categories Collection Listener
-      const categoriesUnsubscribe = FirestoreService.subscribeToCollection('categories', user.concernID, (categories) => {
-
-        localStorage.setItem('categories', JSON.stringify(categories));
+      unsubscribers.push(FirestoreService.subscribeToCollection('categories', user.concernID, (data) => {
+        localStorage.setItem('categories', JSON.stringify(data));
         setLastSyncTime(new Date());
         setSyncStatus('idle');
-      });
-      unsubscribers.push(categoriesUnsubscribe);
+      }));
 
       setSyncUnsubscribers(unsubscribers);
       setLastSyncTime(new Date());
       setSyncStatus('idle');
-
-
     } catch (error) {
-
+      console.error('Auto-sync error:', error);
       setSyncStatus('error');
       setAutoSyncActive(false);
     }
   };
 
   const stopAutoSync = () => {
-    if (!autoSyncActive) {
-
-      return;
-    }
-
-
+    if (!autoSyncActive) return;
     
-    // Alle Listener beenden
     syncUnsubscribers.forEach(unsubscribe => {
       try {
         unsubscribe();
       } catch (error) {
-
+        console.error('Unsubscribe error:', error);
       }
     });
 
     setSyncUnsubscribers([]);
     setAutoSyncActive(false);
     setSyncStatus('idle');
-
   };
 
   const isAutoSyncActive = () => autoSyncActive;
   const getLastSyncTime = () => lastSyncTime;
   const getSyncStatus = () => syncStatus;
+
+  // ============================================================================
+  // Context Value
+  // ============================================================================
 
   const value: AuthContextType = {
     user,
@@ -1233,8 +887,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     canViewCRM,
     canUseMessaging,
     getDefaultDashboard,
-    
-    // Neue Synchronisationsfunktionen
     startAutoSync,
     stopAutoSync,
     isAutoSyncActive,
