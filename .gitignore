@@ -145,3 +145,11 @@ temp/
 *.tmp
 *.swp
 *.swo
+
+# env files
+.env*
+!.env.example
+!.env.production.example
+
+# firebase artifacts
+.firebase/
