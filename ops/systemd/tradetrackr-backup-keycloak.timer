@@ -1,0 +1,17 @@
+[Unit]
+Description=TradeTrackr Keycloak Realm Export Timer (Monthly 1st 04:00)
+Documentation=https://github.com/your-org/tradetrackr/blob/main/docs/WORKSTREAM_E_BACKUPS.md
+
+[Timer]
+# Run monthly on the 1st at 04:00
+OnCalendar=*-*-01 04:00:00
+# Random delay up to 30 minutes
+RandomizedDelaySec=1800
+# Ensure we run even if system was off at scheduled time
+Persistent=true
+# Don't wake system from sleep
+WakeSystem=false
+
+[Install]
+WantedBy=timers.target
+

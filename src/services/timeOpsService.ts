@@ -1,20 +1,16 @@
 /**
  * TradeTrackr - Time Ops Service
+ *
+ * Workstream F: Migrated to dataClient (Phase 1)
+ *
  * Handles supervisor daily operations
  */
 
-import { db } from '../config/firebase';
-import {
-  collection,
-  doc,
-  getDocs,
-  getDoc,
-  query,
-  where,
-  orderBy,
-  Timestamp,
-} from 'firebase/firestore';
+import { queryDocs, QueryFilter } from '@/services/dataClient';
+import { getAccessToken } from '@/lib/auth/oidc-client';
 import type { Punch } from './timeAdminService';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 // ==================== TYPES ====================
 
@@ -44,24 +40,33 @@ export interface Exception {
 // ==================== LIVE VIEW ====================
 
 export async function getActiveWorkers(concernId: string): Promise<WorkerStatus[]> {
-  // Get all active punches
-  const punchesQuery = query(
-    collection(db, 'punches'),
-    where('concernId', '==', concernId),
-    where('endAt', '==', null)
-  );
+  // Get all punches and filter for active ones
+  const filters: QueryFilter[] = [
+    { field: 'concernId', op: '==', value: concernId },
+  ];
 
-  const punchesSnapshot = await getDocs(punchesQuery);
-  const activePunches = punchesSnapshot.docs.map((doc) => ({
-    punchId: doc.id,
-    ...doc.data(),
-  })) as Punch[];
+  const result = await queryDocs<Punch>('punches', filters, {
+    limit: 100,
+  });
+
+  // Filter for active punches (no endAt)
+  const activePunches = result.items
+    .filter((doc) => !doc.data.endAt)
+    .map((doc) => ({
+      punchId: doc.doc_id,
+      ...doc.data,
+    }));
 
   // Build worker status list
   const workerStatuses: WorkerStatus[] = [];
 
   for (const punch of activePunches) {
     // In production, fetch user details from users collection
+    const startAt = punch.startAt;
+    const sinceDate = startAt
+      ? new Date(startAt.seconds * 1000 + (startAt.nanoseconds || 0) / 1000000)
+      : undefined;
+
     const status: WorkerStatus = {
       uid: punch.uid,
       displayName: punch.uid, // Would fetch from users/{uid}
@@ -70,7 +75,7 @@ export async function getActiveWorkers(concernId: string): Promise<WorkerStatus[
       projectId: punch.projectId,
       taskId: punch.taskId,
       siteId: punch.siteId,
-      since: punch.startAt.toDate(),
+      since: sinceDate,
       lastGPSAccuracy: punch.locationStart?.acc,
       lastLocation: punch.locationStart,
     };
@@ -89,27 +94,33 @@ export async function getExceptions(concernId: string): Promise<Exception[]> {
   // Get all punches from last 7 days
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoTs = {
+    seconds: Math.floor(sevenDaysAgo.getTime() / 1000),
+    nanoseconds: 0,
+  };
 
-  const punchesQuery = query(
-    collection(db, 'punches'),
-    where('concernId', '==', concernId),
-    where('startAt', '>', Timestamp.fromDate(sevenDaysAgo)),
-    orderBy('startAt', 'desc')
-  );
+  const filters: QueryFilter[] = [
+    { field: 'concernId', op: '==', value: concernId },
+    { field: 'startAt', op: '>', value: sevenDaysAgoTs },
+  ];
 
-  const snapshot = await getDocs(punchesQuery);
-  const punches = snapshot.docs.map((doc) => ({
-    punchId: doc.id,
-    ...doc.data(),
-  })) as Punch[];
+  const result = await queryDocs<Punch>('punches', filters, {
+    orderBy: { field: 'startAt', dir: 'desc' },
+  });
+
+  const punches = result.items.map((doc) => ({
+    punchId: doc.doc_id,
+    ...doc.data,
+  }));
 
   // Check for exceptions
   for (const punch of punches) {
     // Missing end (>24h old)
-    if (!punch.endAt) {
-      const age = Date.now() - punch.startAt.toDate().getTime();
+    if (!punch.endAt && punch.startAt) {
+      const startMs = punch.startAt.seconds * 1000 + (punch.startAt.nanoseconds || 0) / 1000000;
+      const age = Date.now() - startMs;
       const hoursOld = age / (1000 * 60 * 60);
-      
+
       if (hoursOld > 24) {
         exceptions.push({
           id: `missing_end_${punch.punchId}`,
@@ -118,13 +129,17 @@ export async function getExceptions(concernId: string): Promise<Exception[]> {
           uid: punch.uid,
           description: `Schicht seit ${hoursOld.toFixed(1)}h offen`,
           severity: hoursOld > 48 ? 'high' : 'medium',
-          createdAt: punch.startAt.toDate(),
+          createdAt: new Date(startMs),
         });
       }
     }
 
     // Excessive hours (>12h)
     if (punch.durationSec > 12 * 3600) {
+      const startMs = punch.startAt
+        ? punch.startAt.seconds * 1000 + (punch.startAt.nanoseconds || 0) / 1000000
+        : Date.now();
+
       exceptions.push({
         id: `excessive_${punch.punchId}`,
         type: 'excessive_hours',
@@ -132,7 +147,7 @@ export async function getExceptions(concernId: string): Promise<Exception[]> {
         uid: punch.uid,
         description: `Schicht über 12h (${(punch.durationSec / 3600).toFixed(1)}h)`,
         severity: 'high',
-        createdAt: punch.startAt.toDate(),
+        createdAt: new Date(startMs),
       });
     }
   }
@@ -142,46 +157,68 @@ export async function getExceptions(concernId: string): Promise<Exception[]> {
 
 // ==================== CALLABLE FUNCTIONS ====================
 
-// These would call Firebase Cloud Functions via httpsCallable
-// For MVP, placeholder implementations
+// These call the API functions endpoint
 
 export async function approveItem(
   targetType: string,
   targetId: string,
   comment: string
 ): Promise<{ success: boolean }> {
-  // In production: httpsCallable(functions, 'approveItem')({ targetType, targetId, comment })
-  console.log('Approve:', targetType, targetId, comment);
-  return { success: true };
+  const token = await getAccessToken();
+
+  const response = await fetch(`${API_BASE}/api/v1/functions/approveItem`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ targetType, targetId, comment }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Approve failed: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 export async function fixPunch(
   punchId: string,
   patch: Partial<Punch>
 ): Promise<{ success: boolean }> {
-  // In production: httpsCallable(functions, 'fixPunch')({ punchId, patch })
-  console.log('Fix punch:', punchId, patch);
-  return { success: true };
+  const token = await getAccessToken();
+
+  const response = await fetch(`${API_BASE}/api/v1/functions/fixPunch`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ punchId, patch }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Fix punch failed: ${response.status}`);
+  }
+
+  return response.json();
 }
 
-export async function generateReport(query: any): Promise<{ url: string }> {
-  // In production: httpsCallable(functions, 'generateReport')(query)
-  console.log('Generate report:', query);
-  return { url: 'https://example.com/report.csv' };
+export async function generateReport(reportQuery: unknown): Promise<{ url: string }> {
+  const token = await getAccessToken();
+
+  const response = await fetch(`${API_BASE}/api/v1/functions/generateReport`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(reportQuery),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Generate report failed: ${response.status}`);
+  }
+
+  return response.json();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

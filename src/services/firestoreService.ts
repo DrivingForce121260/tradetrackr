@@ -1,39 +1,46 @@
-﻿import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  setDoc,
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit,
-  Timestamp,
-  writeBatch,
-  onSnapshot,
-  serverTimestamp
-} from 'firebase/firestore';
-import { db } from '@/config/firebase';
+﻿/**
+ * Firestore Service - Compatibility Layer
+ * 
+ * Phase F2: This file now wraps dataClient to maintain backwards compatibility.
+ * All Firebase/Firestore imports have been removed.
+ * 
+ * @deprecated New code should use dataClient directly.
+ * @see /docs/PHASE_F_SHIM_REMOVAL_PHASE2.md
+ */
+
+import { 
+  getDoc as dcGetDoc,
+  queryDocs,
+  upsertDoc,
+  deleteDoc as dcDeleteDoc,
+  addDoc as dcAddDoc,
+  updateDoc as dcUpdateDoc,
+  batchWrite,
+  serverTimestamp,
+  QueryFilter,
+  Doc,
+  BatchOperation,
+} from './dataClient';
+import { watchQuery } from './realtimeClient';
 import { cacheService } from './cacheService';
 
-// Typen für die Datenbankstruktur
+// ============================================================================
+// Type Definitions (exported for backwards compatibility)
+// ============================================================================
+
 export interface Concern {
-  uid?: string; // Optional für neue Erstellung
+  uid?: string;
   concernName: string;
   concernAddress: string;
   concernTel: string;
   concernEmail: string;
-  dateCreated: Timestamp | Date;
-  updateTime: Timestamp | Date;
+  dateCreated: Date;
+  updateTime: Date;
   members: number;
-  // Verifizierungscode-Felder
   verificationCode?: string;
-  verificationCodeExpiry?: Timestamp | Date;
+  verificationCodeExpiry?: Date;
   verificationCodeActive?: boolean;
-  verificationCodeCreated?: Timestamp | Date;
+  verificationCodeCreated?: Date;
 }
 
 export interface User {
@@ -47,7 +54,7 @@ export interface User {
   passpin?: number;
   vorname: string;
   mitarbeiterID: number;
-  lastLogin?: Date; // Letzter Login des Benutzers
+  lastLogin?: Date;
   lastSync: Date;
   nachname: string;
   generatedProjects: number;
@@ -57,22 +64,18 @@ export interface User {
   role: string;
   isActive: boolean;
   isDemoUser?: boolean;
-  // Adressfeld
   address?: string;
-  // Private Adressfelder
   privateAddress?: string;
   privateCity?: string;
   privatePostalCode?: string;
   privateCountry?: string;
-  // Verifizierungsfelder
   verificationCode?: string;
   verificationCodeDate?: Date;
   verificationCodeSent?: boolean;
   verificationCodeSentAt?: string;
-  // Löschfelder
   isDeleted?: boolean;
   deletedAt?: Date;
-
+  keycloakSub?: string;
 }
 
 export interface Project {
@@ -101,12 +104,10 @@ export interface Project {
   endDate?: Date;
   budget?: number;
   progress?: number;
-  
-  // Document linking: external vs internal projects
-  type?: 'external' | 'internal';  // Defaults to 'external' for existing projects
-  internalCategory?: 'personnel' | 'finance' | 'training' | 'admin' | 'compliance' | 'it';  // For internal projects only
-  active?: boolean;  // For lifecycle management, defaults to true
-  isSystemProject?: boolean;  // Reserved internal projects created by system
+  type?: 'external' | 'internal';
+  internalCategory?: 'personnel' | 'finance' | 'training' | 'admin' | 'compliance' | 'it';
+  active?: boolean;
+  isSystemProject?: boolean;
 }
 
 export interface Task {
@@ -186,7 +187,6 @@ export interface Report {
   totalHours: number;
   workDescription: string;
   status: 'pending' | 'approved' | 'rejected';
-  // Mobile App Felder
   mitarbeiterID: string;
   projectReportNumber: string;
   reportData: string;
@@ -197,8 +197,8 @@ export interface Report {
   activeprojectName: string;
   location: string;
   workLines: WorkLine[];
-  createdAt: Timestamp | Date;
-  updatedAt: Timestamp | Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface WorkLine {
@@ -220,55 +220,129 @@ export interface WorkLine {
   gewerk: string;
 }
 
-// Hilfsfunktion für Datum-Konvertierung
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Convert timestamp-like objects to Date
+ */
 const convertTimestamp = (timestamp: any): Date => {
-  if (timestamp instanceof Timestamp) {
-    return timestamp.toDate();
-  }
   if (timestamp instanceof Date) {
     return timestamp;
   }
   if (typeof timestamp === 'string') {
     return new Date(timestamp);
   }
+  if (timestamp && typeof timestamp === 'object') {
+    if ('seconds' in timestamp) {
+      return new Date(timestamp.seconds * 1000);
+    }
+    if ('_seconds' in timestamp) {
+      return new Date(timestamp._seconds * 1000);
+    }
+  }
   return new Date();
 };
 
-// Generic CRUD-Operationen
+/**
+ * Convert all timestamp fields in an object to Date
+ */
+function convertTimestamps<T>(data: any): T {
+  if (!data || typeof data !== 'object') return data;
+  
+  const converted = { ...data };
+  const timestampFields = ['dateCreated', 'lastModified', 'createdAt', 'updatedAt', 'lastLogin', 
+                          'lastSync', 'startDate', 'endDate', 'dueDate', 'dateOfBirth',
+                          'verificationCodeExpiry', 'verificationCodeCreated', 'deletedAt'];
+  
+  for (const field of timestampFields) {
+    if (converted[field]) {
+      converted[field] = convertTimestamp(converted[field]);
+    }
+  }
+  
+  return converted;
+}
+
+/**
+ * Clean data for storage (convert undefined to null)
+ */
+function cleanDataForStorage<T>(data: Partial<T>): Partial<T> {
+  const cleaned = { ...data };
+  
+  for (const key of Object.keys(cleaned)) {
+    const value = (cleaned as any)[key];
+    if (value === undefined) {
+      (cleaned as any)[key] = null;
+    } else if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+      (cleaned as any)[key] = cleanDataForStorage(value);
+    }
+  }
+  
+  return cleaned;
+}
+
+/**
+ * Map Doc<T> result to legacy format with uid
+ */
+function mapDocToLegacy<T>(doc: Doc<T> | null): (T & { uid: string }) | null {
+  if (!doc) return null;
+  const data = convertTimestamps<T>(doc.data);
+  return { ...data, uid: doc.doc_id };
+}
+
+/**
+ * Map array of Doc<T> to legacy format
+ */
+function mapDocsToLegacy<T>(docs: Doc<T>[]): (T & { uid: string })[] {
+  return docs.map(doc => {
+    const data = convertTimestamps<T>(doc.data);
+    return { ...data, uid: doc.doc_id, id: doc.doc_id };
+  });
+}
+
+// ============================================================================
+// FirestoreService Class (Compatibility Layer)
+// ============================================================================
+
+/**
+ * @deprecated Use dataClient directly for new code
+ */
 export class FirestoreService {
   
-  // Dokument erstellen
   static async create<T>(collectionName: string, data: T): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, collectionName), {
+      const cleanedData = cleanDataForStorage({
         ...data,
-        dateCreated: Timestamp.now(),
-        lastModified: Timestamp.now()
+        dateCreated: new Date().toISOString(),
+        lastModified: new Date().toISOString()
       });
       
-      // Invalidate cache for this collection if concernID is present
+      const result = await dcAddDoc(collectionName, cleanedData as any);
+      
+      // Invalidate cache
       const concernID = (data as any).concernID;
       if (concernID) {
         await cacheService.invalidate(collectionName, concernID);
-        console.log(`🗑️ [FirestoreService] Cache invalidated for ${collectionName} after create`);
       }
       
-      return docRef.id;
+      return result.doc_id;
     } catch (error) {
       console.error(`Fehler beim Erstellen von ${collectionName}:`, error);
       throw error;
     }
   }
 
-  // Dokument mit benutzerdefinierter ID erstellen
   static async createWithId<T>(collectionName: string, docId: string, data: T): Promise<string> {
     try {
-      const docRef = doc(db, collectionName, docId);
-      await setDoc(docRef, {
+      const cleanedData = cleanDataForStorage({
         ...data,
-        dateCreated: Timestamp.now(),
-        lastModified: Timestamp.now()
+        dateCreated: new Date().toISOString(),
+        lastModified: new Date().toISOString()
       });
+      
+      await upsertDoc(collectionName, docId, cleanedData as any);
       return docId;
     } catch (error) {
       console.error(`Fehler beim Erstellen von ${collectionName} mit ID ${docId}:`, error);
@@ -276,70 +350,32 @@ export class FirestoreService {
     }
   }
 
-  // Dokument abrufen
   static async get<T>(collectionName: string, docId: string): Promise<T | null> {
     try {
-      const docRef = doc(db, collectionName, docId);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        // Timestamps zu Dates konvertieren
-        const convertedData = FirestoreService.convertTimestamps<T>(data);
-        return {
-          ...convertedData,
-          uid: docSnap.id
-        };
-      }
-      return null;
+      const doc = await dcGetDoc<T>(collectionName, docId);
+      return mapDocToLegacy(doc);
     } catch (error) {
       console.error(`Fehler beim Abrufen von ${collectionName}:`, error);
       throw error;
     }
   }
 
-  // Alle Dokumente einer Collection abrufen (with caching)
   static async getAll<T>(collectionName: string, concernID?: string, skipCache: boolean = false): Promise<T[]> {
     try {
-      // Check cache first (unless skipCache is true)
+      // Check cache first
       if (!skipCache) {
         const cached = await cacheService.get<T[]>(collectionName, concernID);
-        // Only use cache if it's not null/undefined AND not an empty array
-        // Empty arrays might indicate no data was found, but we should re-check Firestore
         if (cached && Array.isArray(cached) && cached.length > 0) {
           return cached;
         }
-        // If cached is an empty array, invalidate it and fetch fresh data
-        if (cached && Array.isArray(cached) && cached.length === 0) {
-          console.log(`🔄 [FirestoreService] Cache contains empty array for ${collectionName}, fetching fresh data...`);
-          await cacheService.invalidate(collectionName, concernID);
-        }
       }
 
-      let q: any = collection(db, collectionName);
+      const filters: QueryFilter[] = concernID 
+        ? [{ field: 'concernID', op: '==', value: concernID }]
+        : [];
       
-      if (concernID) {
-        q = query(q, where('concernID', '==', concernID));
-      }
-      
-      const querySnapshot = await getDocs(q);
-      const documents: T[] = [];
-      
-      console.log(`🔍 [FirestoreService.getAll] Query snapshot size for ${collectionName} (concernID: ${concernID}):`, querySnapshot.size);
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        console.log(`🔍 [FirestoreService.getAll] Document ${doc.id}:`, { id: doc.id, concernID: data.concernID, ...data });
-        // Timestamps zu Dates konvertieren
-        const convertedData = FirestoreService.convertTimestamps<T>(data);
-        documents.push({
-          ...convertedData,
-          uid: doc.id,
-          id: doc.id // Ensure id is set
-        } as T);
-      });
-      
-      console.log(`✅ [FirestoreService.getAll] Total documents loaded for ${collectionName}:`, documents.length);
+      const result = await queryDocs<T>(collectionName, filters);
+      const documents = mapDocsToLegacy(result.items);
       
       // Cache the result
       await cacheService.set(collectionName, documents, concernID);
@@ -351,46 +387,38 @@ export class FirestoreService {
     }
   }
 
-  // Dokument aktualisieren (invalidates cache)
   static async update<T>(collectionName: string, docId: string, data: Partial<T>, concernID?: string): Promise<void> {
     try {
-      const docRef = doc(db, collectionName, docId);
-      
-      // WICHTIG: Bereinige Daten vor dem Senden an Firestore
-      // Konvertiere undefined-Werte zu null und bereinige verschachtelte Objekte
-      const cleanedData = this.cleanDataForFirestore(data);
-      
-      await updateDoc(docRef, {
-        ...cleanedData,
-        lastModified: Timestamp.now()
+      const cleanedData = cleanDataForStorage({
+        ...data,
+        lastModified: new Date().toISOString()
       });
       
-      // Invalidate cache after update
+      await dcUpdateDoc(collectionName, docId, cleanedData as any);
+      
+      // Invalidate cache
       const cid = concernID || (data as any)?.concernID;
       await cacheService.invalidate(collectionName, cid, docId);
-      await cacheService.invalidate(collectionName, cid); // Invalidate list cache
+      await cacheService.invalidate(collectionName, cid);
     } catch (error) {
       console.error(`Fehler beim Aktualisieren von ${collectionName}:`, error);
       throw error;
     }
   }
 
-  // Dokument löschen (invalidates cache)
   static async delete(collectionName: string, docId: string, concernID?: string): Promise<void> {
     try {
-      const docRef = doc(db, collectionName, docId);
-      await deleteDoc(docRef);
+      await dcDeleteDoc(collectionName, docId);
       
-      // Invalidate cache after delete
+      // Invalidate cache
       await cacheService.invalidate(collectionName, concernID, docId);
-      await cacheService.invalidate(collectionName, concernID); // Invalidate list cache
+      await cacheService.invalidate(collectionName, concernID);
     } catch (error) {
       console.error(`Fehler beim Löschen von ${collectionName}:`, error);
       throw error;
     }
   }
 
-  // Dokumente nach Bedingungen abfragen
   static async query<T>(
     collectionName: string, 
     conditions: Array<{ field: string; operator: any; value: any }>,
@@ -398,137 +426,82 @@ export class FirestoreService {
     limitCount?: number
   ): Promise<T[]> {
     try {
-      let q: any = collection(db, collectionName);
+      const filters: QueryFilter[] = conditions.map(c => ({
+        field: c.field,
+        op: c.operator as any,
+        value: c.value
+      }));
       
-      // Bedingungen hinzufügen
-      conditions.forEach(condition => {
-        q = query(q, where(condition.field, condition.operator, condition.value));
+      const result = await queryDocs<T>(collectionName, filters, {
+        orderBy: orderByField ? { field: orderByField, dir: 'asc' } : undefined,
+        limit: limitCount
       });
       
-      // Sortierung hinzufügen
-      if (orderByField) {
-        q = query(q, orderBy(orderByField));
-      }
-      
-      // Limit hinzufügen
-      if (limitCount) {
-        q = query(q, limit(limitCount));
-      }
-      
-      const querySnapshot = await getDocs(q);
-      const documents: T[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        // Timestamps zu Dates konvertieren
-        const convertedData = FirestoreService.convertTimestamps<T>(data);
-        documents.push({
-          ...convertedData,
-          uid: doc.id
-        });
-      });
-      
-      return documents;
+      return mapDocsToLegacy(result.items);
     } catch (error) {
       console.error(`Fehler bei der Abfrage von ${collectionName}:`, error);
       throw error;
     }
   }
 
-  // Hilfsfunktion zum Konvertieren von Firestore-Timestamps zu JavaScript-Dates
-  private static convertTimestamps<T>(data: any): T {
-    const converted = { ...data };
-    
-    // Alle Felder durchgehen und Timestamps konvertieren
-    Object.keys(converted).forEach(key => {
-      const value = converted[key];
-      if (value && typeof value === 'object' && 'toDate' in value) {
-        // Firestore Timestamp zu JavaScript Date konvertieren
-        converted[key] = value.toDate();
-      } else if (value && typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value) {
-        // Fallback für Timestamp-Objekte ohne toDate() Methode
-        converted[key] = new Date(value.seconds * 1000 + value.nanoseconds / 1000000);
-      }
-    });
-    
-    return converted;
-  }
-
-  // Hilfsfunktion zum Bereinigen von Daten vor dem Senden an Firestore
   static cleanDataForFirestore<T>(data: Partial<T>): Partial<T> {
-    const cleaned = { ...data };
-    
-    // Alle Felder durchgehen und undefined/leere Werte bereinigen
-    Object.keys(cleaned).forEach(key => {
-      const value = (cleaned as any)[key];
-      
-      if (value === undefined) {
-        // undefined zu null konvertieren
-        (cleaned as any)[key] = null;
-      } else if (value === '') {
-        // Leere Strings zu null konvertieren (optional, da einige Felder leere Strings erlauben könnten)
-        // (cleaned as any)[key] = null;
-      } else if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
-        // Rekursiv verschachtelte Objekte bereinigen
-        (cleaned as any)[key] = this.cleanDataForFirestore(value);
-      }
-    });
-    
-    return cleaned;
+    return cleanDataForStorage(data);
   }
 
-  // Echtzeit-Updates abonnieren
+  /**
+   * Subscribe to collection changes using realtimeClient
+   */
   static subscribeToCollection<T>(
     collectionName: string,
     concernID: string,
     callback: (documents: T[]) => void
-  ) {
-    const q = query(
-      collection(db, collectionName),
-      where('concernID', '==', concernID)
-    );
+  ): () => void {
+    const filters: QueryFilter[] = [{ field: 'concernID', op: '==', value: concernID }];
     
-    return onSnapshot(q, (querySnapshot) => {
-      const documents: T[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        // Timestamps zu Dates konvertieren
-        const convertedData = FirestoreService.convertTimestamps<T>(data);
-        documents.push({
-          ...convertedData,
-          uid: doc.id
-        });
-      });
+    return watchQuery<T>(collectionName, filters, (docs, error) => {
+      if (error) {
+        console.error(`Subscription error for ${collectionName}:`, error);
+        return;
+      }
+      const documents = mapDocsToLegacy(docs);
       callback(documents);
-    });
+    }, { intervalMs: 10000 }); // 10 second polling
   }
 
-  // Batch-Operationen
   static async batchOperation(operations: Array<{ type: 'create' | 'update' | 'delete', collection: string, data?: any, docId?: string }>): Promise<void> {
     try {
-      const batch = writeBatch(db);
-      
-      operations.forEach(op => {
+      const batchOps: BatchOperation[] = operations.map(op => {
         if (op.type === 'create') {
-          const docRef = doc(collection(db, op.collection));
-          batch.set(docRef, {
-            ...op.data,
-            dateCreated: Timestamp.now(),
-            lastModified: Timestamp.now()
-          });
+          // For create, we need to generate an ID or use addDoc
+          const docId = op.docId || crypto.randomUUID();
+          return {
+            type: 'set' as const,
+            path: `${op.collection}/${docId}`,
+            data: {
+              ...op.data,
+              dateCreated: new Date().toISOString(),
+              lastModified: new Date().toISOString()
+            }
+          };
         } else if (op.type === 'update' && op.docId) {
-          const docRef = doc(db, op.collection, op.docId);
-          batch.update(docRef, {
-            ...op.data,
-            lastModified: Timestamp.now()
-          });
+          return {
+            type: 'update' as const,
+            path: `${op.collection}/${op.docId}`,
+            data: {
+              ...op.data,
+              lastModified: new Date().toISOString()
+            }
+          };
         } else if (op.type === 'delete' && op.docId) {
-          const docRef = doc(db, op.collection, op.docId);
-          batch.delete(docRef);
+          return {
+            type: 'delete' as const,
+            path: `${op.collection}/${op.docId}`
+          };
         }
+        throw new Error(`Invalid batch operation: ${JSON.stringify(op)}`);
       });
       
-      await batch.commit();
+      await batchWrite(batchOps);
     } catch (error) {
       console.error('Fehler bei der Batch-Operation:', error);
       throw error;
@@ -536,7 +509,10 @@ export class FirestoreService {
   }
 }
 
-// Spezifische Service-Methoden für jede Entität
+// ============================================================================
+// Specialized Service Methods (Compatibility Layer)
+// ============================================================================
+
 export const concernService = {
   async create(data: Omit<Concern, 'uid'>): Promise<string> {
     return FirestoreService.create<Concern>('concern', data);
@@ -562,7 +538,6 @@ export const concernService = {
     return FirestoreService.delete('concern', id);
   },
 
-  // Neue Funktionen für Verifizierungscodes
   async findByVerificationCode(code: string): Promise<Concern | null> {
     try {
       const concerns = await FirestoreService.query<Concern>('concern', [
@@ -574,12 +549,8 @@ export const concernService = {
       
       const concern = concerns[0];
       
-      // Prüfe, ob der Code abgelaufen ist
       if (concern.verificationCodeExpiry) {
-        const expiryDate = concern.verificationCodeExpiry instanceof Timestamp 
-          ? concern.verificationCodeExpiry.toDate() 
-          : new Date(concern.verificationCodeExpiry);
-        
+        const expiryDate = convertTimestamp(concern.verificationCodeExpiry);
         if (expiryDate < new Date()) {
           console.log('⚠️ Verifizierungscode ist abgelaufen');
           return null;
@@ -594,40 +565,22 @@ export const concernService = {
   },
 
   async generateVerificationCode(concernID: string): Promise<string> {
-    try {
-      // Generiere einen 8-stelligen alphanumerischen Code
-      const code = Math.random().toString(36).substring(2, 10).toUpperCase();
-      
-      // Setze Ablaufdatum auf 24 Stunden
-      const expiryDate = new Date();
-      expiryDate.setHours(expiryDate.getHours() + 24);
-      
-      // Aktualisiere die Concern mit dem neuen Code
-      await this.update(concernID, {
-        verificationCode: code,
-        verificationCodeExpiry: expiryDate,
-        verificationCodeActive: true,
-        verificationCodeCreated: new Date()
-      });
-      
-      console.log('✅ Verifizierungscode generiert:', code);
-      return code;
-    } catch (error) {
-      console.error('❌ Fehler beim Generieren des Verifizierungscodes:', error);
-      throw error;
-    }
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const expiryDate = new Date();
+    expiryDate.setHours(expiryDate.getHours() + 24);
+    
+    await this.update(concernID, {
+      verificationCode: code,
+      verificationCodeExpiry: expiryDate,
+      verificationCodeActive: true,
+      verificationCodeCreated: new Date()
+    });
+    
+    return code;
   },
 
   async deactivateVerificationCode(concernID: string): Promise<void> {
-    try {
-      await this.update(concernID, {
-        verificationCodeActive: false
-      });
-      console.log('✅ Verifizierungscode deaktiviert für Concern:', concernID);
-    } catch (error) {
-      console.error('❌ Fehler beim Deaktivieren des Verifizierungscodes:', error);
-      throw error;
-    }
+    await this.update(concernID, { verificationCodeActive: false });
   }
 };
 
@@ -653,353 +606,56 @@ export const userService = {
   },
   
   async delete(id: string): Promise<void> {
-    // Instead of deleting the user document, mark them as deleted
-    // This prevents them from logging in while preserving data integrity
-    await FirestoreService.update('users', id, {
-      isDeleted: true,
-      deletedAt: new Date(),
-      isActive: false
-    });
-  },
-  
-  async getByEmail(email: string, concernID: string): Promise<User | null> {
-    const users = await FirestoreService.query<User>('users', [
-      { field: 'email', operator: '==', value: email },
-      { field: 'concernEmail', operator: '==', value: email },
-      { field: 'concernID', operator: '==', value: concernID }
-    ]);
-    return users.length > 0 ? users[0] : null;
+    return FirestoreService.delete('users', id);
   },
 
-  /**
-   * Complete user registration with verification code.
-   * 
-   * Phase 03 Sovereignty Migration: This now prepares the Firestore user record
-   * for Keycloak authentication. The actual user creation happens in Keycloak.
-   * 
-   * @deprecated Use Keycloak user import script instead. This method now only
-   * prepares the Firestore record for Keycloak linking.
-   */
-  async createWithVerificationCode(
-    userData: Omit<User, 'uid'>, 
-    verificationCode: string
-  ): Promise<string> {
+  async getByEmail(email: string): Promise<User | null> {
     try {
-      // Find the user with this verification code
-      const existingUser = await this.findUserByVerificationCode(verificationCode);
-      
-      if (!existingUser) {
-        throw new Error('Ungültiger oder abgelaufener Verifizierungscode');
-      }
-      
-      console.log('✅ Benutzer mit Verifizierungscode gefunden:', existingUser.email);
-      console.log('🔍 Bestehender Benutzer Details:', { 
-        uid: existingUser.uid, 
-        concernID: existingUser.concernID, 
-        email: existingUser.email 
-      });
-      
-      // Update the Firestore user record (without Firebase Auth)
-      // The user will be created in Keycloak via the import script
-      // and linked on first login via keycloakSub field
-      await this.update(existingUser.uid!, {
-        verificationCode: null,
-        verificationCodeDate: null,
-        verificationCodeSent: false,
-        // Update profile fields
-        vorname: userData.vorname || existingUser.vorname,
-        nachname: userData.nachname || existingUser.nachname,
-        tel: userData.tel || existingUser.tel,
-        role: userData.role || existingUser.role,
-        rechte: userData.rechte || existingUser.rechte,
-        // Mark as ready for Keycloak linking
-        keycloakReady: true,
-      });
-      
-      console.log('✅ Firestore-Benutzer für Keycloak vorbereitet');
-      console.log('ℹ️ Benutzer muss sich nun über Keycloak anmelden');
-      
-      // Return the existing uid (will be linked to Keycloak sub on first login)
-      return existingUser.uid!;
-      
+      const users = await FirestoreService.query<User>('users', [
+        { field: 'email', operator: '==', value: email }
+      ]);
+      return users.length > 0 ? users[0] : null;
     } catch (error) {
-      console.error('❌ Fehler beim Verarbeiten des Verifizierungscodes:', error);
-      throw error;
-    }
-  },
-
-  // Neue Funktion: Benutzer nach Verifizierungscode in der users Collection suchen
-  async findUserByVerificationCode(verificationCode: string): Promise<User | null> {
-    try {
-      console.log('🔍 Suche nach Benutzer mit Verifizierungscode:', verificationCode);
-      
-      const usersRef = collection(db, 'users');
-      const q = query(
-        usersRef,
-        where('verificationCode', '==', verificationCode)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      
-      if (!querySnapshot.empty) {
-        const user = querySnapshot.docs[0].data() as User;
-        user.uid = querySnapshot.docs[0].id;
-        console.log('✅ Benutzer mit Verifizierungscode gefunden:', user);
-        return user;
-      }
-      
-      console.log('ℹ️ Kein Benutzer mit diesem Verifizierungscode gefunden');
-      return null;
-    } catch (error) {
-      console.error('❌ Fehler beim Suchen nach Benutzer:', error);
+      console.error('❌ Fehler beim Suchen nach E-Mail:', error);
       return null;
     }
   },
 
-  // Neue Funktion: Bereinige doppelte Benutzer-Einträge
-  async cleanupDuplicateUsers(email: string): Promise<void> {
+  async findUserByVerificationCode(code: string): Promise<User | null> {
     try {
-      console.log('🧹 Bereinige doppelte Benutzer-Einträge für E-Mail:', email);
+      const users = await FirestoreService.query<User>('users', [
+        { field: 'verificationCode', operator: '==', value: code }
+      ]);
       
-      // Suche nach allen Benutzern mit derselben E-Mail
-      const usersRef = collection(db, 'users');
-      const q = query(
-        usersRef,
-        where('email', '==', email)
-      );
+      if (users.length === 0) return null;
       
-      const querySnapshot = await getDocs(q);
+      const user = users[0];
       
-      if (querySnapshot.empty) {
-        console.log('ℹ️ Keine Benutzer mit dieser E-Mail gefunden');
-        return;
-      }
-      
-      const users = querySnapshot.docs.map(doc => ({
-        ...doc.data() as User,
-        uid: doc.id
-      }));
-      
-      console.log(`🔍 ${users.length} Benutzer mit E-Mail ${email} gefunden`);
-      
-      if (users.length <= 1) {
-        console.log('ℹ️ Keine Duplikate gefunden');
-        return;
-      }
-      
-      // Sortiere Benutzer nach Priorität:
-      // 1. Benutzer mit Verifizierungscode (höchste Priorität)
-      // 2. Benutzer mit Firebase UID
-      // 3. Benutzer ohne UID (niedrigste Priorität)
-      users.sort((a, b) => {
-        const aPriority = userService.getUserPriority(a);
-        const bPriority = userService.getUserPriority(b);
-        return bPriority - aPriority; // Höhere Priorität zuerst
-      });
-      
-      console.log('📊 Benutzer nach Priorität sortiert:', users.map(u => ({ 
-        uid: u.uid, 
-        concernID: u.concernID, 
-        priority: userService.getUserPriority(u),
-        hasVerificationCode: !!u.verificationCode,
-        hasFirebaseUID: !!u.uid && u.uid !== u.concernID
-      })));
-      
-      // Behalte den Benutzer mit der höchsten Priorität
-      const keepUser = users[0];
-      const deleteUsers = users.slice(1);
-      
-      console.log('✅ Behalte Benutzer:', { 
-        uid: keepUser.uid, 
-        concernID: keepUser.concernID, 
-        priority: userService.getUserPriority(keepUser) 
-      });
-      
-      // Lösche alle anderen Benutzer
-      for (const deleteUser of deleteUsers) {
-        console.log('🗑️ Lösche doppelten Benutzer:', { 
-          uid: deleteUser.uid, 
-          concernID: deleteUser.concernID 
-        });
-        
-        try {
-          await this.delete(deleteUser.uid!);
-          console.log('✅ Benutzer gelöscht:', deleteUser.uid);
-        } catch (deleteError) {
-          console.error('❌ Fehler beim Löschen des Benutzers:', deleteError);
+      // Check if code is still valid (within 24 hours)
+      if (user.verificationCodeDate) {
+        const codeDate = convertTimestamp(user.verificationCodeDate);
+        const hoursSinceCode = (Date.now() - codeDate.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceCode > 24) {
+          console.log('⚠️ Verifizierungscode ist abgelaufen');
+          return null;
         }
       }
       
-      console.log('✅ Bereinigung doppelter Benutzer abgeschlossen');
-      
+      return user;
     } catch (error) {
-      console.error('❌ Fehler bei der Bereinigung doppelter Benutzer:', error);
+      console.error('❌ Fehler beim Suchen nach Verifizierungscode:', error);
+      return null;
     }
-  },
-
-  // Neue Funktion: Bereinige doppelte Benutzer-Einträge mit intelligenter ConcernID-Auswahl
-  async cleanupDuplicateUsersWithConcernID(email: string, preferredConcernID?: string): Promise<void> {
-    try {
-      console.log('🧹 Bereinige doppelte Benutzer-Einträge für E-Mail:', email, 'mit bevorzugter ConcernID:', preferredConcernID);
-      
-      // Suche nach allen Benutzern mit derselben E-Mail
-      const usersRef = collection(db, 'users');
-      const q = query(
-        usersRef,
-        where('email', '==', email)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
-        console.log('ℹ️ Keine Benutzer mit dieser E-Mail gefunden');
-        return;
-      }
-      
-      const users = querySnapshot.docs.map(doc => ({
-        ...doc.data() as User,
-        uid: doc.id
-      }));
-      
-      console.log(`🔍 ${users.length} Benutzer mit E-Mail ${email} gefunden`);
-      
-      if (users.length <= 1) {
-        console.log('ℹ️ Keine Duplikate gefunden');
-        return;
-      }
-      
-      // Wenn eine bevorzugte ConcernID angegeben ist, verwende diese
-      if (preferredConcernID) {
-        console.log('🎯 Verwende bevorzugte ConcernID:', preferredConcernID);
-        
-        // Finde den Benutzer mit der bevorzugten ConcernID
-        const preferredUser = users.find(u => u.concernID === preferredConcernID);
-        
-        if (preferredUser) {
-          console.log('✅ Benutzer mit bevorzugter ConcernID gefunden:', preferredUser.uid);
-          
-          // Lösche alle anderen Benutzer
-          for (const user of users) {
-            if (user.uid !== preferredUser.uid) {
-              console.log('🗑️ Lösche Benutzer mit anderer ConcernID:', { 
-                uid: user.uid, 
-                concernID: user.concernID 
-              });
-              
-              try {
-                await this.delete(user.uid!);
-                console.log('✅ Benutzer gelöscht:', user.uid);
-              } catch (deleteError) {
-                console.error('❌ Fehler beim Löschen des Benutzers:', deleteError);
-              }
-            }
-          }
-          
-          console.log('✅ Bereinigung mit bevorzugter ConcernID abgeschlossen');
-          return;
-        } else {
-          console.log('⚠️ Kein Benutzer mit bevorzugter ConcernID gefunden, verwende Standard-Priorität');
-        }
-      }
-      
-      // Fallback: Verwende die Standard-Prioritätslogik
-      await this.cleanupDuplicateUsers(email);
-      
-    } catch (error) {
-      console.error('❌ Fehler bei der Bereinigung mit ConcernID:', error);
-    }
-  },
-
-  // Neue Funktion: Bereinige ALLE bestehenden doppelten Benutzer-Einträge in der gesamten Datenbank
-  async cleanupAllDuplicateUsers(): Promise<void> {
-    try {
-      console.log('🧹 Starte globale Bereinigung aller doppelten Benutzer-Einträge...');
-      
-      // Hole alle Benutzer aus der Datenbank
-      const usersRef = collection(db, 'users');
-      const querySnapshot = await getDocs(usersRef);
-      
-      if (querySnapshot.empty) {
-        console.log('ℹ️ Keine Benutzer in der Datenbank gefunden');
-        return;
-      }
-      
-      const allUsers = querySnapshot.docs.map(doc => ({
-        ...doc.data() as User,
-        uid: doc.id
-      }));
-      
-      console.log(`🔍 ${allUsers.length} Benutzer insgesamt in der Datenbank gefunden`);
-      
-      // Gruppiere Benutzer nach E-Mail
-      const usersByEmail = new Map<string, any[]>();
-      
-      allUsers.forEach(user => {
-        if (user.email) {
-          if (!usersByEmail.has(user.email)) {
-            usersByEmail.set(user.email, []);
-          }
-          usersByEmail.get(user.email)!.push(user);
-        }
-      });
-      
-      // Finde E-Mails mit mehreren Benutzern
-      const duplicateEmails = Array.from(usersByEmail.entries())
-        .filter(([email, users]) => users.length > 1);
-      
-      console.log(`🔍 ${duplicateEmails.length} E-Mails mit doppelten Benutzern gefunden`);
-      
-      if (duplicateEmails.length === 0) {
-        console.log('✅ Keine doppelten Benutzer gefunden');
-        return;
-      }
-      
-      // Bereinige jede E-Mail mit Duplikaten
-      for (const [email, users] of duplicateEmails) {
-        console.log(`🧹 Bereinige E-Mail: ${email} (${users.length} Benutzer)`);
-        await this.cleanupDuplicateUsers(email);
-      }
-      
-      console.log('✅ Globale Bereinigung aller doppelten Benutzer abgeschlossen');
-      
-    } catch (error) {
-      console.error('❌ Fehler bei der globalen Bereinigung:', error);
-    }
-  },
-
-  // Hilfsfunktion: Bestimme Priorität eines Benutzers
-  getUserPriority(user: User): number {
-    let priority = 0;
-    
-    // Höchste Priorität: Benutzer mit Verifizierungscode
-    if (user.verificationCode) {
-      priority += 100;
-    }
-    
-    // Hohe Priorität: Benutzer mit Firebase UID
-    if (user.uid && user.uid !== user.concernID) {
-      priority += 50;
-    }
-    
-    // Mittlere Priorität: Benutzer mit ConcernID
-    if (user.concernID && user.concernID !== 'DE0000000000') {
-      priority += 25;
-    }
-    
-    // Niedrige Priorität: Aktive Benutzer
-    if (user.isActive) {
-      priority += 10;
-    }
-    
-    return priority;
-  },
-
-
+  }
 };
 
 export const projectService = {
   async create(data: Omit<Project, 'uid'>): Promise<string> {
     return FirestoreService.create<Project>('projects', data);
+  },
+  
+  async createWithId(projectId: string, data: Omit<Project, 'uid'>): Promise<string> {
+    return FirestoreService.createWithId<Project>('projects', projectId, data);
   },
   
   async get(id: string): Promise<Project | null> {
@@ -1017,12 +673,18 @@ export const projectService = {
   async delete(id: string): Promise<void> {
     return FirestoreService.delete('projects', id);
   },
-  
-  async getByEmployee(mitarbeiterID: string, concernID: string): Promise<Project[]> {
-    return FirestoreService.query<Project>('projects', [
-      { field: 'mitarbeiterID', operator: '==', value: mitarbeiterID },
-      { field: 'concernID', operator: '==', value: concernID }
-    ]);
+
+  async getByProjectNumber(concernID: string, projectNumber: number): Promise<Project | null> {
+    try {
+      const projects = await FirestoreService.query<Project>('projects', [
+        { field: 'concernID', operator: '==', value: concernID },
+        { field: 'projectNumber', operator: '==', value: projectNumber }
+      ]);
+      return projects.length > 0 ? projects[0] : null;
+    } catch (error) {
+      console.error('❌ Fehler beim Suchen nach Projektnummer:', error);
+      return null;
+    }
   }
 };
 
@@ -1045,20 +707,6 @@ export const taskService = {
   
   async delete(id: string): Promise<void> {
     return FirestoreService.delete('tasks', id);
-  },
-  
-  async getByProject(projectNumber: string, concernID: string): Promise<Task[]> {
-    return FirestoreService.query<Task>('tasks', [
-      { field: 'projectNumber', operator: '==', value: projectNumber },
-      { field: 'concernID', operator: '==', value: concernID }
-    ]);
-  },
-  
-  async getByEmployee(assignedTo: string, concernID: string): Promise<Task[]> {
-    return FirestoreService.query<Task>('tasks', [
-      { field: 'assignedTo', operator: '==', value: assignedTo },
-      { field: 'concernID', operator: '==', value: concernID }
-    ]);
   }
 };
 
@@ -1071,8 +719,8 @@ export const customerService = {
     return FirestoreService.get<Customer>('customers', id);
   },
   
-  async getAll(concernID: string, skipCache: boolean = false): Promise<Customer[]> {
-    return FirestoreService.getAll<Customer>('customers', concernID, skipCache);
+  async getAll(concernID: string): Promise<Customer[]> {
+    return FirestoreService.getAll<Customer>('customers', concernID);
   },
   
   async update(id: string, data: Partial<Customer>): Promise<void> {
@@ -1103,13 +751,6 @@ export const materialService = {
   
   async delete(id: string): Promise<void> {
     return FirestoreService.delete('materials', id);
-  },
-  
-  async getByCategory(category: string, concernID: string): Promise<Material[]> {
-    return FirestoreService.query<Material>('materials', [
-      { field: 'category', operator: '==', value: category },
-      { field: 'concernID', operator: '==', value: concernID }
-    ]);
   }
 };
 
@@ -1132,433 +773,39 @@ export const categoryService = {
   
   async delete(id: string): Promise<void> {
     return FirestoreService.delete('categories', id);
-  },
-  
-  async getByType(type: string, concernID: string): Promise<Category[]> {
-    return FirestoreService.query<Category>('categories', [
-      { field: 'type', operator: '==', value: type },
-      { field: 'concernID', operator: '==', value: concernID }
-    ]);
   }
 };
 
-// Report Service
 export const reportService = {
-  // Debug function to see all reports in the collection
-  async debugAllReports(): Promise<void> {
-    try {
-      console.log('🔍 DEBUG: Fetching ALL reports from ProjectReports collection...');
-      
-      const reportsRef = collection(db, 'ProjectReports');
-      const querySnapshot = await getDocs(reportsRef);
-      
-      console.log('📊 Total documents in ProjectReports:', querySnapshot.size);
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        console.log('📄 Document:', {
-          id: doc.id,
-          concernID: data.concernID,
-          reportNumber: data.reportNumber,
-          employee: data.employee,
-          projectNumber: data.projectNumber,
-          status: data.status,
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt,
-          // Show first few fields to avoid console spam
-          ...Object.fromEntries(
-            Object.entries(data).slice(0, 10)
-          )
-        });
-      });
-      
-      // Also check what fields exist in the first document
-      if (querySnapshot.size > 0) {
-        const firstDoc = querySnapshot.docs[0];
-        const firstData = firstDoc.data();
-        console.log('🔍 First document fields:', Object.keys(firstData));
-        console.log('🔍 First document full data:', firstData);
-      }
-      
-    } catch (error) {
-      console.error('❌ Debug function error:', error);
-    }
+  async create(data: Omit<Report, 'id'>): Promise<string> {
+    return FirestoreService.create<Report>('ProjectReports', data);
+  },
+  
+  async get(id: string): Promise<Report | null> {
+    return FirestoreService.get<Report>('ProjectReports', id);
+  },
+  
+  async getReportsByConcern(concernID: string): Promise<Report[]> {
+    return FirestoreService.getAll<Report>('ProjectReports', concernID);
+  },
+  
+  async update(id: string, data: Partial<Report>): Promise<void> {
+    return FirestoreService.update<Report>('ProjectReports', id, data);
+  },
+  
+  async delete(id: string): Promise<void> {
+    return FirestoreService.delete('ProjectReports', id);
   },
 
-  // Get all reports for a specific concern (with caching)
-  async getReportsByConcern(concernID: string, skipCache: boolean = false): Promise<Report[]> {
+  async getByProjectNumber(concernID: string, projectNumber: string): Promise<Report[]> {
     try {
-      // Check cache first
-      if (!skipCache) {
-        const cached = await cacheService.get<Report[]>('ProjectReports', concernID);
-        if (cached) {
-          console.log('🎯 [Cache HIT] Reports for concern:', concernID, cached.length);
-          return cached;
-        }
-      }
-
-      console.log('🔍 Fetching reports for concern from Firestore:', concernID);
-      
-      const reportsRef = collection(db, 'ProjectReports');
-      
-      // Only get reports with the specific concernID
-      const q = query(
-        reportsRef,
-        where('concernID', '==', concernID)
-      );
-      
-      console.log('📋 Query for concernID:', concernID);
-      
-      const querySnapshot = await getDocs(q);
-      console.log('📊 Query snapshot size for concernID:', querySnapshot.size);
-      
-      const reports: Report[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        console.log('📄 Document with concernID:', { id: doc.id, concernID: data.concernID, ...data });
-        
-        reports.push({
-          id: doc.id,
-          ...data
-        } as Report);
-      });
-      
-      console.log('✅ Total reports found with concernID:', reports.length);
-      
-      // Cache the results
-      await cacheService.set('ProjectReports', reports, concernID);
-      
-      return reports;
+      return FirestoreService.query<Report>('ProjectReports', [
+        { field: 'concernID', operator: '==', value: concernID },
+        { field: 'projectNumber', operator: '==', value: projectNumber }
+      ]);
     } catch (error) {
-      console.error('❌ Error fetching reports by concern:', error);
-      
-      // Try a simpler query without any filters to debug
-      try {
-        console.log('🔄 Trying simple query without filters...');
-        const reportsRef = collection(db, 'ProjectReports');
-        const simpleQuery = query(reportsRef);
-        const simpleSnapshot = await getDocs(simpleQuery);
-        
-        console.log('📊 Simple query found:', simpleSnapshot.size, 'total documents');
-        
-        simpleSnapshot.forEach((doc) => {
-          const data = doc.data();
-          console.log('📄 All document data:', { id: doc.id, concernID: data.concernID, ...data });
-        });
-      } catch (debugError) {
-        console.error('❌ Debug query also failed:', debugError);
-      }
-      
-      throw error;
-    }
-  },
-
-  // Get reports by employee within a concern
-  async getReportsByEmployee(concernID: string, employeeId: string): Promise<Report[]> {
-    try {
-      const reportsRef = collection(db, 'ProjectReports');
-      const q = query(
-        reportsRef,
-        where('concernID', '==', concernID),
-        where('mitarbeiterID', '==', employeeId),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const reports: Report[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        reports.push({
-          id: doc.id,
-          ...doc.data()
-        } as Report);
-      });
-      
-      return reports;
-    } catch (error) {
-      console.error('Error fetching reports by employee:', error);
-      throw error;
-    }
-  },
-
-  // Get reports by project within a concern
-  async getReportsByProject(concernID: string, projectNumber: string): Promise<Report[]> {
-    try {
-      const reportsRef = collection(db, 'ProjectReports');
-      const q = query(
-        reportsRef,
-        where('concernID', '==', concernID),
-        where('projectNumber', '==', projectNumber),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const reports: Report[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        reports.push({
-          id: doc.id,
-          ...doc.data()
-        } as Report);
-      });
-      
-      return reports;
-    } catch (error) {
-      console.error('Error fetching reports by project:', error);
-      throw error;
-    }
-  },
-
-  // Create a new report
-  async createReport(reportData: Omit<Report, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    try {
-      const reportsRef = collection(db, 'ProjectReports');
-      const newReport = {
-        ...reportData,
-        status: reportData.status || 'pending', // Default status
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      
-      const docRef = await addDoc(reportsRef, newReport);
-      return docRef.id;
-    } catch (error) {
-      console.error('Error creating report:', error);
-      throw error;
-    }
-  },
-
-  // Update an existing report
-  async updateReport(reportId: string, updateData: Partial<Report>): Promise<void> {
-    try {
-      const reportRef = doc(db, 'ProjectReports', reportId);
-      await updateDoc(reportRef, {
-        ...updateData,
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Error updating report:', error);
-      throw error;
-    }
-  },
-
-  // Initialize status for all existing reports in a concern
-  async initializeReportStatuses(concernID: string): Promise<void> {
-    try {
-      console.log('🔧 Initializing report statuses for concern:', concernID);
-      
-      const reportsRef = collection(db, 'ProjectReports');
-      const q = query(reportsRef, where('concernID', '==', concernID));
-      const querySnapshot = await getDocs(q);
-      
-      const batch = writeBatch(db);
-      let updateCount = 0;
-      
-      querySnapshot.forEach((doc) => {
-        const reportData = doc.data();
-        if (!reportData.status) {
-          batch.update(doc.ref, {
-            status: 'pending',
-            updatedAt: serverTimestamp()
-          });
-          updateCount++;
-        }
-      });
-      
-      if (updateCount > 0) {
-        await batch.commit();
-        console.log(`✅ Updated ${updateCount} reports with status 'pending'`);
-      } else {
-        console.log('ℹ️ All reports already have status field');
-      }
-    } catch (error) {
-      console.error('❌ Error initializing report statuses:', error);
-      throw error;
-    }
-  },
-
-  // Delete a report
-  async deleteReport(reportId: string): Promise<void> {
-    try {
-      const reportRef = doc(db, 'ProjectReports', reportId);
-      await deleteDoc(reportRef);
-    } catch (error) {
-      console.error('Error deleting report:', error);
-      throw error;
-    }
-  },
-
-  // Get a single report by ID
-  async getReportById(reportId: string): Promise<Report | null> {
-    try {
-      const reportRef = doc(db, 'ProjectReports', reportId);
-      const reportSnap = await getDoc(reportRef);
-      
-      if (reportSnap.exists()) {
-        return {
-          id: reportSnap.id,
-          ...reportSnap.data()
-        } as Report;
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Error fetching report by ID:', error);
-      throw error;
-    }
-  },
-
-  // Real-time listener for reports by concern
-  subscribeToReportsByConcern(concernID: string, callback: (reports: Report[]) => void) {
-    try {
-      const reportsRef = collection(db, 'ProjectReports');
-      const q = query(
-        reportsRef,
-        where('concernID', '==', concernID),
-        orderBy('createdAt', 'desc')
-      );
-      
-      return onSnapshot(q, (querySnapshot) => {
-        const reports: Report[] = [];
-        querySnapshot.forEach((doc) => {
-          reports.push({
-            id: doc.id,
-            ...doc.data()
-          } as Report);
-        });
-        
-        callback(reports);
-      }, (error) => {
-        console.error('Error in reports subscription:', error);
-      });
-    } catch (error) {
-      console.error('Error setting up reports subscription:', error);
-      throw error;
-    }
-  },
-
-  // Real-time listener for reports by employee within concern
-  subscribeToReportsByEmployee(concernID: string, employeeId: string, callback: (reports: Report[]) => void) {
-    try {
-      const reportsRef = collection(db, 'ProjectReports');
-      const q = query(
-        reportsRef,
-        where('concernID', '==', concernID),
-        where('mitarbeiterID', '==', employeeId),
-        orderBy('createdAt', 'desc')
-      );
-      
-      return onSnapshot(q, (querySnapshot) => {
-        const reports: Report[] = [];
-        querySnapshot.forEach((doc) => {
-          reports.push({
-            id: doc.id,
-            ...doc.data()
-          } as Report);
-        });
-        
-        callback(reports);
-      }, (error) => {
-        console.error('Error in employee reports subscription:', error);
-      });
-    } catch (error) {
-      console.error('Error setting up employee reports subscription:', error);
-      throw error;
-    }
-  },
-
-  // Real-time listener for reports by project within concern
-  subscribeToReportsByProject(concernID: string, projectNumber: string, callback: (reports: Report[]) => void) {
-    try {
-      const reportsRef = collection(db, 'ProjectReports');
-      const q = query(
-        reportsRef,
-        where('concernID', '==', concernID),
-        where('projectNumber', '==', projectNumber),
-        orderBy('createdAt', 'desc')
-      );
-      
-      return onSnapshot(q, (querySnapshot) => {
-        const reports: Report[] = [];
-        querySnapshot.forEach((doc) => {
-          reports.push({
-            id: doc.id,
-            ...doc.data()
-          } as Report);
-        });
-        
-        callback(reports);
-      }, (error) => {
-        console.error('Error in project reports subscription:', error);
-      });
-    } catch (error) {
-      console.error('Error setting up project reports subscription:', error);
-      throw error;
-    }
-  },
-
-  // Initialize reports collection (sample report removed)
-  async initializeReportsCollection(concernID: string): Promise<void> {
-    try {
-      console.log('🔧 Initializing ProjectReports collection for concern:', concernID);
-      
-      // Check if collection exists by trying to get a document
-      const reportsRef = collection(db, 'ProjectReports');
-      const q = query(reportsRef, where('concernID', '==', concernID), limit(1));
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
-        console.log('📝 Collection is empty - no sample report created');
-        // Sample report removed - collection will be initialized when first real report is created
-      } else {
-        console.log('✅ ProjectReports collection already exists');
-      }
-    } catch (error) {
-      console.error('❌ Error initializing ProjectReports collection:', error);
-      // Don't throw error - this is just initialization
-    }
-  },
-
-  // Remove existing sample reports from the database
-  async removeSampleReports(concernID: string): Promise<void> {
-    try {
-      console.log('🧹 Removing sample reports for concern:', concernID);
-      
-      const reportsRef = collection(db, 'ProjectReports');
-      const q = query(
-        reportsRef, 
-        where('concernID', '==', concernID),
-        where('projectNumber', '==', 'SAMPLE-PRJ')
-      );
-      
-      const querySnapshot = await getDocs(q);
-      let deleteCount = 0;
-      
-      if (!querySnapshot.empty) {
-        const batch = writeBatch(db);
-        
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.projectNumber === 'SAMPLE-PRJ' || data.reportNumber === 'SAMPLE-001') {
-            batch.delete(doc.ref);
-            deleteCount++;
-            console.log('🗑️ Deleting sample report:', doc.id);
-          }
-        });
-        
-        if (deleteCount > 0) {
-          await batch.commit();
-          console.log(`✅ Deleted ${deleteCount} sample reports`);
-        } else {
-          console.log('ℹ️ No sample reports found to delete');
-        }
-      } else {
-        console.log('ℹ️ No sample reports found');
-      }
-    } catch (error) {
-      console.error('❌ Error removing sample reports:', error);
-      throw error;
+      console.error('❌ Fehler beim Abrufen der Berichte:', error);
+      return [];
     }
   }
 };

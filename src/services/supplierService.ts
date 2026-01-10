@@ -1,23 +1,20 @@
 /**
  * Supplier Service for TradeTrackr
- * 
+ *
+ * Workstream F: Migrated to dataClient (Phase 1)
+ *
  * Handles CRUD operations for suppliers (Lieferanten).
  * All operations are scoped to the current concern (multi-tenant).
  */
 
 import {
-  collection,
-  doc,
-  getDocs,
+  queryDocs,
   getDoc,
   addDoc,
   updateDoc,
-  query,
-  where,
-  orderBy,
   serverTimestamp,
-} from 'firebase/firestore';
-import { db } from '@/config/firebase';
+  QueryFilter,
+} from '@/services/dataClient';
 import {
   Supplier,
   SupplierCreateInput,
@@ -36,7 +33,7 @@ const COLLECTION = 'suppliers';
  * - Trim whitespace
  * - Convert to uppercase
  * - Remove spaces and common separators (dashes, dots)
- * 
+ *
  * @param vatId - Raw VAT ID string
  * @returns Normalized VAT ID (e.g., "DE123456789")
  */
@@ -53,7 +50,7 @@ export function normalizeVatId(vatId: string | undefined | null): string {
  * - Trim whitespace
  * - Convert to uppercase
  * - Remove all spaces
- * 
+ *
  * @param iban - Raw IBAN string
  * @returns Normalized IBAN (e.g., "DE89370400440532013000")
  */
@@ -70,7 +67,7 @@ export function normalizeIban(iban: string | undefined | null): string {
  * - Trim whitespace
  * - Convert to lowercase
  * - Collapse multiple spaces
- * 
+ *
  * @param name - Raw name string
  * @returns Normalized name for comparison
  */
@@ -88,93 +85,91 @@ export function normalizeName(name: string | undefined | null): string {
 
 /**
  * Deep check for undefined values in an object.
- * Used as a safety check before Firestore writes.
- * 
+ * Used as a safety check before writes.
+ *
  * @param obj - Object to check
  * @param path - Current path (for error messages)
  * @returns Array of paths containing undefined values
  */
-function findUndefinedPaths(obj: Record<string, any>, path: string = ''): string[] {
+function findUndefinedPaths(obj: Record<string, unknown>, path = ''): string[] {
   const undefinedPaths: string[] = [];
-  
+
   for (const key of Object.keys(obj)) {
     const currentPath = path ? `${path}.${key}` : key;
     const value = obj[key];
-    
+
     if (value === undefined) {
       undefinedPaths.push(currentPath);
     } else if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
       // Recursively check nested objects (but not arrays or null)
-      // Skip Firestore special objects like Timestamp, serverTimestamp
-      if (!(value.constructor && value.constructor.name === 'Timestamp') &&
-          !(value._methodName === 'serverTimestamp')) {
-        undefinedPaths.push(...findUndefinedPaths(value, currentPath));
+      // Skip special marker objects (serverTimestamp, etc.)
+      const v = value as Record<string, unknown>;
+      if (!('__fieldValue' in v)) {
+        undefinedPaths.push(...findUndefinedPaths(v, currentPath));
       }
     }
   }
-  
+
   return undefinedPaths;
 }
 
 /**
- * Remove undefined values from an object to prevent Firestore errors.
+ * Remove undefined values from an object to prevent API errors.
  * Also performs deep sanitization of nested objects.
- * 
- * @throws Error if undefined values are found (after sanitization fails)
  */
-function sanitizeForFirestore<T extends Record<string, any>>(obj: T): Partial<T> {
+function sanitizeForWrite<T extends Record<string, unknown>>(obj: T): Partial<T> {
   const result: Partial<T> = {};
-  
+
   for (const key of Object.keys(obj)) {
     const value = obj[key];
-    
+
     if (value === undefined) {
       // Skip undefined values
       continue;
     }
-    
+
     if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-      // Check if it's a Firestore special object
-      if ((value.constructor && value.constructor.name === 'Timestamp') ||
-          (value._methodName === 'serverTimestamp')) {
-        result[key as keyof T] = value;
+      const v = value as Record<string, unknown>;
+      // Check if it's a special marker object
+      if ('__fieldValue' in v) {
+        result[key as keyof T] = value as T[keyof T];
       } else {
         // Recursively sanitize nested objects
-        const sanitized = sanitizeForFirestore(value);
+        const sanitized = sanitizeForWrite(v);
         if (Object.keys(sanitized).length > 0) {
-          result[key as keyof T] = sanitized as any;
+          result[key as keyof T] = sanitized as T[keyof T];
         }
       }
     } else {
-      result[key as keyof T] = value;
+      result[key as keyof T] = value as T[keyof T];
     }
   }
-  
+
   return result;
 }
 
 /**
- * Validate and sanitize data before Firestore write.
+ * Validate and sanitize data before write.
  * Throws descriptive error if any undefined values remain.
- * 
+ *
  * @param data - Data to validate
  * @param operation - Operation name for error message
- * @returns Sanitized data safe for Firestore
+ * @returns Sanitized data safe for API
  */
-function validateAndSanitize<T extends Record<string, any>>(
+function validateAndSanitize<T extends Record<string, unknown>>(
   data: T,
   operation: string
 ): Partial<T> {
-  const sanitized = sanitizeForFirestore(data);
-  
+  const sanitized = sanitizeForWrite(data);
+
   // Double-check for any remaining undefined values
-  const undefinedPaths = findUndefinedPaths(sanitized as Record<string, any>);
+  const undefinedPaths = findUndefinedPaths(sanitized as Record<string, unknown>);
   if (undefinedPaths.length > 0) {
-    const errorMessage = `Firestore-Schreibfehler (${operation}): Undefined-Werte gefunden in: ${undefinedPaths.join(', ')}`;
+    const errorMessage = `Schreibfehler (${operation}): Undefined-Werte gefunden in: ${undefinedPaths.join(', ')}`;
     console.error(errorMessage, { data, sanitized });
     throw new Error(errorMessage);
   }
-  
+
   return sanitized;
 }
 
@@ -199,68 +194,65 @@ export class SupplierService {
    * Get all suppliers for the current concern
    */
   async getAllSuppliers(): Promise<Supplier[]> {
-    const q = query(
-      collection(db, COLLECTION),
-      where('concernID', '==', this.concernID),
-      orderBy('name', 'asc')
-    );
-    
-    const snapshot = await getDocs(q);
-    
-    return snapshot.docs.map(d => ({
-      id: d.id,
-      ...d.data(),
-    } as Supplier));
+    const filters: QueryFilter[] = [
+      { field: 'concernID', op: '==', value: this.concernID },
+    ];
+
+    const result = await queryDocs<Supplier>(COLLECTION, filters, {
+      orderBy: { field: 'name', dir: 'asc' },
+    });
+
+    return result.items.map((doc) => ({
+      id: doc.doc_id,
+      ...doc.data,
+    }));
   }
 
   /**
    * Get active suppliers only (for selection dropdowns)
    */
   async getActiveSuppliers(): Promise<Supplier[]> {
-    const q = query(
-      collection(db, COLLECTION),
-      where('concernID', '==', this.concernID),
-      where('status', '==', 'active'),
-      orderBy('name', 'asc')
-    );
-    
-    const snapshot = await getDocs(q);
-    
-    return snapshot.docs.map(d => ({
-      id: d.id,
-      ...d.data(),
-    } as Supplier));
+    const filters: QueryFilter[] = [
+      { field: 'concernID', op: '==', value: this.concernID },
+      { field: 'status', op: '==', value: 'active' },
+    ];
+
+    const result = await queryDocs<Supplier>(COLLECTION, filters, {
+      orderBy: { field: 'name', dir: 'asc' },
+    });
+
+    return result.items.map((doc) => ({
+      id: doc.doc_id,
+      ...doc.data,
+    }));
   }
 
   /**
    * Get a supplier by ID
    */
   async getSupplierById(id: string): Promise<Supplier | null> {
-    const docRef = doc(db, COLLECTION, id);
-    const snapshot = await getDoc(docRef);
-    
-    if (!snapshot.exists()) {
+    const doc = await getDoc<Supplier>(COLLECTION, id);
+
+    if (!doc) {
       return null;
     }
-    
-    const data = snapshot.data();
-    
+
     // Verify concernID matches (security check)
-    if (data.concernID !== this.concernID) {
+    if (doc.data.concernID !== this.concernID) {
       console.warn(`Supplier ${id} belongs to different concern`);
       return null;
     }
-    
+
     return {
-      id: snapshot.id,
-      ...data,
-    } as Supplier;
+      id: doc.doc_id,
+      ...doc.data,
+    };
   }
 
   /**
    * Check for potential duplicate before creating
    * Uses VAT ID, IBAN, and name matching
-   * 
+   *
    * @returns Matching supplier if found, null otherwise
    */
   async checkForDuplicate(input: SupplierCreateInput): Promise<Supplier | null> {
@@ -312,10 +304,10 @@ export class SupplierService {
     };
 
     // Validate and sanitize
-    const supplierData = validateAndSanitize(rawData, 'createSupplier');
+    const supplierData = validateAndSanitize(rawData as Record<string, unknown>, 'createSupplier');
 
-    const docRef = await addDoc(collection(db, COLLECTION), supplierData);
-    return docRef.id;
+    const doc = await addDoc(COLLECTION, supplierData);
+    return doc.doc_id;
   }
 
   /**
@@ -345,7 +337,7 @@ export class SupplierService {
     }
 
     // Build update data - only include fields that are explicitly set
-    const rawData: Record<string, any> = {
+    const rawData: Record<string, unknown> = {
       updatedAt: serverTimestamp(),
       updatedBy: userSnapshot,
     };
@@ -374,32 +366,32 @@ export class SupplierService {
     // Validate and sanitize
     const updateData = validateAndSanitize(rawData, 'updateSupplier');
 
-    await updateDoc(doc(db, COLLECTION, id), updateData);
+    await updateDoc(COLLECTION, id, updateData);
   }
 
   /**
    * Search suppliers by name, VAT ID, or IBAN
    * Uses client-side filtering to avoid complex composite indexes
-   * 
+   *
    * Note: This is fine for < 1000 suppliers per concern.
    * For larger datasets, consider Algolia/ElasticSearch.
    */
   async searchSuppliers(searchQuery: string): Promise<Supplier[]> {
     const all = await this.getAllSuppliers();
-    
+
     const normalizedQuery = normalizeName(searchQuery);
     if (!normalizedQuery) {
       return all;
     }
-    
+
     // Also normalize for VAT/IBAN matching
     const vatIbanQuery = normalizeVatId(searchQuery);
-    
-    return all.filter(s => {
+
+    return all.filter((s) => {
       const name = normalizeName(s.name);
       const vatId = normalizeVatId(s.vatId);
       const iban = normalizeIban(s.iban);
-      
+
       return (
         name.includes(normalizedQuery) ||
         vatId.includes(vatIbanQuery) ||
@@ -415,10 +407,10 @@ export class SupplierService {
   async findByVatId(vatId: string): Promise<Supplier | null> {
     const normalized = normalizeVatId(vatId);
     if (!normalized) return null;
-    
+
     const all = await this.getAllSuppliers();
-    
-    return all.find(s => normalizeVatId(s.vatId) === normalized) || null;
+
+    return all.find((s) => normalizeVatId(s.vatId) === normalized) || null;
   }
 
   /**
@@ -428,10 +420,10 @@ export class SupplierService {
   async findByIban(iban: string): Promise<Supplier | null> {
     const normalized = normalizeIban(iban);
     if (!normalized) return null;
-    
+
     const all = await this.getAllSuppliers();
-    
-    return all.find(s => normalizeIban(s.iban) === normalized) || null;
+
+    return all.find((s) => normalizeIban(s.iban) === normalized) || null;
   }
 
   /**
@@ -448,40 +440,45 @@ export class SupplierService {
       const byVat = await this.findByVatId(data.vatId);
       if (byVat) return byVat;
     }
-    
+
     // 2. Try IBAN exact match
     if (data.iban) {
       const byIban = await this.findByIban(data.iban);
       if (byIban) return byIban;
     }
-    
+
     // 3. Try name contains match (only if exactly one match)
     if (data.name) {
       const normalizedInputName = normalizeName(data.name);
-      if (normalizedInputName.length >= 3) { // Minimum 3 chars for name matching
+      if (normalizedInputName.length >= 3) {
+        // Minimum 3 chars for name matching
         const all = await this.getAllSuppliers();
-        const matches = all.filter(s => {
+        const matches = all.filter((s) => {
           const supplierName = normalizeName(s.name);
-          return supplierName.includes(normalizedInputName) ||
-                 normalizedInputName.includes(supplierName);
+          return (
+            supplierName.includes(normalizedInputName) ||
+            normalizedInputName.includes(supplierName)
+          );
         });
-        
+
         if (matches.length === 1) {
           return matches[0];
         }
       }
     }
-    
+
     return null;
   }
 
   /**
    * Get supplier snapshot for embedding in other documents
    */
-  async getSupplierSnapshot(id: string): Promise<{ id: string; name: string; vatId?: string; iban?: string } | null> {
+  async getSupplierSnapshot(
+    id: string
+  ): Promise<{ id: string; name: string; vatId?: string; iban?: string } | null> {
     const supplier = await this.getSupplierById(id);
     if (!supplier) return null;
-    
+
     return {
       id: supplier.id,
       name: supplier.name,

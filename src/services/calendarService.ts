@@ -33,13 +33,12 @@ export class CalendarService {
 	}
 
 	buildFeedUrl(uid: string, token: string, projectId?: string): string {
-		// Use Firebase Functions URL for the calendar endpoint
-		const projectId_env = (import.meta as any).env?.VITE_FIREBASE_PROJECT_ID || 'reportingapp817';
+		// Use TradeTrackr API calendar endpoint (Workstream B2: Firebase removal)
+		const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || '';
 		const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-		// In production, the function URL would be: https://europe-west1-<project>.cloudfunctions.net/calendar
 		const base = isLocal 
-			? `http://localhost:5001/${projectId_env}/europe-west1/calendar`
-			: `https://europe-west1-${projectId_env}.cloudfunctions.net/calendar`;
+			? 'http://localhost:8787/api/v1/calendar'
+			: `${apiBase || window.location.origin}/api/v1/calendar`;
 		const q = new URLSearchParams({ uid, token, ...(projectId ? { projectId } : {}) });
 		return `${base}/ics?${q.toString()}`;
 	}

@@ -1,0 +1,42 @@
+# TradeTrackr Egress Allowlist
+#
+# Workstream E3: Sovereign egress verification
+#
+# This file contains the ONLY allowed outbound hosts for the TradeTrackr
+# production environment. Any connection to hosts not in this list is
+# considered a sovereignty violation.
+#
+# Format: One hostname per line
+# Comments start with #
+# Blank lines are ignored
+#
+# See docs/WORKSTREAM_E_MONITORING.md for usage
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# IONOS AI Model Hub
+# ─────────────────────────────────────────────────────────────────────────────
+openai.inference.de-txl.ionos.com
+openai.inference.de-fra.ionos.com
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IONOS S3 Object Storage
+# ─────────────────────────────────────────────────────────────────────────────
+s3.eu-central-2.ionoscloud.com
+s3.eu-central-4.ionoscloud.com
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TradeTrackr Infrastructure (own services)
+# ─────────────────────────────────────────────────────────────────────────────
+auth.tradetrackr.de
+api.tradetrackr.de
+ai.tradetrackr.de
+tradetrackr.de
+
+# ─────────────────────────────────────────────────────────────────────────────
+# System/Package Repositories (for updates only)
+# ─────────────────────────────────────────────────────────────────────────────
+# Note: These are allowed for system updates but not for application traffic
+# registry.npmjs.org
+# deb.debian.org
+# security.debian.org
+

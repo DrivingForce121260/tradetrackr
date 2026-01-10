@@ -1,5 +1,12 @@
-import { db } from '@/config/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+/**
+ * Notification Preferences Service
+ *
+ * Workstream F: Migrated to dataClient (Phase 1)
+ *
+ * Handles user notification preferences.
+ */
+
+import { getDoc, upsertDoc } from '@/services/dataClient';
 
 export interface NotificationPrefs {
   uid: string;
@@ -8,13 +15,15 @@ export interface NotificationPrefs {
   inApp: boolean;
 }
 
+const COLLECTION = 'notificationPrefs';
+
 export class NotificationPrefsService {
   constructor(private uid: string) {}
-  private ref() { return doc(db as any, 'notificationPrefs', this.uid); }
 
   async get(): Promise<NotificationPrefs> {
-    const snap = await getDoc(this.ref());
-    const data = snap.exists() ? (snap.data() as any) : {};
+    const doc = await getDoc<NotificationPrefs>(COLLECTION, this.uid);
+    const data = doc?.data || ({} as Partial<NotificationPrefs>);
+
     return {
       uid: this.uid,
       email: !!data.email,
@@ -24,21 +33,13 @@ export class NotificationPrefsService {
   }
 
   async set(prefs: Partial<NotificationPrefs>): Promise<void> {
-    await setDoc(this.ref(), { ...prefs, uid: this.uid }, { merge: true });
+    await upsertDoc(COLLECTION, this.uid, { ...prefs, uid: this.uid }, { merge: true });
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * Create a NotificationPrefsService instance
+ */
+export function createNotificationPrefsService(uid: string): NotificationPrefsService {
+  return new NotificationPrefsService(uid);
+}

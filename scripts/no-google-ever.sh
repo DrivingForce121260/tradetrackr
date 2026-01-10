@@ -69,7 +69,6 @@ EXCLUDE_FILES=(
   # Legacy Firebase shim files (TODO: remove per SHIM_REMOVAL_PLAN.md)
   "src/config/firebase.ts"
   "src/services/firebase.ts"
-  "src/services/calendarService.ts"
   "src/lib/firebase-shim/"
   "src/lib/firestore-shim/"
 )

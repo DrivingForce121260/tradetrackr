@@ -1,0 +1,17 @@
+[Unit]
+Description=TradeTrackr Object Storage Inventory Timer (Weekly Sunday 03:00)
+Documentation=https://github.com/your-org/tradetrackr/blob/main/docs/WORKSTREAM_E_BACKUPS.md
+
+[Timer]
+# Run weekly on Sunday at 03:00
+OnCalendar=Sun *-*-* 03:00:00
+# Random delay up to 30 minutes
+RandomizedDelaySec=1800
+# Ensure we run even if system was off at scheduled time
+Persistent=true
+# Don't wake system from sleep
+WakeSystem=false
+
+[Install]
+WantedBy=timers.target
+

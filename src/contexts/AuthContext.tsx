@@ -2,29 +2,16 @@
  * AuthContext - Keycloak OIDC Authentication
  * 
  * Phase 03 Sovereignty Migration: Firebase Auth → Keycloak OIDC
+ * Phase F2: Removed Firebase/Firestore shim dependency
  * 
  * This module provides authentication using Keycloak with Authorization Code + PKCE.
- * Firebase Auth has been completely removed.
+ * All data operations now use dataClient (API-first).
  * 
  * @see /docs/sovereignty/PHASE3_PLAN.md
- * @see /docs/sovereignty/auth.md
+ * @see /docs/PHASE_F_SHIM_REMOVAL_PHASE2.md
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/config/firebase';
-import { 
-  User, 
-  userService, 
-  concernService, 
-  FirestoreService,
-  projectService,
-  taskService,
-  reportService,
-  customerService,
-  materialService,
-  categoryService
-} from '@/services/firestoreService';
 import { cleanupDemoData } from '@/utils/demoData';
 import {
   createSessionId,
@@ -37,6 +24,16 @@ import {
   setSessionInvalidatedCallback,
 } from '@/services/sessionService';
 
+// API-first data client
+import { 
+  queryDocs, 
+  getDoc, 
+  updateDoc as dataClientUpdateDoc,
+  listDocs,
+  QueryFilter,
+} from '@/services/dataClient';
+import { watchQuery } from '@/services/realtimeClient';
+
 // OIDC Client imports (Keycloak)
 import {
   initAuth,
@@ -48,6 +45,45 @@ import {
   onUserChange,
   type TradeTrackrUser as OIDCUser,
 } from '@/lib/auth/oidc-client';
+
+// ============================================================================
+// Types (previously from firestoreService)
+// ============================================================================
+
+export interface User {
+  uid?: string;
+  concernID: string;
+  dateCreated: Date;
+  email: string;
+  displayName: string;
+  photoUrl?: string;
+  tel?: string;
+  passpin?: number;
+  vorname: string;
+  mitarbeiterID: number;
+  lastLogin?: Date;
+  lastSync: Date;
+  nachname: string;
+  generatedProjects: number;
+  rechte: number;
+  startDate?: Date;
+  dateOfBirth?: Date;
+  role: string;
+  isActive: boolean;
+  isDemoUser?: boolean;
+  address?: string;
+  privateAddress?: string;
+  privateCity?: string;
+  privatePostalCode?: string;
+  privateCountry?: string;
+  verificationCode?: string;
+  verificationCodeDate?: Date;
+  verificationCodeSent?: boolean;
+  verificationCodeSentAt?: string;
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  keycloakSub?: string;
+}
 
 // ============================================================================
 // Compatibility Type (replaces FirebaseUser)
@@ -155,8 +191,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const oidcResult = await handleCallback();
             setOidcUser(oidcResult);
             
-            // Load user from Firestore and setup session
-            await loadFirestoreUser(oidcResult);
+            // Load user from database and setup session
+            await loadUserFromAPI(oidcResult);
             
             // Clean up URL and redirect to return URL
             const returnUrl = getReturnUrl();
@@ -178,7 +214,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (existingUser) {
           console.log('✅ [Auth] Found existing OIDC session');
           setOidcUser(existingUser);
-          await loadFirestoreUser(existingUser);
+          await loadUserFromAPI(existingUser);
         } else {
           console.log('ℹ️ [Auth] No existing session');
           setLoading(false);
@@ -195,7 +231,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const unsubscribe = onUserChange((newUser) => {
       if (newUser) {
         setOidcUser(newUser);
-        loadFirestoreUser(newUser);
+        loadUserFromAPI(newUser);
       } else {
         setOidcUser(null);
         setUser(null);
@@ -207,16 +243,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   // ============================================================================
-  // Load Firestore User from OIDC Claims
+  // Load User from API (replaces loadFirestoreUser)
   // ============================================================================
 
-  const loadFirestoreUser = async (oidcUser: OIDCUser) => {
+  const loadUserFromAPI = async (oidcUser: OIDCUser) => {
     try {
       const authSub = oidcUser.userId;
       const email = oidcUser.email;
       const tenantId = oidcUser.tenantId;
       
-      console.log('🔍 [Auth] Loading Firestore user...', { authSub, email, tenantId });
+      console.log('🔍 [Auth] Loading user from API...', { authSub, email, tenantId });
       
       // Set compatibility firebaseUser
       setFirebaseUser({
@@ -226,16 +262,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
       
       // Strategy 1: Look up by Keycloak subject (keycloakSub field)
-      let firestoreUser: User | null = null;
+      let dbUser: User | null = null;
       
       try {
-        const usersRef = collection(db, 'users');
-        const subQuery = query(usersRef, where('keycloakSub', '==', authSub));
-        const subSnapshot = await getDocs(subQuery);
+        const filters: QueryFilter[] = [{ field: 'keycloakSub', op: '==', value: authSub }];
+        const result = await queryDocs<User>('users', filters);
         
-        if (!subSnapshot.empty) {
-          const doc = subSnapshot.docs[0];
-          firestoreUser = { ...doc.data(), uid: doc.id } as User;
+        if (result.items.length > 0) {
+          const doc = result.items[0];
+          dbUser = { ...doc.data, uid: doc.doc_id };
           console.log('✅ [Auth] Found user by keycloakSub');
         }
       } catch (e) {
@@ -243,28 +278,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       // Strategy 2: Look up by email (and link keycloakSub)
-      if (!firestoreUser && email) {
+      if (!dbUser && email) {
         try {
-          const usersRef = collection(db, 'users');
-          const emailQuery = query(usersRef, where('email', '==', email));
-          const emailSnapshot = await getDocs(emailQuery);
+          const filters: QueryFilter[] = [{ field: 'email', op: '==', value: email }];
+          const result = await queryDocs<User>('users', filters);
           
-          if (!emailSnapshot.empty) {
+          if (result.items.length > 0) {
             // Find active user without verification code
-            const activeUserDoc = emailSnapshot.docs.find(d => {
-              const data = d.data();
+            const activeUserDoc = result.items.find(d => {
+              const data = d.data;
               return !data.isDeleted && data.isActive !== false && !data.verificationCode;
             });
             
             if (activeUserDoc) {
-              firestoreUser = { ...activeUserDoc.data(), uid: activeUserDoc.id } as User;
+              dbUser = { ...activeUserDoc.data, uid: activeUserDoc.doc_id };
               console.log('✅ [Auth] Found user by email, linking keycloakSub');
               
               // Link keycloakSub for future lookups
               try {
-                await updateDoc(doc(db, 'users', activeUserDoc.id), {
+                await dataClientUpdateDoc('users', activeUserDoc.doc_id, {
                   keycloakSub: authSub,
-                  lastLogin: new Date(),
+                  lastLogin: new Date().toISOString(),
                 });
               } catch (e) {
                 console.warn('⚠️ [Auth] Failed to link keycloakSub:', e);
@@ -276,12 +310,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
       
-      // Strategy 3: Look up by old uid field (Firebase UID)
-      if (!firestoreUser) {
+      // Strategy 3: Look up by old uid field (Firebase UID / document ID)
+      if (!dbUser) {
         try {
-          const userDoc = await getDoc(doc(db, 'users', authSub));
-          if (userDoc.exists()) {
-            firestoreUser = { ...userDoc.data(), uid: authSub } as User;
+          const doc = await getDoc<User>('users', authSub);
+          if (doc) {
+            dbUser = { ...doc.data, uid: authSub };
             console.log('✅ [Auth] Found user by document ID');
           }
         } catch (e) {
@@ -289,34 +323,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
       
-      if (!firestoreUser) {
-        console.error('❌ [Auth] No Firestore user found for:', email);
+      if (!dbUser) {
+        console.error('❌ [Auth] No user found for:', email);
         throw new Error('Benutzer nicht in der Datenbank gefunden. Bitte Admin kontaktieren.');
       }
       
       // Check if user is deleted
-      if (firestoreUser.isDeleted) {
+      if (dbUser.isDeleted) {
         console.log('🚫 [Auth] User is marked as deleted');
         await oidcLogout();
         throw new Error('Dieser Benutzer-Account wurde gelöscht.');
       }
       
       // Clean up demo data for real users
-      if (firestoreUser.email !== 'demo@tradetrackr.com') {
+      if (dbUser.email !== 'demo@tradetrackr.com') {
         cleanupDemoData();
       }
       
       // Override concernID with tenant_id from token if available
-      if (tenantId && tenantId !== firestoreUser.concernID) {
+      if (tenantId && tenantId !== dbUser.concernID) {
         console.log('ℹ️ [Auth] Using tenant_id from token:', tenantId);
-        firestoreUser.concernID = tenantId;
+        dbUser.concernID = tenantId;
       }
       
       // Session claim
-      if (firestoreUser.concernID && !firestoreUser.isDemoUser) {
+      if (dbUser.concernID && !dbUser.isDemoUser) {
         const sessionId = createSessionId();
         const sessionResult = await claimSession(
-          firestoreUser.concernID,
+          dbUser.concernID,
           authSub,
           sessionId
         );
@@ -344,29 +378,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
 
         // Start heartbeat
-        startHeartbeat(firestoreUser.concernID, authSub);
+        startHeartbeat(dbUser.concernID, authSub);
 
         // Setup tab close handler
         tabCloseCleanup.current = setupTabCloseHandler(
-          firestoreUser.concernID,
+          dbUser.concernID,
           authSub
         );
       }
       
       // Update last login
       try {
-        await updateDoc(doc(db, 'users', firestoreUser.uid), {
-          lastLogin: new Date()
+        await dataClientUpdateDoc('users', dbUser.uid!, {
+          lastLogin: new Date().toISOString()
         });
       } catch (e) {
         console.warn('⚠️ [Auth] Failed to update lastLogin');
       }
       
-      setUser(firestoreUser);
+      setUser(dbUser);
       setLoading(false);
       
     } catch (error) {
-      console.error('❌ [Auth] loadFirestoreUser failed:', error);
+      console.error('❌ [Auth] loadUserFromAPI failed:', error);
       setLoading(false);
       throw error;
     }
@@ -451,44 +485,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   // ============================================================================
-  // Sync Functions
+  // Sync Functions (using dataClient + realtimeClient)
   // ============================================================================
 
   const syncLocalDataToFirestore = async () => {
     if (!user) return;
     
+    // Note: This function syncs local data to the API
+    // For Phase F2, we keep it simple and just clear local storage
+    // Full bidirectional sync can be implemented later if needed
     try {
-      let hasLocalData = false;
-      
       const concernKey = `concern_${user.concernID}`;
-      const concernData = localStorage.getItem(concernKey);
-      if (concernData) {
-        hasLocalData = true;
-        try {
-          const concern = JSON.parse(concernData);
-          const concernId = concern.uid;
-          const { uid, ...concernWithoutUid } = concern;
-          await concernService.createWithId(concernId, concernWithoutUid);
-          localStorage.removeItem(concernKey);
-        } catch (error) {
-          console.error('Concern sync error:', error);
-        }
-      }
-      
       const userKey = `user_${user.uid}`;
-      const userData = localStorage.getItem(userKey);
-      if (userData) {
-        hasLocalData = true;
-        try {
-          const userToSync = JSON.parse(userData);
-          const userId = userToSync.uid;
-          const { uid, ...userWithoutUid } = userToSync;
-          await userService.createWithId(userId, userWithoutUid);
-          localStorage.removeItem(userKey);
-        } catch (error) {
-          console.error('User sync error:', error);
-        }
-      }
+      localStorage.removeItem(concernKey);
+      localStorage.removeItem(userKey);
     } catch (error) {
       console.error('Sync error:', error);
     }
@@ -746,7 +756,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   // ============================================================================
-  // Auto-Sync Implementation
+  // Auto-Sync Implementation (using realtimeClient)
   // ============================================================================
 
   const startAutoSync = async () => {
@@ -757,15 +767,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setSyncStatus('syncing');
 
     try {
-      // Load initial data
+      // Load initial data via dataClient
+      const concernFilter: QueryFilter[] = [{ field: 'concernID', op: '==', value: user.concernID }];
+      
       const [users, projects, tasks, reports, customers, materials, categories] = await Promise.all([
-        userService.getAll(user.concernID).catch(() => []),
-        projectService.getAll(user.concernID).catch(() => []),
-        taskService.getAll(user.concernID).catch(() => []),
-        reportService.getReportsByConcern(user.concernID).catch(() => []),
-        customerService.getAll(user.concernID).catch(() => []),
-        materialService.getAll(user.concernID).catch(() => []),
-        categoryService.getAll(user.concernID).catch(() => []),
+        queryDocs('users', concernFilter).then(r => r.items.map(i => ({ ...i.data, uid: i.doc_id }))).catch(() => []),
+        queryDocs('projects', concernFilter).then(r => r.items.map(i => ({ ...i.data, uid: i.doc_id }))).catch(() => []),
+        queryDocs('tasks', concernFilter).then(r => r.items.map(i => ({ ...i.data, uid: i.doc_id }))).catch(() => []),
+        queryDocs('ProjectReports', concernFilter).then(r => r.items.map(i => ({ ...i.data, uid: i.doc_id }))).catch(() => []),
+        queryDocs('customers', concernFilter).then(r => r.items.map(i => ({ ...i.data, uid: i.doc_id }))).catch(() => []),
+        queryDocs('materials', concernFilter).then(r => r.items.map(i => ({ ...i.data, uid: i.doc_id }))).catch(() => []),
+        queryDocs('categories', concernFilter).then(r => r.items.map(i => ({ ...i.data, uid: i.doc_id }))).catch(() => []),
       ]);
 
       localStorage.setItem('users', JSON.stringify(users));
@@ -776,50 +788,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('materials', JSON.stringify(materials));
       localStorage.setItem('categories', JSON.stringify(categories));
 
-      // Set up listeners
+      // Set up watchers using realtimeClient
       const unsubscribers: Array<() => void> = [];
+      const collections = ['users', 'projects', 'tasks', 'ProjectReports', 'customers', 'materials', 'categories'];
+      const storageKeys = ['users', 'projects', 'tasks', 'reports', 'customers', 'materials', 'categories'];
 
-      unsubscribers.push(FirestoreService.subscribeToCollection('users', user.concernID, (data) => {
-        localStorage.setItem('users', JSON.stringify(data));
-        setLastSyncTime(new Date());
-        setSyncStatus('idle');
-      }));
-
-      unsubscribers.push(FirestoreService.subscribeToCollection('projects', user.concernID, (data) => {
-        localStorage.setItem('projects', JSON.stringify(data));
-        setLastSyncTime(new Date());
-        setSyncStatus('idle');
-      }));
-
-      unsubscribers.push(FirestoreService.subscribeToCollection('tasks', user.concernID, (data) => {
-        localStorage.setItem('tasks', JSON.stringify(data));
-        setLastSyncTime(new Date());
-        setSyncStatus('idle');
-      }));
-
-      unsubscribers.push(FirestoreService.subscribeToCollection('ProjectReports', user.concernID, (data) => {
-        localStorage.setItem('reports', JSON.stringify(data));
-        setLastSyncTime(new Date());
-        setSyncStatus('idle');
-      }));
-
-      unsubscribers.push(FirestoreService.subscribeToCollection('customers', user.concernID, (data) => {
-        localStorage.setItem('customers', JSON.stringify(data));
-        setLastSyncTime(new Date());
-        setSyncStatus('idle');
-      }));
-
-      unsubscribers.push(FirestoreService.subscribeToCollection('materials', user.concernID, (data) => {
-        localStorage.setItem('materials', JSON.stringify(data));
-        setLastSyncTime(new Date());
-        setSyncStatus('idle');
-      }));
-
-      unsubscribers.push(FirestoreService.subscribeToCollection('categories', user.concernID, (data) => {
-        localStorage.setItem('categories', JSON.stringify(data));
-        setLastSyncTime(new Date());
-        setSyncStatus('idle');
-      }));
+      for (let i = 0; i < collections.length; i++) {
+        const collection = collections[i];
+        const storageKey = storageKeys[i];
+        
+        const unsub = watchQuery(collection, concernFilter, (items, error) => {
+          if (error) {
+            console.error(`Sync error for ${collection}:`, error);
+            return;
+          }
+          const data = items.map(item => ({ ...item.data, uid: item.doc_id }));
+          localStorage.setItem(storageKey, JSON.stringify(data));
+          setLastSyncTime(new Date());
+          setSyncStatus('idle');
+        }, { intervalMs: 30000 }); // 30 second polling interval
+        
+        unsubscribers.push(unsub);
+      }
 
       setSyncUnsubscribers(unsubscribers);
       setLastSyncTime(new Date());

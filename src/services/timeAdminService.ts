@@ -1,24 +1,20 @@
 /**
  * TradeTrackr - Time Admin Service
+ *
+ * Workstream F: Migrated to dataClient (Phase 1)
+ *
  * Handles all time tracking admin operations
  */
 
-import { db } from '../config/firebase';
 import {
-  collection,
-  doc,
-  getDocs,
+  queryDocs,
   getDoc,
-  setDoc,
+  addDoc,
+  upsertDoc,
   updateDoc,
   deleteDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  Timestamp,
-  QueryConstraint,
-} from 'firebase/firestore';
+  QueryFilter,
+} from '@/services/dataClient';
 
 // ==================== TYPES ====================
 
@@ -29,8 +25,8 @@ export interface Punch {
   projectId: string;
   taskId?: string;
   siteId?: string;
-  startAt: Timestamp;
-  endAt?: Timestamp;
+  startAt: { seconds: number; nanoseconds: number };
+  endAt?: { seconds: number; nanoseconds: number };
   durationSec: number;
   method: 'manual' | 'geofence' | 'qr' | 'nfc';
   locationStart?: { lat: number; lng: number; acc?: number };
@@ -41,9 +37,9 @@ export interface Punch {
   supervisorNote?: string;
   audit: {
     createdBy: string;
-    createdAt: Timestamp;
+    createdAt: { seconds: number; nanoseconds: number };
     updatedBy?: string;
-    updatedAt?: Timestamp;
+    updatedAt?: { seconds: number; nanoseconds: number };
   };
   concernId: string;
 }
@@ -51,8 +47,8 @@ export interface Punch {
 export interface Timesheet {
   periodId: string;
   uid: string;
-  startDate: Timestamp;
-  endDate: Timestamp;
+  startDate: { seconds: number; nanoseconds: number };
+  endDate: { seconds: number; nanoseconds: number };
   status: 'open' | 'submitted' | 'approved' | 'locked';
   totals: {
     hours: number;
@@ -60,11 +56,11 @@ export interface Timesheet {
     billableHours: number;
   };
   submittedBy?: string;
-  submittedAt?: Timestamp;
+  submittedAt?: { seconds: number; nanoseconds: number };
   approvedBy?: string;
-  approvedAt?: Timestamp;
+  approvedAt?: { seconds: number; nanoseconds: number };
   rejectedBy?: string;
-  rejectedAt?: Timestamp;
+  rejectedAt?: { seconds: number; nanoseconds: number };
   rejectionReason?: string;
   concernId: string;
 }
@@ -85,180 +81,192 @@ export interface Leave {
   leaveId: string;
   uid: string;
   type: 'vacation' | 'sick' | 'unpaid' | 'other';
-  startDate: Timestamp;
-  endDate: Timestamp;
+  startDate: { seconds: number; nanoseconds: number };
+  endDate: { seconds: number; nanoseconds: number };
   days: number;
   reason?: string;
   status: 'requested' | 'approved' | 'rejected' | 'cancelled';
   approvedBy?: string;
-  approvedAt?: Timestamp;
+  approvedAt?: { seconds: number; nanoseconds: number };
   rejectedBy?: string;
-  rejectedAt?: Timestamp;
+  rejectedAt?: { seconds: number; nanoseconds: number };
   rejectionReason?: string;
-  requestedAt: Timestamp;
+  requestedAt: { seconds: number; nanoseconds: number };
   concernId: string;
 }
 
 // ==================== PUNCHES ====================
 
 export async function getAllPunches(concernId: string): Promise<Punch[]> {
-  const q = query(
-    collection(db, 'punches'),
-    where('concernId', '==', concernId),
-    orderBy('startAt', 'desc'),
-    limit(100)
-  );
+  const filters: QueryFilter[] = [
+    { field: 'concernId', op: '==', value: concernId },
+  ];
 
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
-    punchId: doc.id,
-    ...doc.data(),
-  })) as Punch[];
+  const result = await queryDocs<Punch>('punches', filters, {
+    orderBy: { field: 'startAt', dir: 'desc' },
+    limit: 100,
+  });
+
+  return result.items.map((doc) => ({
+    punchId: doc.doc_id,
+    ...doc.data,
+  }));
 }
 
 export async function getActivePunches(concernId: string): Promise<Punch[]> {
-  const q = query(
-    collection(db, 'punches'),
-    where('concernId', '==', concernId),
-    where('endAt', '==', null)
-  );
+  // Fetch punches and filter for those without endAt
+  const filters: QueryFilter[] = [
+    { field: 'concernId', op: '==', value: concernId },
+  ];
 
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
-    punchId: doc.id,
-    ...doc.data(),
-  })) as Punch[];
+  const result = await queryDocs<Punch>('punches', filters, {
+    limit: 100,
+  });
+
+  // Filter for active punches (no endAt)
+  return result.items
+    .filter((doc) => !doc.data.endAt)
+    .map((doc) => ({
+      punchId: doc.doc_id,
+      ...doc.data,
+    }));
 }
 
-export async function getPunchesByUser(
-  uid: string,
-  concernId: string
-): Promise<Punch[]> {
-  const q = query(
-    collection(db, 'punches'),
-    where('uid', '==', uid),
-    where('concernId', '==', concernId),
-    orderBy('startAt', 'desc'),
-    limit(50)
-  );
+export async function getPunchesByUser(uid: string, concernId: string): Promise<Punch[]> {
+  const filters: QueryFilter[] = [
+    { field: 'uid', op: '==', value: uid },
+    { field: 'concernId', op: '==', value: concernId },
+  ];
 
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
-    punchId: doc.id,
-    ...doc.data(),
-  })) as Punch[];
+  const result = await queryDocs<Punch>('punches', filters, {
+    orderBy: { field: 'startAt', dir: 'desc' },
+    limit: 50,
+  });
+
+  return result.items.map((doc) => ({
+    punchId: doc.doc_id,
+    ...doc.data,
+  }));
 }
 
 // ==================== TIMESHEETS ====================
 
 export async function getTimesheetsByUser(uid: string): Promise<Timesheet[]> {
-  const periodsRef = collection(db, 'timesheets', uid, 'periods');
-  const snapshot = await getDocs(query(periodsRef, orderBy('startDate', 'desc')));
+  // Timesheets are stored in the timesheets collection with uid field
+  const filters: QueryFilter[] = [
+    { field: 'uid', op: '==', value: uid },
+  ];
 
-  return snapshot.docs.map((doc) => ({
-    periodId: doc.id,
-    ...doc.data(),
-  })) as Timesheet[];
+  const result = await queryDocs<Timesheet>('timesheets', filters, {
+    orderBy: { field: 'startDate', dir: 'desc' },
+  });
+
+  return result.items.map((doc) => ({
+    periodId: doc.doc_id,
+    ...doc.data,
+  }));
 }
 
-export async function getTimesheet(
-  uid: string,
-  periodId: string
-): Promise<Timesheet | null> {
-  const docRef = doc(db, 'timesheets', uid, 'periods', periodId);
-  const snapshot = await getDoc(docRef);
+export async function getTimesheet(uid: string, periodId: string): Promise<Timesheet | null> {
+  const doc = await getDoc<Timesheet>('timesheets', periodId);
 
-  if (!snapshot.exists()) return null;
+  if (!doc || doc.data.uid !== uid) return null;
 
   return {
-    periodId: snapshot.id,
-    ...snapshot.data(),
-  } as Timesheet;
+    periodId: doc.doc_id,
+    ...doc.data,
+  };
 }
 
-export async function getPendingTimesheets(
-  concernId: string
-): Promise<Timesheet[]> {
-  // Note: This requires a collection group query
-  // For now, we'll need to query by users and aggregate
-  // In production, use a cloud function or collection group
-  return [];
+export async function getPendingTimesheets(concernId: string): Promise<Timesheet[]> {
+  const filters: QueryFilter[] = [
+    { field: 'concernId', op: '==', value: concernId },
+    { field: 'status', op: '==', value: 'submitted' },
+  ];
+
+  const result = await queryDocs<Timesheet>('timesheets', filters, {
+    orderBy: { field: 'startDate', dir: 'desc' },
+  });
+
+  return result.items.map((doc) => ({
+    periodId: doc.doc_id,
+    ...doc.data,
+  }));
 }
 
 // ==================== SITES ====================
 
 export async function getAllSites(concernId: string): Promise<Site[]> {
-  const q = query(
-    collection(db, 'sites'),
-    where('concernId', '==', concernId),
-    orderBy('name', 'asc')
-  );
+  const filters: QueryFilter[] = [
+    { field: 'concernId', op: '==', value: concernId },
+  ];
 
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
-    siteId: doc.id,
-    ...doc.data(),
-  })) as Site[];
+  const result = await queryDocs<Site>('sites', filters, {
+    orderBy: { field: 'name', dir: 'asc' },
+  });
+
+  return result.items.map((doc) => ({
+    siteId: doc.doc_id,
+    ...doc.data,
+  }));
 }
 
 export async function getSite(siteId: string): Promise<Site | null> {
-  const docRef = doc(db, 'sites', siteId);
-  const snapshot = await getDoc(docRef);
+  const doc = await getDoc<Site>('sites', siteId);
 
-  if (!snapshot.exists()) return null;
+  if (!doc) return null;
 
   return {
-    siteId: snapshot.id,
-    ...snapshot.data(),
-  } as Site;
+    siteId: doc.doc_id,
+    ...doc.data,
+  };
 }
 
 export async function createSite(site: Omit<Site, 'siteId'>): Promise<string> {
-  const docRef = doc(collection(db, 'sites'));
-  await setDoc(docRef, site);
-  return docRef.id;
+  const doc = await addDoc('sites', site);
+  return doc.doc_id;
 }
 
 export async function updateSite(siteId: string, data: Partial<Site>): Promise<void> {
-  const docRef = doc(db, 'sites', siteId);
-  await updateDoc(docRef, data as any);
+  await updateDoc('sites', siteId, data);
 }
 
 export async function deleteSite(siteId: string): Promise<void> {
-  const docRef = doc(db, 'sites', siteId);
-  await deleteDoc(docRef);
+  await deleteDoc('sites', siteId);
 }
 
 // ==================== LEAVE ====================
 
 export async function getAllLeaveRequests(concernId: string): Promise<Leave[]> {
-  const q = query(
-    collection(db, 'leave'),
-    where('concernId', '==', concernId),
-    orderBy('requestedAt', 'desc'),
-    limit(100)
-  );
+  const filters: QueryFilter[] = [
+    { field: 'concernId', op: '==', value: concernId },
+  ];
 
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
-    leaveId: doc.id,
-    ...doc.data(),
-  })) as Leave[];
+  const result = await queryDocs<Leave>('leave', filters, {
+    orderBy: { field: 'requestedAt', dir: 'desc' },
+    limit: 100,
+  });
+
+  return result.items.map((doc) => ({
+    leaveId: doc.doc_id,
+    ...doc.data,
+  }));
 }
 
 export async function getPendingLeave(concernId: string): Promise<Leave[]> {
-  const q = query(
-    collection(db, 'leave'),
-    where('concernId', '==', concernId),
-    where('status', '==', 'requested'),
-    orderBy('requestedAt', 'desc')
-  );
+  const filters: QueryFilter[] = [
+    { field: 'concernId', op: '==', value: concernId },
+    { field: 'status', op: '==', value: 'requested' },
+  ];
 
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
-    leaveId: doc.id,
-    ...doc.data(),
-  })) as Leave[];
+  const result = await queryDocs<Leave>('leave', filters, {
+    orderBy: { field: 'requestedAt', dir: 'desc' },
+  });
+
+  return result.items.map((doc) => ({
+    leaveId: doc.doc_id,
+    ...doc.data,
+  }));
 }
 
 // ==================== STATISTICS ====================
@@ -272,36 +280,24 @@ export interface DashboardStats {
   activeUsers: number;
 }
 
-export async function getDashboardStats(
-  concernId: string
-): Promise<DashboardStats> {
+export async function getDashboardStats(concernId: string): Promise<DashboardStats> {
   // Get active punches
   const activePunches = await getActivePunches(concernId);
+
+  // Get pending timesheets
+  const pendingTimesheets = await getPendingTimesheets(concernId);
+
+  // Get pending leave
+  const pendingLeave = await getPendingLeave(concernId);
 
   // For MVP, return basic stats
   // In production, use aggregation queries or cloud functions
   return {
     activePunches: activePunches.length,
-    pendingTimesheets: 0, // Would need collection group query
-    pendingLeave: 0, // Would need query
-    totalHoursToday: 0,
-    totalHoursWeek: 0,
-    activeUsers: 0,
+    pendingTimesheets: pendingTimesheets.length,
+    pendingLeave: pendingLeave.length,
+    totalHoursToday: 0, // Would require date filtering
+    totalHoursWeek: 0, // Would require date filtering
+    activeUsers: new Set(activePunches.map((p) => p.uid)).size,
   };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

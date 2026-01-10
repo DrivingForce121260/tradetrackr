@@ -1,0 +1,32 @@
+[Unit]
+Description=TradeTrackr Object Storage Inventory
+Documentation=https://github.com/your-org/tradetrackr/blob/main/docs/WORKSTREAM_E_BACKUPS.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=myvps
+Group=myvps
+EnvironmentFile=/opt/tradetrackr-ops/.env
+WorkingDirectory=/opt/tradetrackr-api
+ExecStart=/opt/tradetrackr-api/scripts/backup/object-storage-inventory.sh
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadWritePaths=/tmp
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tradetrackr-backup-inventory
+
+# Timeout (1 hour max for large buckets)
+TimeoutStartSec=3600
+
+[Install]
+WantedBy=multi-user.target
+

@@ -14,6 +14,12 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Firebase shim aliases (Workstream B2: Firebase removal)
+      // Redirect firebase imports to local API-backed shims
+      "firebase/firestore": path.resolve(__dirname, "./src/lib/firestore-shim/index.ts"),
+      "firebase/functions": path.resolve(__dirname, "./src/lib/firebase-shim/functions.ts"),
+      "firebase/storage": path.resolve(__dirname, "./src/lib/firebase-shim/storage.ts"),
+      "firebase/app": path.resolve(__dirname, "./src/lib/firebase-shim/app.ts"),
     },
   },
   build: {

@@ -4,8 +4,9 @@
 # Builds and deploys the web portal to production VPS.
 #
 # Usage:
-#   ./scripts/deploy-web.sh           # full deploy
-#   ./scripts/deploy-web.sh --dry-run # preview only (no activation)
+#   ./scripts/deploy-web.sh              # full deploy (runs release gate)
+#   ./scripts/deploy-web.sh --dry-run    # preview only (no activation)
+#   ./scripts/deploy-web.sh --skip-gate  # skip release gate (NOT recommended)
 #
 set -euo pipefail
 
@@ -31,14 +32,47 @@ ACTIVATE_SCRIPT="/usr/local/bin/tradetrackr-activate-web.sh"
 # Parse arguments
 # ─────────────────────────────────────────────────────────────────────────────
 DRY_RUN=false
-if [[ "${1:-}" == "--dry-run" ]]; then
-  DRY_RUN=true
-  echo "🔍 DRY-RUN mode: no changes will be made on prod"
+SKIP_GATE=false
+
+for arg in "$@"; do
+  case $arg in
+    --dry-run)
+      DRY_RUN=true
+      echo "🔍 DRY-RUN mode: no changes will be made on prod"
+      ;;
+    --skip-gate)
+      SKIP_GATE=true
+      echo "⚠️  SKIP-GATE mode: release gate will not be run"
+      ;;
+  esac
+done
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 0: Run Release Gate (unless skipped)
+# ─────────────────────────────────────────────────────────────────────────────
+if [[ "$SKIP_GATE" == "false" ]]; then
+  echo ""
+  echo "🛡️  Running release gate..."
+  if [[ -f "$REPO_ROOT/scripts/release-gate.sh" ]]; then
+    if ! bash "$REPO_ROOT/scripts/release-gate.sh"; then
+      echo ""
+      echo "❌ Release gate FAILED. Deployment aborted."
+      echo ""
+      echo "Fix the failing checks before deploying."
+      echo "To skip (NOT recommended): ./scripts/deploy-web.sh --skip-gate"
+      exit 1
+    fi
+    echo ""
+    echo "✅ Release gate passed"
+  else
+    echo "⚠️  Release gate script not found, skipping"
+  fi
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Preflight: verify SSH connectivity
 # ─────────────────────────────────────────────────────────────────────────────
+echo ""
 echo "🔗 Checking SSH connectivity..."
 if ! ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "${PROD_HOST}" "echo ok" >/dev/null 2>&1; then
   echo "❌ SSH connectivity check failed. Ensure key-based auth is configured."

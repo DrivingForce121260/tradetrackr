@@ -1,45 +1,31 @@
-﻿import { 
-  collection, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  getDocs, 
+﻿/**
+ * Document Service
+ *
+ * Workstream F: Migrated to dataClient (Phase 1)
+ *
+ * Handles document management operations.
+ */
+
+import {
+  queryDocs,
   getDoc,
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  onSnapshot, 
-  serverTimestamp, 
-  Timestamp,
-  writeBatch,
-  arrayUnion,
-  arrayRemove,
-  increment
-} from 'firebase/firestore';
-import { 
-  ref, 
-  uploadBytes, 
-  uploadBytesResumable, 
-  getDownloadURL, 
-  deleteObject,
-  listAll
-} from 'firebase/storage';
-import { db, storage } from '@/config/firebase';
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  serverTimestamp,
+  increment,
+  QueryFilter,
+} from '@/services/dataClient';
+import { watchQuery } from '@/services/realtimeClient';
+import { getAccessToken } from '@/lib/auth/oidc-client';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 // Firestore Collections
 const COLLECTIONS = {
   PROJECT_DOCUMENTS: 'project_documents',
   DOCUMENT_CATEGORIES: 'document_categories',
-  DOCUMENT_PERMISSIONS: 'document_permissions'
-};
-
-// Storage Paths
-const STORAGE_PATHS = {
-  PROJECT_DOCUMENTS: 'concerns/{concernID}/projects/{projectId}/documents',
-  THUMBNAILS: 'concerns/{concernID}/projects/{projectId}/documents/{documentId}/thumbnails',
-  VERSIONS: 'concerns/{concernID}/projects/{projectId}/documents/{documentId}/versions'
+  DOCUMENT_PERMISSIONS: 'document_permissions',
 };
 
 // Interfaces für Firebase
@@ -47,46 +33,46 @@ export interface FirebaseDocument {
   documentId: string;
   concernID: string;
   projectId: string;
-  
+
   // Metadaten
   fileName: string;
   displayName: string;
   description?: string;
   category: string;
   tags: string[];
-  
+
   // Datei-Informationen
   fileType: string;
   fileExtension: string;
   fileSize: number;
   mimeType?: string;
   originalFileName: string;
-  
+
   // Storage-Referenzen
   storagePath: string;
   downloadUrl: string;
   thumbnailUrl?: string;
-  
+
   // Zugriffskontrolle
   accessLevel: 'public' | 'restricted' | 'admin';
   allowedRoles: string[];
   isPublic: boolean;
-  
+
   // Audit-Trail
   uploadedBy: string;
   uploadedByEmail: string;
-  uploadDate: Timestamp;
-  lastModified: Timestamp;
+  uploadDate: { seconds: number; nanoseconds: number };
+  lastModified: { seconds: number; nanoseconds: number };
   version: number;
   commentCount?: number;
   isArchived?: boolean;
   status?: 'draft' | 'review' | 'approved' | 'rejected' | 'archived';
-  
+
   // Projekt-spezifische Felder
   projectPhase?: string;
   documentType: 'drawing' | 'contract' | 'photo' | 'report' | 'other';
   priority: 'low' | 'medium' | 'high';
-  
+
   // Suchoptimierung
   searchableText?: string;
   fullTextSearch: string[];
@@ -102,8 +88,8 @@ export interface DocumentCategory {
   allowedFileTypes: string[];
   maxFileSize: number;
   isActive: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: { seconds: number; nanoseconds: number };
+  updatedAt: { seconds: number; nanoseconds: number };
 }
 
 export interface DocumentPermission {
@@ -113,8 +99,8 @@ export interface DocumentPermission {
   userId: string;
   permission: 'read' | 'write' | 'delete' | 'admin';
   grantedBy: string;
-  grantedAt: Timestamp;
-  expiresAt?: Timestamp;
+  grantedAt: { seconds: number; nanoseconds: number };
+  expiresAt?: { seconds: number; nanoseconds: number };
 }
 
 export interface UploadProgress {
@@ -134,13 +120,13 @@ export interface DocumentUploadResult {
 
 export interface DocumentCommentInput {
   comment: string;
-  x: number; // 0..1 relative left
-  y: number; // 0..1 relative top
+  x: number;
+  y: number;
 }
 
 class DocumentService {
   // ===== PROJECT DOCUMENTS =====
-  
+
   /**
    * Dokument zu einem Projekt hinzufügen
    */
@@ -150,7 +136,6 @@ class DocumentService {
     documentData: Omit<FirebaseDocument, 'documentId' | 'uploadDate' | 'lastModified' | 'version'>
   ): Promise<string> {
     try {
-      // undefined Werte entfernen, da Firestore diese nicht akzeptiert
       const cleanDocumentData = this.removeUndefinedValues({
         ...documentData,
         concernID,
@@ -160,13 +145,13 @@ class DocumentService {
         version: 1,
         commentCount: 0,
         isArchived: false,
-        status: 'draft'
+        status: 'draft',
       });
 
-      const docRef = await addDoc(collection(db, COLLECTIONS.PROJECT_DOCUMENTS), cleanDocumentData);
-      
-      console.log('✅ [DocumentService] Document added successfully:', docRef.id);
-      return docRef.id;
+      const doc = await addDoc(COLLECTIONS.PROJECT_DOCUMENTS, cleanDocumentData);
+
+      console.log('✅ [DocumentService] Document added successfully:', doc.doc_id);
+      return doc.doc_id;
     } catch (error) {
       console.error('❌ [DocumentService] Error adding document:', error);
       throw error;
@@ -182,53 +167,87 @@ class DocumentService {
     input: { comment: string; x: number; y: number }
   ): Promise<string> {
     try {
-      const commentsRef = collection(db, `${COLLECTIONS.PROJECT_DOCUMENTS}/${documentId}/comments`);
-      const refDoc = await addDoc(commentsRef, {
+      const commentData = {
+        documentId,
         userId,
         userEmail,
         comment: input.comment,
         x: input.x,
         y: input.y,
         timestamp: serverTimestamp(),
-        isEdited: false
+        isEdited: false,
+      };
+
+      const doc = await addDoc(`${COLLECTIONS.PROJECT_DOCUMENTS}_comments`, commentData);
+
+      // Update comment count
+      await updateDoc(COLLECTIONS.PROJECT_DOCUMENTS, documentId, {
+        commentCount: increment(1),
       });
-      // optimistic increment on client; server also updates via Function
-      await updateDoc(doc(db, COLLECTIONS.PROJECT_DOCUMENTS, documentId), {
-        commentCount: increment(1)
-      });
-      return refDoc.id;
+
+      return doc.doc_id;
     } catch (e) {
       throw e;
     }
   }
 
-  async listComments(documentId: string): Promise<Array<{ id: string; userId: string; userEmail: string; comment: string; x: number; y: number; timestamp: Timestamp; isEdited: boolean }>> {
-    const qy = query(collection(db, `${COLLECTIONS.PROJECT_DOCUMENTS}/${documentId}/comments`), orderBy('timestamp', 'asc'));
-    const qs = await getDocs(qy);
-    const out: any[] = [];
-    qs.forEach(d => out.push({ id: d.id, ...d.data() }));
-    return out as any;
+  async listComments(
+    documentId: string
+  ): Promise<
+    Array<{
+      id: string;
+      userId: string;
+      userEmail: string;
+      comment: string;
+      x: number;
+      y: number;
+      timestamp: { seconds: number; nanoseconds: number };
+      isEdited: boolean;
+    }>
+  > {
+    const filters: QueryFilter[] = [{ field: 'documentId', op: '==', value: documentId }];
+
+    const result = await queryDocs(
+      `${COLLECTIONS.PROJECT_DOCUMENTS}_comments`,
+      filters,
+      { orderBy: { field: 'timestamp', dir: 'asc' } }
+    );
+
+    return result.items.map((doc) => ({
+      id: doc.doc_id,
+      ...(doc.data as unknown as {
+        userId: string;
+        userEmail: string;
+        comment: string;
+        x: number;
+        y: number;
+        timestamp: { seconds: number; nanoseconds: number };
+        isEdited: boolean;
+      }),
+    }));
   }
 
   async updateComment(documentId: string, commentId: string, text: string): Promise<void> {
-    await updateDoc(doc(db, `${COLLECTIONS.PROJECT_DOCUMENTS}/${documentId}/comments`, commentId), {
+    await updateDoc(`${COLLECTIONS.PROJECT_DOCUMENTS}_comments`, commentId, {
       comment: text,
       isEdited: true,
-      editedAt: serverTimestamp()
-    } as any);
+      editedAt: serverTimestamp(),
+    });
   }
 
   async deleteComment(documentId: string, commentId: string): Promise<void> {
-    await deleteDoc(doc(db, `${COLLECTIONS.PROJECT_DOCUMENTS}/${documentId}/comments`, commentId));
-    await updateDoc(doc(db, COLLECTIONS.PROJECT_DOCUMENTS, documentId), { commentCount: increment(-1) });
+    await deleteDoc(`${COLLECTIONS.PROJECT_DOCUMENTS}_comments`, commentId);
+    await updateDoc(COLLECTIONS.PROJECT_DOCUMENTS, documentId, {
+      commentCount: increment(-1),
+    });
   }
 
   /**
    * Hilfsfunktion: undefined Werte aus einem Objekt entfernen
    */
-  private removeUndefinedValues(obj: any): any {
-    const cleaned: any = {};
-    Object.keys(obj).forEach(key => {
+  private removeUndefinedValues(obj: Record<string, unknown>): Record<string, unknown> {
+    const cleaned: Record<string, unknown> = {};
+    Object.keys(obj).forEach((key) => {
       if (obj[key] !== undefined) {
         cleaned[key] = obj[key];
       }
@@ -246,47 +265,46 @@ class DocumentService {
     searchTerm?: string
   ): Promise<FirebaseDocument[]> {
     try {
-      // If Algolia is enabled on the client via env, skip Firestore-side text search.
-      // The UI can use a dedicated search method (not included here) to query Algolia.
-      let q = query(
-        collection(db, COLLECTIONS.PROJECT_DOCUMENTS),
-        where('concernID', '==', concernID),
-        where('projectId', '==', projectId),
-        orderBy('uploadDate', 'desc')
-      );
+      const filters: QueryFilter[] = [
+        { field: 'concernID', op: '==', value: concernID },
+        { field: 'projectId', op: '==', value: projectId },
+      ];
 
       if (category) {
-        q = query(q, where('category', '==', category));
+        filters.push({ field: 'category', op: '==', value: category });
       }
 
-      const querySnapshot = await getDocs(q);
-      const documents: FirebaseDocument[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data() as FirebaseDocument;
-        documents.push({
-          ...data,
-          documentId: doc.id
-        });
+      const result = await queryDocs<FirebaseDocument>(COLLECTIONS.PROJECT_DOCUMENTS, filters, {
+        orderBy: { field: 'uploadDate', dir: 'desc' },
       });
 
-      // Client-seitige Suche inkl. fuzzy/phrase (einfacher Ansatz)
+      const documents = result.items.map((doc) => ({
+        ...doc.data,
+        documentId: doc.doc_id,
+      }));
+
+      // Client-seitige Suche
       if (searchTerm) {
         const terms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
-        const filtered = documents.filter(doc => {
+        const filtered = documents.filter((doc) => {
           const haystack = [
             doc.displayName?.toLowerCase() || '',
             doc.description?.toLowerCase() || '',
-            ...(doc.tags || []).map(t => t.toLowerCase()),
-            ...(doc.fullTextSearch || []).map(t => t.toLowerCase()),
-            doc.searchableText?.toLowerCase() || ''
+            ...(doc.tags || []).map((t) => t.toLowerCase()),
+            ...(doc.fullTextSearch || []).map((t) => t.toLowerCase()),
+            doc.searchableText?.toLowerCase() || '',
           ].join(' ');
-          return terms.every(t => haystack.includes(t));
+          return terms.every((t) => haystack.includes(t));
         });
         return filtered;
       }
 
-      console.log('✅ [DocumentService] Retrieved', documents.length, 'documents for project:', projectId);
+      console.log(
+        '✅ [DocumentService] Retrieved',
+        documents.length,
+        'documents for project:',
+        projectId
+      );
       return documents;
     } catch (error) {
       console.error('❌ [DocumentService] Error getting project documents:', error);
@@ -299,24 +317,23 @@ class DocumentService {
    */
   async getAllDocuments(concernID: string): Promise<FirebaseDocument[]> {
     try {
-      const q = query(
-        collection(db, COLLECTIONS.PROJECT_DOCUMENTS),
-        where('concernID', '==', concernID),
-        orderBy('uploadDate', 'desc')
-      );
+      const filters: QueryFilter[] = [{ field: 'concernID', op: '==', value: concernID }];
 
-      const querySnapshot = await getDocs(q);
-      const documents: FirebaseDocument[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data() as FirebaseDocument;
-        documents.push({
-          ...data,
-          documentId: doc.id
-        });
+      const result = await queryDocs<FirebaseDocument>(COLLECTIONS.PROJECT_DOCUMENTS, filters, {
+        orderBy: { field: 'uploadDate', dir: 'desc' },
       });
 
-      console.log('✅ [DocumentService] Retrieved', documents.length, 'documents for concern:', concernID);
+      const documents = result.items.map((doc) => ({
+        ...doc.data,
+        documentId: doc.doc_id,
+      }));
+
+      console.log(
+        '✅ [DocumentService] Retrieved',
+        documents.length,
+        'documents for concern:',
+        concernID
+      );
       return documents;
     } catch (error) {
       console.error('❌ [DocumentService] Error getting all documents:', error);
@@ -329,15 +346,13 @@ class DocumentService {
    */
   async getDocument(documentId: string): Promise<FirebaseDocument | null> {
     try {
-      const docRef = doc(db, COLLECTIONS.PROJECT_DOCUMENTS, documentId);
-      const docSnap = await getDoc(docRef);
+      const doc = await getDoc<FirebaseDocument>(COLLECTIONS.PROJECT_DOCUMENTS, documentId);
 
-      if (docSnap.exists()) {
-        const data = docSnap.data() as FirebaseDocument;
+      if (doc) {
         console.log('✅ [DocumentService] Document retrieved:', documentId);
         return {
-          ...data,
-          documentId: docSnap.id
+          ...doc.data,
+          documentId: doc.doc_id,
         };
       } else {
         console.log('⚠️ [DocumentService] Document not found:', documentId);
@@ -352,17 +367,13 @@ class DocumentService {
   /**
    * Dokument aktualisieren
    */
-  async updateDocument(
-    documentId: string,
-    updateData: Partial<FirebaseDocument>
-  ): Promise<void> {
+  async updateDocument(documentId: string, updateData: Partial<FirebaseDocument>): Promise<void> {
     try {
-      const docRef = doc(db, COLLECTIONS.PROJECT_DOCUMENTS, documentId);
-      await updateDoc(docRef, {
+      await updateDoc(COLLECTIONS.PROJECT_DOCUMENTS, documentId, {
         ...updateData,
-        lastModified: serverTimestamp()
+        lastModified: serverTimestamp(),
       });
-      
+
       console.log('✅ [DocumentService] Document updated successfully:', documentId);
     } catch (error) {
       console.error('❌ [DocumentService] Error updating document:', error);
@@ -381,8 +392,7 @@ class DocumentService {
   }
 
   /**
-   * Erstellt neues Dokument oder legt eine neue Version an,
-   * wenn im Projekt derselbe Original-Dateiname existiert
+   * Erstellt neues Dokument oder legt eine neue Version an
    */
   async createOrVersionDocument(
     concernID: string,
@@ -390,30 +400,32 @@ class DocumentService {
     documentData: Omit<FirebaseDocument, 'documentId' | 'uploadDate' | 'lastModified' | 'version'>
   ): Promise<string> {
     // Prüfe auf Duplikate nach originalFileName
-    const existing = await getDocs(query(
-      collection(db, COLLECTIONS.PROJECT_DOCUMENTS),
-      where('concernID', '==', concernID),
-      where('projectId', '==', projectId),
-      where('originalFileName', '==', (documentData as any).originalFileName)
-    ));
+    const filters: QueryFilter[] = [
+      { field: 'concernID', op: '==', value: concernID },
+      { field: 'projectId', op: '==', value: projectId },
+      { field: 'originalFileName', op: '==', value: documentData.originalFileName },
+    ];
 
-    if (existing.size === 0) {
+    const existing = await queryDocs<FirebaseDocument>(COLLECTIONS.PROJECT_DOCUMENTS, filters);
+
+    if (existing.items.length === 0) {
       return this.addProjectDocument(concernID, projectId, documentData);
     }
 
-    // Nimm das jüngste Dokument als Basis für Versionserhöhung
+    // Nimm das Dokument mit der höchsten Version
     let latestDoc: { id: string; version: number } | null = null;
-    existing.forEach(d => {
-      const v = (d.data() as any).version || 1;
-      if (!latestDoc || v > latestDoc.version) latestDoc = { id: d.id, version: v };
-    });
+    for (const doc of existing.items) {
+      const v = doc.data.version || 1;
+      if (!latestDoc || v > latestDoc.version) {
+        latestDoc = { id: doc.doc_id, version: v };
+      }
+    }
 
     const nextVersion = (latestDoc?.version || 1) + 1;
-    // Lege neues Dokument als nächste Version an
     const newId = await this.addProjectDocument(concernID, projectId, {
       ...documentData,
-      version: nextVersion as any
-    } as any);
+      version: nextVersion,
+    } as Omit<FirebaseDocument, 'documentId' | 'uploadDate' | 'lastModified' | 'version'>);
     return newId;
   }
 
@@ -422,20 +434,31 @@ class DocumentService {
    */
   async deleteDocument(documentId: string, storagePath: string): Promise<void> {
     try {
-      // Dokument aus Firestore löschen
-      const docRef = doc(db, COLLECTIONS.PROJECT_DOCUMENTS, documentId);
-      await deleteDoc(docRef);
+      // Dokument aus DB löschen
+      await deleteDoc(COLLECTIONS.PROJECT_DOCUMENTS, documentId);
 
-      // Datei aus Storage löschen
-      const storageRef = ref(storage, storagePath);
-      await deleteObject(storageRef);
+      // Datei aus Storage löschen via API
+      const token = await getAccessToken();
+      await fetch(`${API_BASE}/api/v1/storage/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ path: storagePath }),
+      });
 
-      // Thumbnails löschen falls vorhanden
+      // Try to delete thumbnail
       try {
-        const thumbnailRef = ref(storage, storagePath.replace('/original/', '/thumbnails/'));
-        await deleteObject(thumbnailRef);
+        await fetch(`${API_BASE}/api/v1/storage/delete`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ path: storagePath.replace('/original/', '/thumbnails/') }),
+        });
       } catch (thumbnailError) {
-        // Thumbnail existiert möglicherweise nicht
         console.log('ℹ️ [DocumentService] No thumbnail to delete');
       }
 
@@ -447,29 +470,25 @@ class DocumentService {
   }
 
   // ===== DOCUMENT CATEGORIES =====
-  
+
   /**
    * Kategorien für einen Concern abrufen
    */
   async getDocumentCategories(concernID: string): Promise<DocumentCategory[]> {
     try {
-      const q = query(
-        collection(db, COLLECTIONS.DOCUMENT_CATEGORIES),
-        where('concernID', '==', concernID),
-        where('isActive', '==', true),
-        orderBy('name')
-      );
+      const filters: QueryFilter[] = [
+        { field: 'concernID', op: '==', value: concernID },
+        { field: 'isActive', op: '==', value: true },
+      ];
 
-      const querySnapshot = await getDocs(q);
-      const categories: DocumentCategory[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data() as DocumentCategory;
-        categories.push({
-          ...data,
-          categoryId: doc.id
-        });
+      const result = await queryDocs<DocumentCategory>(COLLECTIONS.DOCUMENT_CATEGORIES, filters, {
+        orderBy: { field: 'name', dir: 'asc' },
       });
+
+      const categories = result.items.map((doc) => ({
+        ...doc.data,
+        categoryId: doc.doc_id,
+      }));
 
       console.log('✅ [DocumentService] Retrieved', categories.length, 'document categories');
       return categories;
@@ -482,16 +501,18 @@ class DocumentService {
   /**
    * Neue Kategorie erstellen
    */
-  async createDocumentCategory(categoryData: Omit<DocumentCategory, 'categoryId' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  async createDocumentCategory(
+    categoryData: Omit<DocumentCategory, 'categoryId' | 'createdAt' | 'updatedAt'>
+  ): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, COLLECTIONS.DOCUMENT_CATEGORIES), {
+      const doc = await addDoc(COLLECTIONS.DOCUMENT_CATEGORIES, {
         ...categoryData,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
-      
-      console.log('✅ [DocumentService] Document category created successfully:', docRef.id);
-      return docRef.id;
+
+      console.log('✅ [DocumentService] Document category created successfully:', doc.doc_id);
+      return doc.doc_id;
     } catch (error) {
       console.error('❌ [DocumentService] Error creating document category:', error);
       throw error;
@@ -499,9 +520,9 @@ class DocumentService {
   }
 
   // ===== FILE UPLOAD =====
-  
+
   /**
-   * Datei zu Firebase Storage hochladen
+   * Datei zu Storage hochladen
    */
   async uploadFile(
     file: File,
@@ -513,42 +534,67 @@ class DocumentService {
     try {
       const fileName = `${Date.now()}_${file.name}`;
       const storagePath = `concerns/${concernID}/projects/${projectId}/documents/${fileName}`;
-      const storageRef = ref(storage, storagePath);
 
-      // Upload starten mit Custom Metadata
-      const uploadTask = uploadBytesResumable(storageRef, file, {
-        contentType: file.type,
-        customMetadata: {
-          uploadedBy: userId || '',
-          concernID: concernID,
-          projectId: projectId,
-          originalFileName: file.name
-        }
+      const token = await getAccessToken();
+
+      // Convert file to base64
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
       });
 
-      // Progress-Tracking
-      uploadTask.on('state_changed', 
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          if (onProgress) onProgress(progress);
+      if (onProgress) onProgress(50);
+
+      const response = await fetch(`${API_BASE}/api/v1/storage/upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        (error) => {
-          console.error('❌ [DocumentService] Upload error:', error);
-          throw error;
-        },
-        async () => {
-          // Upload erfolgreich
-          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          console.log('✅ [DocumentService] File uploaded successfully:', storagePath);
-          
-          return { storagePath, downloadUrl };
+        body: JSON.stringify({
+          path: storagePath,
+          data: base64Data,
+          contentType: file.type,
+          metadata: {
+            uploadedBy: userId || '',
+            concernID,
+            projectId,
+            originalFileName: file.name,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status}`);
+      }
+
+      if (onProgress) onProgress(90);
+
+      // Get download URL
+      const urlResponse = await fetch(
+        `${API_BASE}/api/v1/storage/url?path=${encodeURIComponent(storagePath)}`,
+        {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
         }
       );
 
-      // Warten auf Upload-Abschluss
-      await uploadTask;
-      const downloadUrl = await getDownloadURL(storageRef);
-      
+      if (!urlResponse.ok) {
+        throw new Error(`Failed to get download URL: ${urlResponse.status}`);
+      }
+
+      const urlResult = await urlResponse.json();
+      const downloadUrl = urlResult.url;
+
+      if (onProgress) onProgress(100);
+
+      console.log('✅ [DocumentService] File uploaded successfully:', storagePath);
       return { storagePath, downloadUrl };
     } catch (error) {
       console.error('❌ [DocumentService] Error uploading file:', error);
@@ -557,7 +603,7 @@ class DocumentService {
   }
 
   /**
-   * Thumbnail für ein Dokument generieren (für Bilder und PDFs)
+   * Thumbnail für ein Dokument generieren
    */
   async generateThumbnail(
     file: File,
@@ -566,13 +612,9 @@ class DocumentService {
     documentId: string
   ): Promise<string | null> {
     try {
-      // Nur für Bilder und PDFs
       if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
         return null;
       }
-
-      // Hier würde die Thumbnail-Generierung implementiert
-      // Für den Moment geben wir null zurück
       console.log('ℹ️ [DocumentService] Thumbnail generation not yet implemented');
       return null;
     } catch (error) {
@@ -582,56 +624,49 @@ class DocumentService {
   }
 
   // ===== REAL-TIME UPDATES =====
-  
+
   /**
-   * Real-time Listener für Projekt-Dokumente
+   * Real-time Listener für Projekt-Dokumente (polling-based)
    */
   subscribeToProjectDocuments(
     concernID: string,
     projectId: string,
     callback: (documents: FirebaseDocument[]) => void
   ): () => void {
-    const q = query(
-      collection(db, COLLECTIONS.PROJECT_DOCUMENTS),
-      where('concernID', '==', concernID),
-      where('projectId', '==', projectId),
-      orderBy('uploadDate', 'desc')
+    const filters: QueryFilter[] = [
+      { field: 'concernID', op: '==', value: concernID },
+      { field: 'projectId', op: '==', value: projectId },
+    ];
+
+    return watchQuery<FirebaseDocument>(
+      COLLECTIONS.PROJECT_DOCUMENTS,
+      filters,
+      (docs) => {
+        const documents = docs.map((doc) => ({
+          ...doc.data,
+          documentId: doc.doc_id,
+        }));
+        callback(documents);
+      },
+      {
+        intervalMs: 5000,
+        orderBy: { field: 'uploadDate', dir: 'desc' },
+      }
     );
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const documents: FirebaseDocument[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data() as FirebaseDocument;
-        documents.push({
-          ...data,
-          documentId: doc.id
-        });
-      });
-      
-      callback(documents);
-    });
-
-    return unsubscribe;
   }
 
   // ===== UTILITY FUNCTIONS =====
-  
-  /**
-   * Dateigröße in lesbarem Format formatieren
-   */
+
   formatFileSize(bytes: number): string {
     if (bytes === 0) return '0 Bytes';
-    
+
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
+
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
-  /**
-   * Dateityp aus MIME-Type extrahieren
-   */
   getFileTypeFromMime(mimeType: string): string {
     if (mimeType.startsWith('image/')) return 'image';
     if (mimeType.startsWith('video/')) return 'video';
@@ -640,24 +675,31 @@ class DocumentService {
     if (mimeType.includes('word') || mimeType.includes('document')) return 'document';
     if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'spreadsheet';
     if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return 'presentation';
-    if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z')) return 'archive';
+    if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z'))
+      return 'archive';
     return 'other';
   }
 
-  /**
-   * Icon für Dateityp bestimmen
-   */
   getFileIcon(fileType: string): string {
     switch (fileType) {
-      case 'image': return '🖼️';
-      case 'video': return '🎥';
-      case 'audio': return '🎵';
-      case 'pdf': return '📄';
-      case 'document': return '📝';
-      case 'spreadsheet': return '📊';
-      case 'presentation': return '📽️';
-      case 'archive': return '📦';
-      default: return '📎';
+      case 'image':
+        return '🖼️';
+      case 'video':
+        return '🎥';
+      case 'audio':
+        return '🎵';
+      case 'pdf':
+        return '📄';
+      case 'document':
+        return '📝';
+      case 'spreadsheet':
+        return '📊';
+      case 'presentation':
+        return '📽️';
+      case 'archive':
+        return '📦';
+      default:
+        return '📎';
     }
   }
 }

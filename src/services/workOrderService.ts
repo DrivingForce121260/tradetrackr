@@ -1,83 +1,86 @@
-// ============================================================================
-// WORK ORDER SERVICE - FIRESTORE OPERATIONS
-// ============================================================================
+/**
+ * Work Order Service
+ *
+ * Workstream F: Migrated to dataClient (Phase 1)
+ *
+ * Handles work order CRUD operations.
+ */
 
-import { 
-	collection,
-	doc,
-	getDoc,
-	getDocs,
-	addDoc,
-	updateDoc,
-	deleteDoc,
-	query,
-	where,
-	orderBy,
-	limit,
-	serverTimestamp,
-	Timestamp
-} from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import {
+  queryDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  serverTimestamp,
+  QueryFilter,
+} from '@/services/dataClient';
 import type { WorkOrder, WorkOrderFormData, WorkOrderStatus } from '@/types/workorder';
 
 const COLLECTION = 'workOrders';
 
 export class WorkOrderService {
-	private currentUser: any;
+  private currentUser: { uid?: string; concernID?: string };
 
-	constructor(currentUser: any) {
-		this.currentUser = currentUser;
-	}
+  constructor(currentUser: { uid?: string; concernID?: string }) {
+    this.currentUser = currentUser;
+  }
 
-	async listByProject(projectId: string, status?: WorkOrderStatus): Promise<WorkOrder[]> {
-		let q = query(collection(db, COLLECTION), where('projectId', '==', projectId));
-		if (status) {
-			q = query(q, where('status', '==', status));
-		}
-		q = query(q, orderBy('dueDate', 'asc'), limit(200));
-		const snap = await getDocs(q);
-		return snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-	}
+  async listByProject(projectId: string, status?: WorkOrderStatus): Promise<WorkOrder[]> {
+    const filters: QueryFilter[] = [
+      { field: 'projectId', op: '==', value: projectId },
+    ];
 
-	async get(id: string): Promise<WorkOrder | null> {
-		const ref = await getDoc(doc(db, COLLECTION, id));
-		if (!ref.exists()) return null;
-		return { id: ref.id, ...ref.data() } as any;
-	}
+    if (status) {
+      filters.push({ field: 'status', op: '==', value: status });
+    }
 
-	async create(data: WorkOrderFormData): Promise<string> {
-		const payload = {
-			...data,
-			orderNumber: '', // assigned server-side via counter function if available
-			createdAt: serverTimestamp(),
-			updatedAt: serverTimestamp(),
-		};
-		const ref = await addDoc(collection(db, COLLECTION), payload as any);
-		return ref.id;
-	}
+    const result = await queryDocs<WorkOrder>(COLLECTION, filters, {
+      orderBy: { field: 'dueDate', dir: 'asc' },
+      limit: 200,
+    });
 
-	async update(id: string, updates: Partial<WorkOrderFormData & { status: WorkOrderStatus }>): Promise<void> {
-		await updateDoc(doc(db, COLLECTION, id), {
-			...updates,
-			updatedAt: serverTimestamp(),
-		});
-	}
+    return result.items.map((doc) => ({ id: doc.doc_id, ...doc.data }));
+  }
 
-	async remove(id: string): Promise<void> {
-		await deleteDoc(doc(db, COLLECTION, id));
-	}
+  async get(id: string): Promise<WorkOrder | null> {
+    const doc = await getDoc<WorkOrder>(COLLECTION, id);
+    if (!doc) return null;
+    return { id: doc.doc_id, ...doc.data };
+  }
+
+  async create(data: WorkOrderFormData): Promise<string> {
+    const payload = {
+      ...data,
+      orderNumber: '', // assigned server-side via counter function if available
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    const doc = await addDoc(COLLECTION, payload);
+    return doc.doc_id;
+  }
+
+  async update(
+    id: string,
+    updates: Partial<WorkOrderFormData & { status: WorkOrderStatus }>
+  ): Promise<void> {
+    await updateDoc(COLLECTION, id, {
+      ...updates,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async remove(id: string): Promise<void> {
+    await deleteDoc(COLLECTION, id);
+  }
 }
 
 export default WorkOrderService;
 
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * Create a WorkOrderService instance
+ */
+export function createWorkOrderService(currentUser: { uid?: string; concernID?: string }): WorkOrderService {
+  return new WorkOrderService(currentUser);
+}

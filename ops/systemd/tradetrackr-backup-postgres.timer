@@ -1,0 +1,17 @@
+[Unit]
+Description=TradeTrackr PostgreSQL Backup Timer (Daily 02:00)
+Documentation=https://github.com/your-org/tradetrackr/blob/main/docs/WORKSTREAM_E_BACKUPS.md
+
+[Timer]
+# Run daily at 02:00 local time
+OnCalendar=*-*-* 02:00:00
+# Random delay up to 15 minutes to avoid thundering herd
+RandomizedDelaySec=900
+# Ensure we run even if system was off at scheduled time
+Persistent=true
+# Don't wake system from sleep
+WakeSystem=false
+
+[Install]
+WantedBy=timers.target
+
