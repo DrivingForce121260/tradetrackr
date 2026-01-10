@@ -36,7 +36,16 @@
     "sovereignty:scan:all": "node scripts/sovereignty/check-banned-strings.js --no-baseline",
     "sovereignty:baseline": "node scripts/sovereignty/check-banned-strings.js --write-baseline",
     "sovereignty:phase2:verify": "npm run build && ./scripts/check-no-secrets-in-dist.sh && npm run sovereignty:scan && ./scripts/ci/check-banned-strings.sh",
-    "sovereignty:phase3:verify": "npm run sovereignty:scan && npx vitest run tests/lib/auth/ --passWithNoTests && echo 'Phase 3 verification complete'"
+    "sovereignty:phase3:verify": "npm run sovereignty:scan && npx vitest run tests/lib/auth/ --passWithNoTests && echo 'Phase 3 verification complete'",
+    "sovereignty:never-google": "bash scripts/no-google-ever.sh",
+    "release:gate": "bash scripts/release-gate.sh",
+    "backup:pg": "bash scripts/backup/postgres-backup.sh",
+    "backup:inventory": "bash scripts/backup/object-storage-inventory.sh",
+    "backup:keycloak": "bash scripts/backup/keycloak-export.sh",
+    "restore:pg": "bash scripts/backup/postgres-restore.sh",
+    "egress:snapshot": "bash tools/ops/egress-snapshot.sh",
+    "deploy:web": "bash scripts/deploy-web.sh",
+    "deploy:web:dry-run": "bash scripts/deploy-web.sh --dry-run"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -87,7 +96,6 @@
     "expo-camera": "~14.1.3",
     "expo-image-picker": "~14.7.1",
     "expo-status-bar": "~1.11.1",
-    "firebase": "^10.7.1",
     "html2canvas": "^1.4.1",
     "input-otp": "^1.4.2",
     "jose": "^6.1.3",
